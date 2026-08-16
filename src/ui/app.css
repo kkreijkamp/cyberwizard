@@ -1,0 +1,55 @@
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #0b0e14;
+  color: #e6edf3;
+  font: 14px/1.4 ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+}
+
+#app-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 14px;
+  background: #11161f;
+  border-bottom: 1px solid rgba(34, 211, 238, 0.2);
+  user-select: none;
+}
+
+.logo {
+  font-weight: 700;
+  color: #22d3ee;
+  letter-spacing: 0.04em;
+}
+
+.tagline {
+  color: #8b98ab;
+  font-size: 12px;
+}
+
+#graph-host {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+#graph {
+  display: block;
+  width: 100%;
+  height: 100%;
+}

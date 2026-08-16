@@ -1,0 +1,29 @@
+{
+  "name": "cyberwizard",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Node-based data manipulation workbench — CyberChef operations on a LiteGraph canvas",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "keywords": [
+    "litegraph",
+    "cyberchef",
+    "dataflow",
+    "node-graph"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@comfyorg/litegraph": "0.17.2"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vite": "^8.2.1",
+    "vitest": "^4.1.10"
+  }
+}
