@@ -18,9 +18,15 @@ LiteGraph.js. Fully client-side — data never leaves the browser.
 ## Tech stack
 
 - **TypeScript + Vite** — fast dev loop, strict typing for the node system
-- **LiteGraph** — [`@comfyorg/litegraph`](https://github.com/ComfyOrg/litegraph),
-  the actively maintained TypeScript-native fork (original `jagenjo/litegraph.js`
-  is the fallback if we hit friction)
+- **LiteGraph** — `@comfyorg/litegraph@0.17.2`, **pinned exact**. Finding
+  (2026-08-17): the package is deprecated on npm — ComfyOrg merged the fork into
+  [ComfyUI_frontend](https://github.com/Comfy-Org/ComfyUI_frontend)
+  (`src/lib/litegraph`) and stopped publishing. v0.17.2 is the final
+  self-contained published build (zero-dep ESM + full types); the monorepo source
+  is coupled to ComfyUI app code (i18n/stores/utils imports across 71 files), so
+  vendoring was rejected for now. All litegraph access goes through our own core
+  layer, keeping a future migration (vendored fork / community continuation)
+  cheap. The original `jagenjo/litegraph.js` remains off-limits (unmaintained).
 - **pako** — gzip/zlib/deflate
 - **WebCrypto API** — AES, RSA, SHA family, HMAC (native, no dependency)
 - **hash-wasm** — MD5 and other hashes WebCrypto doesn't cover
