@@ -1,0 +1,267 @@
+import { LGraph, LiteGraph } from '@comfyorg/litegraph'
+import type { LGraphNode } from '@comfyorg/litegraph'
+import { describe, expect, it, vi } from 'vitest'
+import { Engine } from '../../src/core/engine'
+import { defineNode, installConnectionRules, setParam } from '../../src/core/registry'
+import { ANY, STRING } from '../../src/core/types'
+
+installConnectionRules()
+
+// ─── Test ops (unique 'test-eng/' types; registration is global) ────────────
+
+const counters = { src: 0, suffix: 0, deferred: 0, boom: 0, sink: 0, join: 0 }
+
+defineNode({
+  type: 'test-eng/src',
+  title: 'Source',
+  category: 'Test',
+  inputs: [],
+  outputs: [{ name: 'text', type: STRING }] as const,
+  params: [{ kind: 'string', name: 'text', default: 'x' }] as const,
+  run: (_inputs, params) => {
+    counters.src++
+    return { text: params.text }
+  },
+})
+
+defineNode({
+  type: 'test-eng/suffix',
+  title: 'Suffix',
+  category: 'Test',
+  inputs: [{ name: 'data', type: STRING }] as const,
+  outputs: [{ name: 'out', type: STRING }] as const,
+  params: [{ kind: 'string', name: 'suffix', default: '' }] as const,
+  run: (inputs, params) => {
+    counters.suffix++
+    return { out: (inputs.data ?? '') + params.suffix }
+  },
+})
+
+/** Async op whose completion the test controls, to exercise cancellation. */
+const deferredResolvers: Array<() => void> = []
+defineNode({
+  type: 'test-eng/deferred',
+  title: 'Deferred',
+  category: 'Test',
+  inputs: [{ name: 'data', type: STRING }] as const,
+  outputs: [{ name: 'out', type: STRING }] as const,
+  run: (inputs) => {
+    counters.deferred++
+    const value = inputs.data ?? ''
+    return new Promise<{ out: string }>((resolve) => {
+      deferredResolvers.push(() => resolve({ out: value }))
+    })
+  },
+})
+
+defineNode({
+  type: 'test-eng/boom',
+  title: 'Boom',
+  category: 'Test',
+  inputs: [{ name: 'data', type: STRING }] as const,
+  outputs: [{ name: 'out', type: STRING }] as const,
+  run: () => {
+    counters.boom++
+    throw new Error('boom')
+  },
+})
+
+const sinkCaptured: unknown[] = []
+defineNode({
+  type: 'test-eng/sink',
+  title: 'Sink',
+  category: 'Test',
+  inputs: [{ name: 'value', type: ANY }] as const,
+  outputs: [] as const,
+  run: (inputs) => {
+    counters.sink++
+    sinkCaptured.push(inputs.value)
+    return {}
+  },
+})
+
+const joinCaptured: Array<[unknown, unknown]> = []
+defineNode({
+  type: 'test-eng/join',
+  title: 'Join',
+  category: 'Test',
+  inputs: [
+    { name: 'a', type: ANY },
+    { name: 'b', type: ANY },
+  ] as const,
+  outputs: [] as const,
+  run: (inputs) => {
+    counters.join++
+    joinCaptured.push([inputs.a, inputs.b])
+    return {}
+  },
+})
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function spawn(graph: LGraph, type: string): LGraphNode {
+  const node = LiteGraph.createNode(type)
+  if (!node) throw new Error(`not registered: ${type}`)
+  graph.add(node)
+  return node
+}
+
+function reset(): void {
+  for (const key of Object.keys(counters)) counters[key as keyof typeof counters] = 0
+  sinkCaptured.length = 0
+  joinCaptured.length = 0
+  deferredResolvers.length = 0
+}
+
+function settleDeferredRuns(): void {
+  for (const resolve of deferredResolvers.splice(0)) resolve()
+}
+
+// ─── Tests ───────────────────────────────────────────────────────────────────
+
+describe('Engine', () => {
+  it('evaluates a linear chain', async () => {
+    reset()
+    const graph = new LGraph()
+    const src = spawn(graph, 'test-eng/src')
+    const mid = spawn(graph, 'test-eng/suffix')
+    const sink = spawn(graph, 'test-eng/sink')
+    setParam(src, 'text', 'abc')
+    setParam(mid, 'suffix', '!')
+    src.connect(0, mid, 0)
+    mid.connect(0, sink, 0)
+
+    const engine = new Engine(graph)
+    await engine.whenIdle()
+    expect(sinkCaptured).toEqual(['abc!'])
+    engine.dispose()
+  })
+
+  it('runs the fan-in node of a diamond exactly once, after both branches', async () => {
+    reset()
+    const graph = new LGraph()
+    const src = spawn(graph, 'test-eng/src')
+    const a = spawn(graph, 'test-eng/suffix')
+    const b = spawn(graph, 'test-eng/suffix')
+    const join = spawn(graph, 'test-eng/join')
+    setParam(src, 'text', 'q')
+    setParam(a, 'suffix', '1')
+    setParam(b, 'suffix', '2')
+    src.connect(0, a, 0)
+    src.connect(0, b, 0)
+    a.connect(0, join, 0)
+    b.connect(0, join, 1)
+
+    const engine = new Engine(graph)
+    await engine.whenIdle()
+    expect(counters.join).toBe(1)
+    expect(joinCaptured).toEqual([['q1', 'q2']])
+    engine.dispose()
+  })
+
+  it('re-runs only the edited node and its downstream (output caching)', async () => {
+    reset()
+    const graph = new LGraph()
+    const src = spawn(graph, 'test-eng/src')
+    const a = spawn(graph, 'test-eng/suffix')
+    const b = spawn(graph, 'test-eng/suffix')
+    const sink = spawn(graph, 'test-eng/sink')
+    src.connect(0, a, 0)
+    a.connect(0, b, 0)
+    b.connect(0, sink, 0)
+
+    const engine = new Engine(graph)
+    await engine.whenIdle()
+    reset()
+
+    setParam(b, 'suffix', '?')
+    await engine.whenIdle()
+
+    expect(counters.src).toBe(0)
+    expect(counters.suffix).toBe(1) // only b
+    expect(counters.sink).toBe(1)
+    expect(sinkCaptured).toEqual(['x?'])
+    engine.dispose()
+  })
+
+  it('discards a stale async result superseded mid-flight', async () => {
+    reset()
+    const graph = new LGraph()
+    const src = spawn(graph, 'test-eng/src')
+    const deferred = spawn(graph, 'test-eng/deferred')
+    const sink = spawn(graph, 'test-eng/sink')
+    src.connect(0, deferred, 0)
+    deferred.connect(0, sink, 0)
+
+    const engine = new Engine(graph)
+    // Let the initial run ('x') start and settle.
+    await vi.waitFor(() => expect(counters.deferred).toBe(1))
+    settleDeferredRuns()
+    await engine.whenIdle()
+    expect(sinkCaptured).toEqual(['x'])
+
+    // 'a' starts running; before it settles, 'b' supersedes it.
+    setParam(src, 'text', 'a')
+    await vi.waitFor(() => expect(counters.deferred).toBe(2))
+    setParam(src, 'text', 'b')
+    settleDeferredRuns() // settles the stale 'a' run — must be discarded
+    await vi.waitFor(() => expect(counters.deferred).toBe(3))
+    settleDeferredRuns() // settles the fresh 'b' run
+
+    await engine.whenIdle()
+    expect(sinkCaptured).toEqual(['x', 'b'])
+    expect(engine.outputsOf(deferred)).toEqual(['b'])
+    engine.dispose()
+  })
+
+  it('captures errors per node and blocks downstream instead of cascading', async () => {
+    reset()
+    const graph = new LGraph()
+    const src = spawn(graph, 'test-eng/src')
+    const boom = spawn(graph, 'test-eng/boom')
+    const sink = spawn(graph, 'test-eng/sink')
+    src.connect(0, boom, 0)
+    boom.connect(0, sink, 0)
+
+    const engine = new Engine(graph)
+    await engine.whenIdle()
+
+    expect(counters.boom).toBe(1)
+    expect(counters.sink).toBe(0)
+    expect(engine.stateOf(boom).error?.message).toBe('boom')
+    expect(engine.stateOf(sink).blocked).toBe(true)
+    expect(engine.stateOf(sink).error).toBeUndefined()
+    engine.dispose()
+  })
+
+  it('marks cyclic nodes with a cycle error and never executes them', async () => {
+    reset()
+    const graph = new LGraph()
+    const a = spawn(graph, 'test-eng/suffix')
+    const b = spawn(graph, 'test-eng/suffix')
+    a.connect(0, b, 0)
+    b.connect(0, a, 0)
+
+    const engine = new Engine(graph)
+    await engine.whenIdle()
+
+    expect(counters.suffix).toBe(0)
+    expect(engine.stateOf(a).error?.message).toMatch(/cycle/)
+    expect(engine.stateOf(b).error?.message).toMatch(/cycle/)
+    engine.dispose()
+  })
+
+  it('evaluates nodes added after attach', async () => {
+    reset()
+    const graph = new LGraph()
+    const engine = new Engine(graph)
+    await engine.whenIdle()
+
+    const src = spawn(graph, 'test-eng/src')
+    const sink = spawn(graph, 'test-eng/sink')
+    src.connect(0, sink, 0)
+    await engine.whenIdle()
+    expect(sinkCaptured).toEqual(['x'])
+    engine.dispose()
+  })
+})
