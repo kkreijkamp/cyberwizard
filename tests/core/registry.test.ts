@@ -1,6 +1,7 @@
 import { LiteGraph } from '@comfyorg/litegraph'
 import { describe, expect, it } from 'vitest'
 import {
+  PREVIEW_WIDGET_NAME,
   defineNode,
   getNodeDef,
   installConnectionRules,
@@ -73,6 +74,12 @@ describe('defineNode', () => {
     // The search box reads the registered class's static .title.
     expect(LiteGraph.registered_node_types['test-reg/greet']?.title).toBe('Greet')
     expect(node.constructor.name).toBe('Greet')
+  })
+
+  it('adds a live preview widget only when the def has outputs', () => {
+    expect(node.widgets?.some((w) => w.name === PREVIEW_WIDGET_NAME)).toBe(true)
+    const sink = LiteGraph.createNode('test-reg/hello-world') // zero outputs
+    expect(sink?.widgets?.some((w) => w.name === PREVIEW_WIDGET_NAME) ?? false).toBe(false)
   })
 
   it('rejects duplicate type registration', () => {

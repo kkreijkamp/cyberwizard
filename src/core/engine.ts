@@ -20,9 +20,9 @@
 
 import type { LGraph, LGraphNode, NodeId } from '@comfyorg/litegraph'
 import type { DataType } from './types'
-import { ANY } from './types'
+import { ANY, repr } from './types'
 import { CoercionError, coerce } from './coerce'
-import { getNodeDef, setDirtyHandler } from './registry'
+import { PREVIEW_WIDGET_NAME, getNodeDef, setDirtyHandler } from './registry'
 
 export interface NodeState {
   dirty: boolean
@@ -263,6 +263,24 @@ export class Engine {
 
   private paint(node: LGraphNode, s: NodeState): void {
     node.boxcolor = s.error ? COLOR_ERROR : s.blocked ? COLOR_BLOCKED : undefined
+
+    // Live preview widget (present on all registry nodes with outputs).
+    const widget = node.widgets?.find((w) => w.name === PREVIEW_WIDGET_NAME) as
+      | { value?: unknown }
+      | undefined
+    if (!widget) return
+    if (s.error) {
+      widget.value = `⚠ ${s.error.message}`
+    } else if (s.blocked) {
+      widget.value = '⏸ blocked upstream'
+    } else if (s.outputs) {
+      const def = getNodeDef(node)
+      widget.value = def
+        ? def.outputs.map((o, i) => `${o.name}: ${repr(s.outputs?.[i])}`).join('\n')
+        : '∅'
+    } else {
+      widget.value = '∅'
+    }
   }
 
   // ─── State storage ───────────────────────────────────────────────────────

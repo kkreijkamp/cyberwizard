@@ -2,7 +2,7 @@ import { LGraph, LiteGraph } from '@comfyorg/litegraph'
 import type { LGraphNode } from '@comfyorg/litegraph'
 import { describe, expect, it, vi } from 'vitest'
 import { Engine } from '../../src/core/engine'
-import { defineNode, installConnectionRules, setParam } from '../../src/core/registry'
+import { PREVIEW_WIDGET_NAME, defineNode, installConnectionRules, setParam } from '../../src/core/registry'
 import { ANY, STRING } from '../../src/core/types'
 
 installConnectionRules()
@@ -262,6 +262,28 @@ describe('Engine', () => {
     src.connect(0, sink, 0)
     await engine.whenIdle()
     expect(sinkCaptured).toEqual(['x'])
+    engine.dispose()
+  })
+
+  it('paints live previews: value on success, warning on error', async () => {
+    reset()
+    const graph = new LGraph()
+    const src = spawn(graph, 'test-eng/src')
+    const mid = spawn(graph, 'test-eng/suffix')
+    const boom = spawn(graph, 'test-eng/boom')
+    setParam(mid, 'suffix', '!')
+    src.connect(0, mid, 0)
+    mid.connect(0, boom, 0)
+
+    const engine = new Engine(graph)
+    await engine.whenIdle()
+
+    const previewOf = (n: LGraphNode): unknown =>
+      (n.widgets?.find((w) => w.name === PREVIEW_WIDGET_NAME) as { value?: unknown } | undefined)
+        ?.value
+    expect(previewOf(src)).toBe('text: x')
+    expect(previewOf(mid)).toBe('out: x!')
+    expect(previewOf(boom)).toBe('⚠ boom')
     engine.dispose()
   })
 })

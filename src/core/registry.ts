@@ -119,6 +119,9 @@ export function setParam(node: LGraphNode, name: string, value: string | number 
 
 const PARAM_WIDGETS = Symbol('cyberwizard.paramWidgets')
 
+/** Name of the auto-added live-preview widget (glyph doubles as its label). */
+export const PREVIEW_WIDGET_NAME = '⇒'
+
 interface ParamWidgetCarrier {
   [PARAM_WIDGETS]?: Map<string, IWidget>
 }
@@ -156,6 +159,11 @@ export function defineNode<
       for (const input of def.inputs) this.addInput(input.name, toSlotType(input.type))
       for (const output of def.outputs) this.addOutput(output.name, toSlotType(output.type))
       for (const param of def.params ?? []) this.addParamWidget(param)
+      // Every node with outputs carries a live preview of its current value;
+      // the engine rewrites it after each run (see Engine.paint).
+      if (def.outputs.length > 0) {
+        this.addWidget('text', PREVIEW_WIDGET_NAME, '∅', null, { multiline: true })
+      }
       this.color = palette.color
       this.bgcolor = palette.bgcolor
     }
