@@ -60,6 +60,20 @@ export function fromSlotType(t: string | number): SlotTypeTag {
   return t as SlotTypeTag
 }
 
+/** DataType from its kind string (as stored on IO slots and in documents). */
+export function dataTypeFromKind(kind: string): DataType {
+  switch (kind) {
+    case 'bytes': return BYTES
+    case 'string': return STRING
+    case 'number': return NUMBER
+    case 'boolean': return BOOLEAN
+    case 'json': return JSON
+    // List element types are erased at the slot level; validated at run time.
+    case 'list': return listOf(ANY)
+    default: return ANY
+  }
+}
+
 const REPR_LIMIT = 120
 
 function truncate(s: string): string {
