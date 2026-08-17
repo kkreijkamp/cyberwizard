@@ -22,7 +22,7 @@ describe('share hash codec', () => {
   it('uses the url-safe alphabet without padding', () => {
     const hash = encodeShareHash(sampleDoc)
     expect(hash.startsWith('#g=')).toBe(true)
-    expect(hash).not.toMatch(/[+/=]/)
+    expect(hash.slice(3)).not.toMatch(/[+/=]/)
   })
 
   it('deflates repetitive content well below raw json size', () => {
