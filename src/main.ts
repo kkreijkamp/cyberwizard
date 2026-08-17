@@ -4,6 +4,7 @@ import { LGraphCanvas } from '@comfyorg/litegraph'
 import { Engine } from './core/engine'
 import { installConnectionRules } from './core/registry'
 import { buildShowcaseGraph } from './showcase'
+import { createPalette } from './ui/palette'
 import { applyTheme } from './ui/theme'
 import './nodes'
 
@@ -20,6 +21,9 @@ const engine = new Engine(graph)
 // LGraphCanvas starts its own render loop on construction (unless skip_render).
 const canvas = new LGraphCanvas(canvasElement, graph, { autoresize: true })
 applyTheme(canvas)
+
+const paletteHost = document.querySelector<HTMLElement>('#palette')
+if (paletteHost) createPalette(paletteHost, canvas, graph)
 
 window.addEventListener('resize', () => canvas.resize())
 

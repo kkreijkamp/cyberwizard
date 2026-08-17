@@ -53,3 +53,63 @@ body {
   width: 100%;
   height: 100%;
 }
+
+#app-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+#palette {
+  width: 230px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: #0f131b;
+  border-right: 1px solid rgba(34, 211, 238, 0.15);
+}
+
+.palette-search {
+  margin: 8px;
+  padding: 6px 8px;
+  background: #0b0e14;
+  border: 1px solid #2a3142;
+  border-radius: 4px;
+  color: #e6edf3;
+  font: inherit;
+  font-size: 13px;
+}
+
+.palette-search:focus {
+  outline: none;
+  border-color: #22d3ee;
+}
+
+.palette-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 4px 8px;
+}
+
+.palette-category {
+  color: #8b98ab;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 10px 6px 4px;
+}
+
+.palette-item {
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: grab;
+  color: #c9d4e3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.palette-item:hover {
+  background: rgba(34, 211, 238, 0.12);
+  color: #ffffff;
+}
