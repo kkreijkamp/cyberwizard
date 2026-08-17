@@ -42,7 +42,7 @@ describe('to/from bytes', () => {
     expect((await runOp('data/to-bytes', { value: 'hé' })).data).toEqual(bytesOf('hé'))
     const raw = new Uint8Array([1, 2])
     expect((await runOp('data/to-bytes', { value: raw })).data).toBe(raw)
-    expect(textOf((await runOp('data/from-bytes', { data: bytesOf('hé') })).text as string)).toBe('hé')
+    expect((await runOp('data/from-bytes', { data: bytesOf('hé') })).text).toBe('hé')
   })
 
   it('serialises non-strings as json', async () => {
