@@ -63,6 +63,11 @@ export interface NodeDef<
   readonly inputs: I
   readonly outputs: O
   readonly params?: P
+  /**
+   * Browser-side hook for nodes needing custom widgets (file picker, action
+   * buttons). Runs once at construction, after slots and param widgets.
+   */
+  setup?(node: LGraphNode): void
   run(
     inputs: InputValues<I>,
     params: ParamValues<P>,
@@ -166,6 +171,7 @@ export function defineNode<
       }
       this.color = palette.color
       this.bgcolor = palette.bgcolor
+      def.setup?.(this)
     }
 
     private addParamWidget(param: ParamDef): void {

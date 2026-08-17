@@ -3,6 +3,9 @@
  * node registry as a side effect.
  */
 import './io/text-input'
+import './io/number-input'
+import './io/file-input'
+import './io/download'
 import './io/preview'
 import './encoding/base64'
 import './encoding/base32'
