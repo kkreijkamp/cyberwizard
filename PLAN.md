@@ -72,10 +72,33 @@ The registry drives the node palette, search, and slot-type compatibility checks
 - **Later**: Web Worker execution for heavy ops; streaming for large files
 
 ### 4. Serialization (`core/serialize.ts`)
-- Versioned JSON schema (`{ version, nodes, links, pan/zoom }`)
+- Versioned JSON schema (`{ version, nodes, links, subgraphs?, pan/zoom }`)
 - Save/load to file, autosave to `localStorage`
 - **Share via URL**: graph JSON → deflate → base64url → location hash (CyberChef
   does exactly this for recipes)
+- **Subgraph definitions** (v2): stored once, flat, by UUID under `subgraphs`;
+  instances reference the definition UUID as their node type, so recursive and
+  mutually-recursive definitions never nest infinitely. v1 documents load
+  unchanged (they predate subgraphs — accepting them is the whole migration).
+
+### 5. Subgraphs (`core/subgraph.ts`, `core/collapse.ts`)
+- Definitions are named graph fragments with declared, typed inputs/outputs —
+  "custom nodes as functions". Instances are LiteGraph `SubgraphNode`s created
+  through a per-definition factory shim (0.17.2 standalone can't instantiate
+  them unaided — its `createNode(uuid)` and `convertToSubgraph` are broken
+  without the ComfyUI app layer).
+- **Call semantics, not flattening**: an instance is one node in its parent's
+  topological order; running it evaluates the definition's interior in a
+  per-instance state store with inputs bound at the boundary panels. Unchanged
+  instances never re-run; interior edits re-run only the affected branch
+  (seeded dirty propagation across the boundary).
+- **Recursion-compatible**: a definition may contain an instance of itself.
+  Evaluation is guarded by a depth limit (64) and a per-call-tree evaluation
+  budget (1000), surfacing as ordinary node errors — never a stack overflow
+  or page freeze.
+- Authoring: create empty + edit inside (typed IO panel, breadcrumb
+  navigation), or select nodes → collapse (cut edges become the new node's
+  slots, grouped per outside endpoint with names/types preserved).
 
 ## UI
 
@@ -107,7 +130,7 @@ The registry drives the node palette, search, and slot-type compatibility checks
 **Phase 3 — flow & power features**
 - List ops: Map (apply subgraph per element), Filter, Unique, Sort, Zip, Flatten
 - Control: Switch (route by condition), Merge, Gate
-- **Subgraphs**: select nodes → collapse into a composite node with exposed slots
+- ~~**Subgraphs**: select nodes → collapse into a composite node with exposed slots~~ **(done, M5)**
 - Diff/Compare node, frequency analysis, entropy meter
 
 **Phase 4 — extended**
@@ -139,7 +162,7 @@ cyberwizard/
 | M2 | MVP app | Phase-1 ops, palette w/ search, live previews — genuinely usable |
 | M3 | Persistence | Save/load/autosave/URL-share work, schema versioned |
 | M4 | Phase-2 ops | Crypto, compression, formats |
-| M5 | Power features | Subgraphs, list ops, switch/merge |
+| M5 | Power features | ~~Subgraphs~~ (done), list ops, switch/merge |
 | M6 | Ship | README+docs, graph templates, deployed to GitHub Pages |
 
 ## Testing strategy
