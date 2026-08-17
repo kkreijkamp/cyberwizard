@@ -34,6 +34,12 @@ export function startAutosave(graph: LGraph, canvas: LGraphCanvas): () => void {
     try {
       const json = JSON.stringify(serializeGraph(graph, canvas))
       if (json !== lastWritten) {
+        if (lastWritten !== '' && location.hash.startsWith('#g=')) {
+          // The user edited past the shared snapshot — the hash no longer
+          // represents this graph, and boot gives it priority over the
+          // autosave. Drop it or every refresh resurrects the old state.
+          history.replaceState(null, '', location.pathname + location.search)
+        }
         localStorage.setItem(AUTOSAVE_KEY, json)
         lastWritten = json
       }
