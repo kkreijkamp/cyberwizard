@@ -100,8 +100,11 @@ export class Engine {
    * (core/subgraph.ts): which interior nodes must re-run on the instance's
    * next evaluation. Absent entry = re-run everything downstream of the
    * input panel (the conservative default when instance inputs changed).
+   * `invalidatedSeeds` marks paths whose seeds must be ignored because fresh
+   * values flowed into the instance since the seeds were written.
    */
   private readonly pendingSeeds = new Map<string, Set<NodeId>>()
+  private readonly invalidatedSeeds = new Set<string>()
   private scheduled = false
   private evaluating = false
   private rerunRequested = false
@@ -150,6 +153,9 @@ export class Engine {
     }
     for (const key of [...this.pendingSeeds.keys()]) {
       if (key === path || key.startsWith(prefix)) this.pendingSeeds.delete(key)
+    }
+    for (const key of [...this.invalidatedSeeds]) {
+      if (key === path || key.startsWith(prefix)) this.invalidatedSeeds.delete(key)
     }
   }
 
@@ -212,6 +218,7 @@ export class Engine {
   /** An instance's own edges changed — its inputs may differ, so interior seeds are void. */
   instanceWiringChanged(instance: LGraphNode): void {
     this.pendingSeeds.delete(String(instance.id))
+    this.invalidatedSeeds.add(String(instance.id))
     this.markDirty(instance)
   }
 
@@ -439,8 +446,10 @@ export class Engine {
     for (const id of store.keys()) if (!subgraph.getNodeById(id)) store.delete(id)
 
     // Seed dirtiness: precise seeds from interior edits, or everything
-    // downstream of the input panel when the instance's inputs changed.
-    const seeds = this.pendingSeeds.get(path)
+    // downstream of the input panel when the instance's inputs changed
+    // (seed invalidation covers upstream re-runs and wiring changes).
+    const invalidated = this.invalidatedSeeds.delete(path)
+    const seeds = invalidated ? undefined : this.pendingSeeds.get(path)
     this.pendingSeeds.delete(path)
     const inputPanelId = subgraph.inputNode.id
     this.seedInterior(subgraph, store, seeds ?? new Set([inputPanelId]))
@@ -576,7 +585,7 @@ export class Engine {
         if (scope.signal === null) this.abortControllers.get(target.id)?.abort()
         // Fresh values are flowing into this instance — precise interior
         // seeds no longer describe what must re-run.
-        if (target.isSubgraphNode()) this.pendingSeeds.delete(childPath(scope, target))
+        if (target.isSubgraphNode()) this.invalidatedSeeds.add(childPath(scope, target))
       }
     }
   }

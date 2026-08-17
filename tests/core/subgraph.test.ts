@@ -444,6 +444,65 @@ describe('Subgraph evaluation', () => {
     dispose()
   })
 
+  /** Def with two independent panel-fed branches and two outputs. */
+  function buildTwoBranchDef(graph: LGraph): { defId: string; a: LGraphNode; b: LGraphNode } {
+    const meta = createSubgraphDef(graph, 'TwoBranch')
+    addDefInput(graph, meta.id, 'text', STRING)
+    addDefOutput(graph, meta.id, 'left', STRING)
+    addDefOutput(graph, meta.id, 'right', STRING)
+    const sub = interior(graph, meta.id)
+    const a = spawnInterior(sub, 'test-sub/suffix')
+    const b = spawnInterior(sub, 'test-sub/suffix')
+    setParam(a, 'suffix', '1')
+    setParam(b, 'suffix', '2')
+    wirePanelIn(sub, 0, a, 0)
+    wirePanelIn(sub, 0, b, 0)
+    wirePanelOut(sub, a, 0, 0)
+    wirePanelOut(sub, b, 0, 1)
+    return { defId: meta.id, a, b }
+  }
+
+  it('accumulates precise seeds across rapid interior edits', async () => {
+    reset()
+    const { graph, engine, dispose } = rig()
+    const { defId, a, b } = buildTwoBranchDef(graph)
+    const src = spawn(graph, 'test-sub/src')
+    const instance = spawnInstance(graph, defId)
+    src.connect(0, instance, 0)
+
+    await engine.whenIdle()
+    expect(engine.outputsOf(instance)).toEqual(['x1', 'x2'])
+
+    reset()
+    setParam(a, 'suffix', '!')
+    setParam(b, 'suffix', '?') // two seed writes before the next pass
+    await engine.whenIdle()
+    expect(counters.suffix).toBe(2) // both branches re-ran — neither seed was lost
+    expect(engine.outputsOf(instance)).toEqual(['x!', 'x?'])
+    dispose()
+  })
+
+  it('falls back to full interior re-run when inputs change after seeding', async () => {
+    reset()
+    const { graph, engine, dispose } = rig()
+    const { defId, b } = buildTwoBranchDef(graph)
+    const src = spawn(graph, 'test-sub/src')
+    const instance = spawnInstance(graph, defId)
+    src.connect(0, instance, 0)
+
+    await engine.whenIdle()
+    expect(engine.outputsOf(instance)).toEqual(['x1', 'x2'])
+
+    reset()
+    setParam(b, 'suffix', '?') // interior edit seeds {b}…
+    setParam(src, 'text', 'y') // …but the instance input changes in the same burst
+    await engine.whenIdle()
+    // Seeds must be ignored: everything downstream of the panel re-runs.
+    expect(counters.suffix).toBe(2)
+    expect(engine.outputsOf(instance)).toEqual(['y1', 'y?'])
+    dispose()
+  })
+
   it('surfaces interior errors on the instance and blocks downstream', async () => {
     reset()
     const { graph, engine, dispose } = rig()

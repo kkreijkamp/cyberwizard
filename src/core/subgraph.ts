@@ -127,6 +127,9 @@ function registerFactory(subgraph: Subgraph): void {
 
     // SubgraphNode has no registry-generated onConnectionsChange — without
     // this bridge, wiring edits on an instance would never re-evaluate it.
+    // Root-level instances additionally invalidate their precise interior
+    // seeds: fresh input values mean everything downstream of the panel
+    // must re-run, not just a seeded branch.
     override onConnectionsChange(
       type: ISlotType,
       index: number,
@@ -135,7 +138,10 @@ function registerFactory(subgraph: Subgraph): void {
       inputOrOutput: Parameters<NonNullable<LGraphNode['onConnectionsChange']>>[4],
     ): void {
       super.onConnectionsChange?.(type, index, isConnected, linkInfo, inputOrOutput)
-      markNodeDirty(this)
+      const rootGraph = subgraph.rootGraph
+      const engine = attachments.get(rootGraph)?.engine
+      if (engine && this.graph === rootGraph) engine.instanceWiringChanged(this)
+      else markNodeDirty(this)
     }
   }
 
