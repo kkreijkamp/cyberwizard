@@ -69,6 +69,12 @@ describe('defineNode', () => {
     expect(getNodeDef(node)?.type).toBe('test-reg/greet')
   })
 
+  it('names the generated class for the add-node menu and DevTools', () => {
+    // The search box reads the registered class's static .title.
+    expect(LiteGraph.registered_node_types['test-reg/greet']?.title).toBe('Greet')
+    expect(node.constructor.name).toBe('Greet')
+  })
+
   it('rejects duplicate type registration', () => {
     expect(() =>
       defineNode({
@@ -83,8 +89,23 @@ describe('defineNode', () => {
   })
 })
 
+defineNode({
+  type: 'test-reg/hello-world',
+  title: 'Hello World',
+  category: 'Test',
+  inputs: [] as const,
+  outputs: [] as const,
+  run: () => ({}),
+})
+
 describe('installConnectionRules', () => {
   installConnectionRules()
+
+  it('sanitises class names from spaced titles', () => {
+    const node = LiteGraph.createNode('test-reg/hello-world')
+    expect(node?.constructor.name).toBe('HelloWorld')
+    expect(LiteGraph.registered_node_types['test-reg/hello-world']?.title).toBe('Hello World')
+  })
 
   it('follows the coercion matrix (from, to)', () => {
     expect(LiteGraph.isValidConnection('string', 'bytes')).toBe(true)

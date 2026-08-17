@@ -148,6 +148,8 @@ export function defineNode<
 
   class GeneratedNode extends LGraphNode {
     static readonly nodeDef = untyped
+    /** Read by LiteGraph's add-node menu (registered class .title). */
+    static override readonly title: string = def.title
 
     constructor() {
       super(def.title)
@@ -195,7 +197,17 @@ export function defineNode<
     }
   }
 
+  // registerNodeType falls back to the class *name* for the menu label and
+  // indexes LiteGraph.Nodes by it — without a real name every generated node
+  // shows up as "GeneratedNode" and overwrites the previous one in Nodes.
+  Object.defineProperty(GeneratedNode, 'name', { value: classNameFor(def) })
+
   LiteGraph.registerNodeType(def.type, GeneratedNode)
+}
+
+function classNameFor(def: UntypedNodeDef): string {
+  const cleaned = def.title.replace(/[^a-zA-Z0-9_$]/g, '')
+  return cleaned === '' || /^\d/.test(cleaned) ? `Node${cleaned}` : cleaned
 }
 
 // ─── Connection validity: driven by the coercion matrix ─────────────────────
