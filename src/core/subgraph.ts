@@ -393,7 +393,7 @@ export function attachSubgraphSupport(rootGraph: LGraph, engine: Engine): () => 
   return () => {
     detachGraphWatch()
     for (const unwatch of attachment.subgraphWatches.values()) unwatch()
-    setDirtyHandler(rootGraph, undefined)
+    // The root dirty handler belongs to the engine — leave it alone.
     attachments.delete(rootGraph)
   }
 }

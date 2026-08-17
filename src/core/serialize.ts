@@ -219,6 +219,10 @@ export function deserializeGraph(doc: GraphDocument, graph: LGraph, canvas?: LGr
   // Phase 3: the root graph.
   populateFragment(graph, doc, warnings)
 
+  // If the user was editing inside a definition that no longer exists, the
+  // canvas would otherwise show a ghost subgraph.
+  if (canvas && canvas.graph !== graph) canvas.setGraph(graph)
+
   if (canvas && doc.view) {
     canvas.ds.offset = [...doc.view.offset]
     canvas.ds.scale = doc.view.scale

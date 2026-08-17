@@ -8,8 +8,9 @@
   <body>
     <header id="app-header">
       <span class="logo">🧙 CyberWizard</span>
-      <span class="tagline">M3 · save/load, autosave, share via URL</span>
+      <span class="tagline">M5 · subgraphs as functions</span>
       <span class="header-actions">
+        <button id="btn-new-subgraph" title="Create an empty subgraph and edit inside">+ Subgraph</button>
         <button id="btn-save" title="Download graph as JSON">Save</button>
         <button id="btn-load" title="Load graph from a JSON file">Load</button>
         <button id="btn-share" title="Copy a shareable URL">Share</button>
@@ -17,8 +18,11 @@
       </span>
     </header>
     <div id="app-body">
-      <aside id="palette"></aside>
+      <aside id="palette">
+        <div id="io-panel" hidden></div>
+      </aside>
       <main id="graph-host">
+        <div id="breadcrumb" hidden></div>
         <canvas id="graph"></canvas>
       </main>
     </div>

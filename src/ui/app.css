@@ -135,3 +135,126 @@ body {
   background: rgba(34, 211, 238, 0.12);
   color: #ffffff;
 }
+
+/* ─── Subgraph UI ─────────────────────────────────────────────────────────── */
+
+#breadcrumb {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 5;
+  padding: 6px 10px;
+  background: rgba(15, 19, 27, 0.85);
+  border-bottom-right-radius: 6px;
+  font-size: 12px;
+  color: #8b98ab;
+  user-select: none;
+}
+
+#breadcrumb a {
+  color: #22d3ee;
+  text-decoration: none;
+}
+
+#breadcrumb a:hover {
+  text-decoration: underline;
+}
+
+#breadcrumb .crumb-current {
+  color: #e6edf3;
+  font-weight: 600;
+}
+
+#io-panel {
+  flex-shrink: 0;
+  max-height: 45%;
+  overflow-y: auto;
+  border-top: 1px solid rgba(34, 211, 238, 0.15);
+  padding-bottom: 8px;
+}
+
+.io-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.io-section {
+  color: #8b98ab;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  padding: 8px 8px 2px;
+}
+
+.io-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+.io-row .io-name {
+  flex: 1;
+  color: #c9d4e3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.io-row .io-type {
+  color: #6b7280;
+  font-size: 10px;
+  border: 1px solid #2a3142;
+  border-radius: 3px;
+  padding: 0 4px;
+}
+
+.io-icon {
+  background: none;
+  border: none;
+  color: #8b98ab;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  padding: 0 2px;
+}
+
+.io-icon:hover {
+  color: #22d3ee;
+}
+
+.io-add {
+  display: flex;
+  gap: 4px;
+  padding: 4px 8px;
+}
+
+.io-add input {
+  flex: 1;
+  min-width: 0;
+  background: #0b0e14;
+  border: 1px solid #2a3142;
+  border-radius: 4px;
+  color: #e6edf3;
+  font: inherit;
+  font-size: 12px;
+  padding: 3px 6px;
+}
+
+.io-add select,
+.io-add button {
+  background: #0f1420;
+  border: 1px solid #2a3142;
+  border-radius: 4px;
+  color: #c9d4e3;
+  font: inherit;
+  font-size: 12px;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+
+.io-add button:hover {
+  border-color: #22d3ee;
+}
+

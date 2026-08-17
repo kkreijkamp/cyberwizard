@@ -7,6 +7,7 @@ import type { LGraph, LGraphCanvas } from '@comfyorg/litegraph'
 import type { GraphDocument } from '../core/serialize'
 import { deserializeGraph, parseGraphDocument, serializeGraph } from '../core/serialize'
 import { decodeShareHash, encodeShareHash, shareHashFromLocation } from '../core/share'
+import { clearSubgraphDefs } from '../core/subgraph'
 
 const AUTOSAVE_KEY = 'cyberwizard.autosave.v1'
 
@@ -91,6 +92,8 @@ export function wirePersistence(graph: LGraph, canvas: LGraphCanvas): void {
   bind('btn-new', () => {
     if (!confirm('Clear the whole graph?')) return
     graph.clear()
+    clearSubgraphDefs(graph) // clear() wipes graph.subgraphs but not our factories/metadata
+    if (canvas.graph !== graph) canvas.setGraph(graph) // don't show a ghost subgraph
     history.replaceState(null, '', location.pathname)
     localStorage.removeItem(AUTOSAVE_KEY)
   })

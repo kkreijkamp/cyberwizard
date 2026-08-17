@@ -6,15 +6,27 @@
  * (Dragging a link out of a slot and releasing on empty canvas opens
  * LiteGraph's own search box, which our coercion-driven isValidConnection
  * already type-filters — the two complement each other.)
+ *
+ * Subgraph definitions appear under a "Subgraphs" category and refresh live
+ * as definitions are created/renamed/edited. Spawning adds to the canvas's
+ * *current* graph — while editing inside a definition, that is its interior
+ * (which is also how recursive self-instances are placed).
  */
 
 import { LiteGraph } from '@comfyorg/litegraph'
 import type { LGraph, LGraphCanvas } from '@comfyorg/litegraph'
-import type { UntypedNodeDef } from '../core/registry'
 import { allNodeDefs } from '../core/registry'
+import { SUBGRAPH_CATEGORY, allSubgraphDefs, onSubgraphDefsChange } from '../core/subgraph'
 import { fuzzyMatch } from './fuzzy'
 
 const DRAG_MIME = 'application/x-cyberwizard-node'
+
+interface PaletteEntry {
+  readonly type: string
+  readonly title: string
+  readonly category: string
+  readonly description?: string
+}
 
 export function createPalette(host: HTMLElement, canvas: LGraphCanvas, graph: LGraph): void {
   const search = document.createElement('input')
@@ -27,21 +39,39 @@ export function createPalette(host: HTMLElement, canvas: LGraphCanvas, graph: LG
 
   host.append(search, list)
 
-  const defs = [...allNodeDefs()].sort(
-    (a, b) => a.category.localeCompare(b.category) || a.title.localeCompare(b.title),
-  )
+  function currentEntries(): PaletteEntry[] {
+    const ops: PaletteEntry[] = allNodeDefs().map((d) => ({
+      type: d.type,
+      title: d.title,
+      category: d.category,
+      description: d.description,
+    }))
+    const subs: PaletteEntry[] = allSubgraphDefs(graph).map((d) => ({
+      type: d.id,
+      title: d.name,
+      category: SUBGRAPH_CATEGORY,
+      description: `${d.inputs.map((i) => i.name).join(', ') || '∅'} → ${d.outputs.map((o) => o.name).join(', ') || '∅'}`,
+    }))
+    return [...ops, ...subs].sort(
+      (a, b) => a.category.localeCompare(b.category) || a.title.localeCompare(b.title),
+    )
+  }
 
-  function spawnAt(def: UntypedNodeDef, [x, y]: [number, number]): void {
-    const node = LiteGraph.createNode(def.type)
-    if (!node) return
+  function spawnAt(entry: PaletteEntry, [x, y]: [number, number]): void {
+    const node = LiteGraph.createNode(entry.type)
+    const target = canvas.graph
+    if (!node || !target) return
     node.pos = [x - node.size[0] / 2, y - 15]
-    graph.add(node)
+    // Spawn into the graph currently on screen (root or a definition interior).
+    target.add(node)
     canvas.selectNode(node)
   }
 
   function render(filter: string): void {
     list.innerHTML = ''
-    const matched = defs.filter((d) => fuzzyMatch(filter, `${d.category}/${d.type} ${d.title}`))
+    const matched = currentEntries().filter((d) =>
+      fuzzyMatch(filter, `${d.category}/${d.type} ${d.title}`),
+    )
 
     let firstItem: HTMLElement | undefined
     let category = ''
@@ -73,13 +103,18 @@ export function createPalette(host: HTMLElement, canvas: LGraphCanvas, graph: LG
   search.addEventListener('input', () => render(search.value.trim()))
   search.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
-      const first = defs.find((d) => fuzzyMatch(search.value.trim(), `${d.category}/${d.type} ${d.title}`))
+      const first = currentEntries().find((d) =>
+        fuzzyMatch(search.value.trim(), `${d.category}/${d.type} ${d.title}`),
+      )
       if (first) spawnAt(first, centerOfView())
     } else if (e.key === 'Escape') {
       search.value = ''
       render('')
     }
   })
+
+  // Subgraph definitions come and go — refresh the listing on any change.
+  onSubgraphDefsChange(graph, () => render(search.value.trim()))
 
   // '/' focuses the palette search from anywhere (unless already typing).
   document.addEventListener('keydown', (e) => {
@@ -99,7 +134,7 @@ export function createPalette(host: HTMLElement, canvas: LGraphCanvas, graph: LG
   })
   canvasEl.addEventListener('drop', (e) => {
     const type = e.dataTransfer?.getData(DRAG_MIME)
-    const def = type && defs.find((d) => d.type === type)
+    const def = type && currentEntries().find((d) => d.type === type)
     if (!def) return
     e.preventDefault()
     const pos = canvas.convertEventToCanvasOffset(e)

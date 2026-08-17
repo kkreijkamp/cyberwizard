@@ -4,9 +4,16 @@ import { LGraph, LGraphCanvas } from '@comfyorg/litegraph'
 import { Engine } from './core/engine'
 import { installConnectionRules } from './core/registry'
 import { deserializeGraph } from './core/serialize'
+import { attachSubgraphSupport } from './core/subgraph'
 import { buildShowcaseGraph } from './showcase'
 import { createPalette } from './ui/palette'
 import { initialDocument, startAutosave, wirePersistence } from './ui/persistence'
+import {
+  installBreadcrumb,
+  installCollapse,
+  installIOPanel,
+  wireNewSubgraphButton,
+} from './ui/subgraphs'
 import { applyTheme } from './ui/theme'
 import './nodes'
 
@@ -15,14 +22,16 @@ installConnectionRules()
 const canvasElement = document.querySelector<HTMLCanvasElement>('#graph')
 if (!canvasElement) throw new Error('Missing #graph canvas element')
 
-// Boot order: shared URL → autosave → showcase.
-const doc = initialDocument()
 const graph = new LGraph()
+
+// Boot order: engine + subgraph coordinator first, so nodes and definitions
+// restored below flow through their normal hooks. Then: URL → autosave → showcase.
+const engine = new Engine(graph)
+attachSubgraphSupport(graph, engine)
+
+const doc = initialDocument()
 if (doc) deserializeGraph(doc, graph)
 else buildShowcaseGraph(graph)
-
-// The engine drives evaluation reactively — no graph.start() polling loop.
-const engine = new Engine(graph)
 
 // LGraphCanvas starts its own render loop on construction (unless skip_render).
 const canvas = new LGraphCanvas(canvasElement, graph, { autoresize: true })
@@ -37,6 +46,14 @@ if (paletteHost) createPalette(paletteHost, canvas, graph)
 
 wirePersistence(graph, canvas)
 startAutosave(graph, canvas)
+
+const newSubgraphButton = document.querySelector<HTMLButtonElement>('#btn-new-subgraph')
+if (newSubgraphButton) wireNewSubgraphButton(newSubgraphButton, canvas, graph)
+const breadcrumbBar = document.querySelector<HTMLElement>('#breadcrumb')
+if (breadcrumbBar) installBreadcrumb(breadcrumbBar, canvas, graph)
+const ioPanel = document.querySelector<HTMLElement>('#io-panel')
+if (ioPanel) installIOPanel(ioPanel, canvas, graph)
+installCollapse(canvas, graph)
 
 window.addEventListener('resize', () => canvas.resize())
 
