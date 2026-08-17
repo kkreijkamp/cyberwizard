@@ -635,8 +635,9 @@ export class Engine {
   private anyDirty(): boolean {
     for (const [id, s] of this.states) {
       // Ghost states (node removed from the graph but re-dirtied by a late
-      // connection callback) must not block quiescence.
-      if (s.dirty && this.graph.getNodeById(id) !== null) return true
+      // connection callback) must not block quiescence. Note: getNodeById
+      // returns undefined (not null) for missing ids in 0.17.2 — hence !=.
+      if (s.dirty && this.graph.getNodeById(id) != null) return true
     }
     return false
   }

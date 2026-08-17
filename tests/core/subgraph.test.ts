@@ -3,6 +3,7 @@ import type { LGraphNode, Subgraph } from '@comfyorg/litegraph'
 import { describe, expect, it } from 'vitest'
 import { Engine } from '../../src/core/engine'
 import { defineNode, installConnectionRules, setParam } from '../../src/core/registry'
+import { serializeGraph } from '../../src/core/serialize'
 import {
   addDefInput,
   addDefOutput,
@@ -511,17 +512,9 @@ describe('Subgraph evaluation', () => {
     addDefOutput(graph, meta.id, 'out', STRING)
     const sub = interior(graph, meta.id)
     const join = spawnInterior(sub, 'test-sub/join')
-    // Only one of join's two inputs is wired — fine. But wire the output from
-    // an UNWIRED interior source that errors: use a suffix whose input is
-    // left empty — instead, force an error via string→number coercion below.
-    const numJoin = spawnInterior(sub, 'test-sub/join')
-    void numJoin
     wirePanelIn(sub, 0, join, 0)
     wirePanelOut(sub, join, 0, 0)
 
-    // Declare the input as NUMBER but wire it into join's STRING input:
-    // interior coercion string→number? Actually force the opposite: keep
-    // input STRING and rely on a runtime error from a bad op.
     const src = spawn(graph, 'test-sub/src')
     const instance = spawnInstance(graph, meta.id)
     const sink = spawn(graph, 'test-sub/sink')
@@ -530,6 +523,50 @@ describe('Subgraph evaluation', () => {
 
     await engine.whenIdle()
     expect(sinkCaptured).toEqual(['x|'])
+    dispose()
+  })
+
+  it('tracks native panel IO edits (empty-slot drag / right-click paths)', async () => {
+    // The canvas IO panels mutate the definition through library code paths —
+    // no CyberWizard API involved. Metadata (and with it serialization) must
+    // still follow.
+    reset()
+    const { graph, engine, dispose } = rig()
+    const meta = createSubgraphDef(graph, 'Native')
+    const sub = interior(graph, meta.id)
+
+    const flush = (): Promise<void> =>
+      new Promise((r) => queueMicrotask(() => queueMicrotask(r as () => void)))
+
+    sub.addInput('text', 'string')
+    sub.addOutput('out', 'string')
+    await flush()
+
+    expect(getSubgraphDef(graph, meta.id)?.inputs.map((i) => i.name)).toEqual(['text'])
+    expect(getSubgraphDef(graph, meta.id)?.outputs.map((o) => o.name)).toEqual(['out'])
+
+    const suffix = spawnInterior(sub, 'test-sub/suffix')
+    setParam(suffix, 'suffix', '!')
+    wirePanelIn(sub, 0, suffix, 0)
+    wirePanelOut(sub, suffix, 0, 0)
+
+    const src = spawn(graph, 'test-sub/src')
+    const instance = spawnInstance(graph, meta.id)
+    const sink = spawn(graph, 'test-sub/sink')
+    src.connect(0, instance, 0)
+    instance.connect(0, sink, 0)
+    await engine.whenIdle()
+    expect(sinkCaptured).toEqual(['x!'])
+
+    // Serialization sees the natively added IO.
+    const doc = serializeGraph(graph)
+    expect(doc.subgraphs?.[0]?.inputs).toEqual([{ name: 'text', type: 'string' }])
+    expect(doc.subgraphs?.[0]?.outputs).toEqual([{ name: 'out', type: 'string' }])
+
+    // Native removal syncs as well.
+    sub.removeInput(sub.inputs[0]!)
+    await flush()
+    expect(getSubgraphDef(graph, meta.id)?.inputs).toEqual([])
     dispose()
   })
 })

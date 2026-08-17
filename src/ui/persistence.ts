@@ -37,8 +37,10 @@ export function startAutosave(graph: LGraph, canvas: LGraphCanvas): () => void {
         localStorage.setItem(AUTOSAVE_KEY, json)
         lastWritten = json
       }
-    } catch {
-      // Quota exceeded or serialisation edge — autosave is best-effort.
+    } catch (err) {
+      // Quota exceeded or serialisation edge — autosave is best-effort, but
+      // never *silent*: a save that always fails loses work on refresh.
+      console.warn('autosave failed:', err)
     }
   }
   const timer = setInterval(save, 3000)

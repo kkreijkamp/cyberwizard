@@ -191,21 +191,55 @@ function registerExisting(rootGraph: LGraph, subgraph: Subgraph): SubgraphDefMet
   const meta: SubgraphDefMeta = {
     id: subgraph.id,
     name: subgraph.name,
-    inputs: subgraph.inputs.map((slot) => ({ name: slot.name, type: dataTypeFromKind(slot.type) })),
-    outputs: subgraph.outputs.map((slot) => ({ name: slot.name, type: dataTypeFromKind(slot.type) })),
+    inputs: [],
+    outputs: [],
   }
   metasOf(rootGraph).set(subgraph.id, meta)
+  syncMetaFromSubgraph(meta, subgraph)
   registerFactory(subgraph)
   watchIfAttached(rootGraph, subgraph)
+  emitDefsChange(rootGraph)
   return meta
+}
+
+/**
+ * Rebuilds metadata from the library Subgraph object. This is the single
+ * sync point for BOTH API edits and native panel edits — inside a subgraph,
+ * dragging from the dashed empty slot (or right-click rename/remove on a
+ * slot) mutates the definition through library code paths that would
+ * otherwise leave our metadata — and with it the serialized form — stale.
+ */
+function syncMetaFromSubgraph(meta: SubgraphDefMeta, subgraph: Subgraph): void {
+  // displayName = label ?? name — renames set the label, so this is what the
+  // user sees and what should round-trip through serialization.
+  meta.inputs = subgraph.inputs.map((slot) => ({ name: slot.displayName, type: dataTypeFromKind(slot.type) }))
+  meta.outputs = subgraph.outputs.map((slot) => ({ name: slot.displayName, type: dataTypeFromKind(slot.type) }))
+}
+
+/**
+ * Deferred, batched sync for native panel edits. Some library events are
+ * pre-mutation ('removing-input'), so the rebuild must run after the edit
+ * lands — a microtask per subgraph, coalescing bursts.
+ */
+const pendingMetaSyncs = new Set<string>()
+
+function scheduleMetaSync(rootGraph: LGraph, subgraph: Subgraph): void {
+  if (pendingMetaSyncs.has(subgraph.id)) return
+  pendingMetaSyncs.add(subgraph.id)
+  queueMicrotask(() => {
+    pendingMetaSyncs.delete(subgraph.id)
+    const meta = getSubgraphDef(rootGraph, subgraph.id)
+    if (!meta || !rawSubgraph(rootGraph, subgraph.id)) return
+    syncMetaFromSubgraph(meta, subgraph)
+    dirtyAllInstances(rootGraph, subgraph.id)
+    emitDefsChange(rootGraph)
+  })
 }
 
 /** Creates an empty definition with no IO and returns its metadata. */
 export function createSubgraphDef(rootGraph: LGraph, name: string): SubgraphDefMeta {
   const subgraph = rootGraph.createSubgraph(emptySubgraphData(crypto.randomUUID(), name))
-  const meta = registerExisting(rootGraph, subgraph)
-  emitDefsChange(rootGraph)
-  return meta
+  return registerExisting(rootGraph, subgraph) // registers + emits
 }
 
 /**
@@ -249,6 +283,9 @@ function editIO(
   const subgraph = rawSubgraph(rootGraph, defId)
   if (!meta || !subgraph) return
   edit(subgraph, meta)
+  // Rebuild metadata from the (now mutated) library object — idempotent and
+  // the same sync the native panel events use.
+  syncMetaFromSubgraph(meta, subgraph)
   // Instance slots track IO edits natively (SubgraphNode slot listeners);
   // every instance must re-evaluate against the new signature.
   dirtyAllInstances(rootGraph, defId)
@@ -259,9 +296,8 @@ export function addDefInput(rootGraph: LGraph, defId: string, name: string, type
   const meta = getSubgraphDef(rootGraph, defId)
   if (!meta) return
   const unique = uniqueName(name, new Set(meta.inputs.map((i) => i.name)))
-  editIO(rootGraph, defId, (subgraph, m) => {
+  editIO(rootGraph, defId, (subgraph) => {
     subgraph.addInput(unique, toIOSlotType(type))
-    m.inputs.push({ name: unique, type })
   })
 }
 
@@ -269,9 +305,8 @@ export function addDefOutput(rootGraph: LGraph, defId: string, name: string, typ
   const meta = getSubgraphDef(rootGraph, defId)
   if (!meta) return
   const unique = uniqueName(name, new Set(meta.outputs.map((o) => o.name)))
-  editIO(rootGraph, defId, (subgraph, m) => {
+  editIO(rootGraph, defId, (subgraph) => {
     subgraph.addOutput(unique, toIOSlotType(type))
-    m.outputs.push({ name: unique, type })
   })
 }
 
@@ -280,11 +315,9 @@ export function renameDefInput(rootGraph: LGraph, defId: string, index: number, 
   if (!meta) return
   const others = new Set(meta.inputs.filter((_, i) => i !== index).map((i) => i.name))
   const unique = uniqueName(name, others)
-  editIO(rootGraph, defId, (subgraph, m) => {
+  editIO(rootGraph, defId, (subgraph) => {
     const slot = subgraph.inputs[index]
-    if (!slot || !m.inputs[index]) return
-    subgraph.renameInput(slot, unique)
-    m.inputs[index] = { ...m.inputs[index], name: unique }
+    if (slot) subgraph.renameInput(slot, unique)
   })
 }
 
@@ -293,29 +326,23 @@ export function renameDefOutput(rootGraph: LGraph, defId: string, index: number,
   if (!meta) return
   const others = new Set(meta.outputs.filter((_, i) => i !== index).map((o) => o.name))
   const unique = uniqueName(name, others)
-  editIO(rootGraph, defId, (subgraph, m) => {
+  editIO(rootGraph, defId, (subgraph) => {
     const slot = subgraph.outputs[index]
-    if (!slot || !m.outputs[index]) return
-    subgraph.renameOutput(slot, unique)
-    m.outputs[index] = { ...m.outputs[index], name: unique }
+    if (slot) subgraph.renameOutput(slot, unique)
   })
 }
 
 export function removeDefInput(rootGraph: LGraph, defId: string, index: number): void {
-  editIO(rootGraph, defId, (subgraph, meta) => {
+  editIO(rootGraph, defId, (subgraph) => {
     const slot = subgraph.inputs[index]
-    if (!slot) return
-    subgraph.removeInput(slot)
-    meta.inputs.splice(index, 1)
+    if (slot) subgraph.removeInput(slot)
   })
 }
 
 export function removeDefOutput(rootGraph: LGraph, defId: string, index: number): void {
-  editIO(rootGraph, defId, (subgraph, meta) => {
+  editIO(rootGraph, defId, (subgraph) => {
     const slot = subgraph.outputs[index]
-    if (!slot) return
-    subgraph.removeOutput(slot)
-    meta.outputs.splice(index, 1)
+    if (slot) subgraph.removeOutput(slot)
   })
 }
 
@@ -419,11 +446,27 @@ function watchSubgraph(rootGraph: LGraph, subgraph: Subgraph): void {
   setDirtyHandler(subgraph, (node) => onInteriorNodeDirty(rootGraph, subgraph, node))
   const detachGraphWatch = watchGraphNodes(subgraph, attachment)
 
+  // Native panel edits (empty-slot drags, right-click rename/remove) mutate
+  // the definition without touching our lifecycle API — keep metadata (and
+  // with it the serialized form and the palette) in sync. Deferred: some of
+  // these events are pre-mutation.
+  const onNativeIO = (): void => scheduleMetaSync(rootGraph, subgraph)
+  const IO_EVENTS = [
+    'input-added',
+    'output-added',
+    'removing-input',
+    'removing-output',
+    'renaming-input',
+    'renaming-output',
+  ] as const
+  for (const type of IO_EVENTS) subgraph.events.addEventListener(type, onNativeIO)
+
   for (const node of subgraph._nodes) indexNode(attachment, node)
 
   attachment.subgraphWatches.set(subgraph, () => {
     setDirtyHandler(subgraph, undefined)
     detachGraphWatch()
+    for (const type of IO_EVENTS) subgraph.events.removeEventListener(type, onNativeIO)
   })
 }
 
