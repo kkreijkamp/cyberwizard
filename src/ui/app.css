@@ -42,6 +42,28 @@ body {
   font-size: 12px;
 }
 
+.header-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+
+.header-actions button {
+  background: #0f1420;
+  color: #c9d4e3;
+  border: 1px solid #2a3142;
+  border-radius: 4px;
+  padding: 3px 10px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.header-actions button:hover {
+  border-color: #22d3ee;
+  color: #ffffff;
+}
+
 #graph-host {
   flex: 1;
   min-height: 0;

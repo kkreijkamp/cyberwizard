@@ -20,8 +20,7 @@ export interface Showcase {
  * XOR-with-key-wire → Base64 branch — fan-out, multi-input, async, and
  * string↔bytes coercion edges in a single graph.
  */
-export function buildShowcaseGraph(): Showcase {
-  const graph = new LGraph()
+export function buildShowcaseGraph(graph: LGraph = new LGraph()): Showcase {
 
   const spawn = (type: string, pos: [number, number], title?: string): LGraphNode => {
     const node = LiteGraph.createNode(type, title)
