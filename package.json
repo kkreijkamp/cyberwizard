@@ -19,7 +19,8 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@comfyorg/litegraph": "0.17.2"
+    "@comfyorg/litegraph": "0.17.2",
+    "hash-wasm": "^4.12.0"
   },
   "devDependencies": {
     "typescript": "^7.0.2",
