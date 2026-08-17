@@ -54,6 +54,7 @@ export class Engine {
   private rerunRequested = false
   private idleWaiters: Array<() => void> = []
   private readonly previousOnNodeAdded: LGraph['onNodeAdded']
+  private readonly previousOnNodeRemoved: LGraph['onNodeRemoved']
 
   constructor(readonly graph: LGraph) {
     setDirtyHandler(graph, (node) => this.markDirty(node))
@@ -62,6 +63,11 @@ export class Engine {
       this.previousOnNodeAdded?.call(graph, node)
       this.markDirty(node)
     }
+    this.previousOnNodeRemoved = graph.onNodeRemoved
+    graph.onNodeRemoved = (node) => {
+      this.previousOnNodeRemoved?.call(graph, node)
+      this.forget(node)
+    }
     for (const node of graph._nodes) this.markDirty(node)
     this.schedule()
   }
@@ -69,6 +75,20 @@ export class Engine {
   dispose(): void {
     setDirtyHandler(this.graph, undefined)
     this.graph.onNodeAdded = this.previousOnNodeAdded
+    this.graph.onNodeRemoved = this.previousOnNodeRemoved
+  }
+
+  /**
+   * Drop all engine state for a removed node: abort its in-flight run and
+   * delete its state entry so a dirty flag on a ghost can never wedge the
+   * evaluation loop. (markDirty may still re-create a state lazily via
+   * connection callbacks firing during removal — anyDirty() guards on graph
+   * membership for exactly that reason.)
+   */
+  private forget(node: LGraphNode): void {
+    this.abortControllers.get(node.id)?.abort()
+    this.abortControllers.delete(node.id)
+    this.states.delete(node.id)
   }
 
   stateOf(node: LGraphNode): Readonly<NodeState> {
@@ -297,7 +317,11 @@ export class Engine {
   }
 
   private anyDirty(): boolean {
-    for (const s of this.states.values()) if (s.dirty) return true
+    for (const [id, s] of this.states) {
+      // Ghost states (node removed from the graph but re-dirtied by a late
+      // connection callback) must not block quiescence.
+      if (s.dirty && this.graph.getNodeById(id) !== null) return true
+    }
     return false
   }
 }
