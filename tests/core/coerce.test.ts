@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CoercionError, canCoerce, coerce } from '../../src/core/coerce'
+import { CoercionError, canCoerce, coerce, utf8Encode } from '../../src/core/coerce'
 import { ANY, BOOLEAN, BYTES, JSON as JSON_TYPE, NUMBER, STRING, listOf, repr } from '../../src/core/types'
 
 describe('canCoerce', () => {
@@ -78,6 +78,18 @@ describe('coerce', () => {
     expect(() => coerce(['x'], listOf(STRING), listOf(NUMBER))).toThrow(CoercionError)
   })
 
+  it('converts nested lists recursively', () => {
+    const nested = coerce([['a', 'b'], ['c']], listOf(listOf(STRING)), listOf(listOf(BYTES)))
+    expect(nested).toEqual([[utf8Encode('a'), utf8Encode('b')], [utf8Encode('c')]])
+    expect(coerce([['1'], ['2']], listOf(listOf(STRING)), listOf(listOf(NUMBER)))).toEqual([[1], [2]])
+    expect(() => coerce([['x']], listOf(listOf(STRING)), listOf(listOf(NUMBER)))).toThrow(CoercionError)
+  })
+
+  it('renders bytes inside lists/objects as hex in JSON output', () => {
+    expect(coerce([new Uint8Array([0x48, 0x69])], listOf(BYTES), STRING)).toBe('["4869"]')
+    expect(coerce({ raw: new Uint8Array([1, 2]) }, JSON_TYPE, STRING)).toBe('{"raw":"0102"}')
+  })
+
   it('rejects impossible coercions with CoercionError', () => {
     expect(() => coerce(new Uint8Array([1]), BYTES, NUMBER)).toThrow(CoercionError)
   })
@@ -94,5 +106,11 @@ describe('repr', () => {
     expect(repr(42)).toBe('42')
     expect(repr(new Uint8Array([0x48, 0x69]))).toBe('⟨2B⟩ 48 69')
     expect(repr([1, 2])).toContain('[2 items]')
+  })
+
+  it('renders nested lists and bytes inside lists readably', () => {
+    expect(repr([['a', 'b'], ['c']])).toBe('[2 items] [2 items] a, b, [1 items] c')
+    expect(repr([new Uint8Array([1])])).toBe('[1 items] ⟨1B⟩ 01')
+    expect(repr([1, 2, 3, 4, 5, 6, 7])).toContain(', …')
   })
 })

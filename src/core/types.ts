@@ -104,7 +104,11 @@ export function repr(value: unknown): string {
   }
   if (typeof value === 'string') return truncate(value)
   if (typeof value === 'number' || typeof value === 'boolean') return String(value)
-  if (Array.isArray(value)) return truncate(`[${value.length} items] ${safeStringify(value)}`)
+  if (Array.isArray(value)) {
+    // Recurse: nested lists and bytes inside lists render readably.
+    const items = value.slice(0, 5).map(repr).join(', ')
+    return truncate(`[${value.length} items] ${items}${value.length > 5 ? ', …' : ''}`)
+  }
   return truncate(safeStringify(value) ?? String(value))
 }
 

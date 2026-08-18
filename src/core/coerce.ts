@@ -131,7 +131,10 @@ function parseJson(s: string, from: DataType, to: DataType): unknown {
 
 function stringifyJson(value: unknown, from: DataType, to: DataType): string {
   try {
-    const s = globalThis.JSON.stringify(value)
+    // Bytes embedded in lists/objects serialise as hex, not {"0":…} noise.
+    const s = globalThis.JSON.stringify(value, (_key, v: unknown) =>
+      v instanceof Uint8Array ? [...v].map((b) => b.toString(16).padStart(2, '0')).join('') : v,
+    )
     if (s === undefined) throw new CoercionError(from, to, 'value is not JSON-serialisable')
     return s
   } catch (err) {
