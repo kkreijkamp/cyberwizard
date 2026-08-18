@@ -25,6 +25,20 @@ outputs — a function, basically:
 - **Share**: definitions embed in save files and share URLs — documents stay
   fully self-contained.
 
+## Lists — functional pipelines
+
+Lists are first-class values. The **Flow** category has the usual building
+blocks (Pack, Get, Take/Drop, Reverse, Unique, Sort, Flatten, Zip, Concat,
+Range), and three higher-order ops that apply a **subgraph** per element:
+
+- **Map** — transform each element with a 1-in-1-out subgraph
+- **Filter** — keep elements where a 1-in-1-out subgraph returns truthy
+- **Fold** — reduce with a 2-in-1-out subgraph (`[acc, element] → acc`)
+
+Pick the subgraph in the node's `fn` dropdown (create it first with
+`+ Subgraph`). Nested lists work throughout: coercion recurses, previews
+render nested structure, and Flatten peels one level at a time.
+
 ## Status
 
 Early development — see [PLAN.md](PLAN.md) for architecture and roadmap.
