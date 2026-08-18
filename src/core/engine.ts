@@ -88,6 +88,12 @@ interface EvalScope {
     inputs: readonly unknown[]
     inputDefs: readonly SlotDef[]
   } | null
+  /**
+   * When true, interior stores under this scope are never retained (apply()
+   * calls and recursive re-entries: values differ per call, caching is
+   * meaningless — and for large maps, unbounded).
+   */
+  transient: boolean
 }
 
 export class Engine {
@@ -265,6 +271,7 @@ export class Engine {
       budget: null,
       signal: null,
       boundary: null,
+      transient: false,
     }
     const { order, cyclicIds } = topoOrder(this.graph)
 
@@ -331,7 +338,11 @@ export class Engine {
     s.running = true
     try {
       const signal = scope.signal ?? (controller as AbortController).signal
-      const result = await def.run(inputs, params, { signal, node })
+      const result = await def.run(inputs, params, {
+        signal,
+        node,
+        apply: (defId, applyInputs) => this.applySubgraph(defId, applyInputs, scope, signal),
+      })
       if (generation !== s.generation) return // superseded while running — discard
       s.outputs = def.outputs.map((o) => result[o.name])
       s.error = undefined
@@ -404,7 +415,15 @@ export class Engine {
     const signal = scope.signal ?? (controller as AbortController).signal
     s.running = true
     try {
-      const outputs = await this.evaluateInterior(node.subgraph, meta, inputValues, scope, budget, signal, node)
+      const outputs = await this.evaluateInterior(
+        node.subgraph,
+        meta,
+        inputValues,
+        scope,
+        budget,
+        signal,
+        String(node.id),
+      )
       if (generation !== s.generation) return // superseded while running — discard
       s.outputs = outputs
       s.error = undefined
@@ -423,6 +442,31 @@ export class Engine {
     }
   }
 
+  /**
+   * Higher-order hook behind RunContext.apply: evaluate a definition once
+   * with positional inputs. Each call gets a fresh evaluation budget (per-
+   * element caps — recursion within one call is still depth-limited) and a
+   * transient scope (stores are never retained: per-call values differ).
+   */
+  private async applySubgraph(
+    defId: string,
+    inputs: readonly unknown[],
+    scope: EvalScope,
+    signal: AbortSignal,
+  ): Promise<readonly unknown[]> {
+    const meta = getSubgraphDef(this.graph, defId)
+    if (!meta) throw new Error(`unknown subgraph definition "${defId}"`)
+    if (scope.defStack.length >= MAX_SUBGRAPH_DEPTH) {
+      throw new Error(`subgraph recursion depth limit (${MAX_SUBGRAPH_DEPTH}) exceeded`)
+    }
+    const subgraph = this.graph.subgraphs.get(defId as never)
+    if (!subgraph) throw new Error(`subgraph definition "${defId}" is missing from the document`)
+    const budget = { remaining: SUBGRAPH_EVAL_BUDGET }
+    return this.evaluateInterior(subgraph, meta, inputs, scope, budget, signal, `apply${this.applySeq++}`)
+  }
+
+  private applySeq = 0
+
   private async evaluateInterior(
     subgraph: Subgraph,
     meta: SubgraphDefMeta,
@@ -430,17 +474,18 @@ export class Engine {
     parentScope: EvalScope,
     budget: { remaining: number },
     signal: AbortSignal,
-    instance: LGraphNode,
+    pathSegment: string,
   ): Promise<unknown[]> {
-    // Under true recursion (the definition is already on the call stack) each
-    // level gets different data, so caching is meaningless — and unbounded.
-    const recursiveReentry = parentScope.defStack.includes(meta.id)
-    const path = parentScope.path === '' ? String(instance.id) : `${parentScope.path}/${String(instance.id)}`
+    // Store retention: instance runs in a stable scope keep their interior
+    // caches; recursive re-entries and apply() calls evaluate transiently.
+    const retained =
+      !parentScope.transient && !parentScope.defStack.includes(meta.id)
+    const path = parentScope.path === '' ? pathSegment : `${parentScope.path}/${pathSegment}`
 
-    let store = recursiveReentry ? undefined : this.interiorStores.get(path)
+    let store = retained ? this.interiorStores.get(path) : undefined
     if (!store) {
       store = new Map()
-      if (!recursiveReentry) this.interiorStores.set(path, store)
+      if (retained) this.interiorStores.set(path, store)
     }
     // Prune states of interior nodes removed since the last run.
     for (const id of store.keys()) if (!subgraph.getNodeById(id)) store.delete(id)
@@ -462,6 +507,7 @@ export class Engine {
       budget,
       signal,
       boundary: { inputPanelId, inputs: inputValues, inputDefs: meta.inputs },
+      transient: !retained,
     }
 
     const { order, cyclicIds } = topoOrder(subgraph, inputPanelId)

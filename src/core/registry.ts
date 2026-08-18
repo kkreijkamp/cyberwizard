@@ -48,6 +48,12 @@ export interface RunContext {
   readonly signal: AbortSignal
   /** Escape hatch for sink/source nodes that render their own state (e.g. Preview). */
   readonly node: LGraphNode
+  /**
+   * Higher-order hook: evaluate a subgraph definition once with positional
+   * inputs, using the same call semantics and recursion guards as instance
+   * evaluation (flow/map & friends). Present when the engine drives the run.
+   */
+  readonly apply?: (defId: string, inputs: readonly unknown[]) => Promise<readonly unknown[]>
 }
 
 export interface NodeDef<
