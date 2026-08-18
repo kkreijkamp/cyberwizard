@@ -74,6 +74,20 @@ export function dataTypeFromKind(kind: string): DataType {
   }
 }
 
+/**
+ * Best-effort DataType for a runtime value — the "declared type" of a plain
+ * JS value crossing into the typed world (e.g. RunContext.apply inputs, where
+ * there is no upstream slot to read a type from).
+ */
+export function inferDataType(value: unknown): DataType {
+  if (value instanceof Uint8Array) return BYTES
+  if (typeof value === 'string') return STRING
+  if (typeof value === 'number') return NUMBER
+  if (typeof value === 'boolean') return BOOLEAN
+  if (Array.isArray(value)) return listOf(ANY)
+  return ANY
+}
+
 const REPR_LIMIT = 120
 
 function truncate(s: string): string {

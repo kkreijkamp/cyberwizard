@@ -29,7 +29,7 @@
 
 import type { LGraph, LGraphNode, NodeId, Subgraph, SubgraphNode } from '@comfyorg/litegraph'
 import type { DataType } from './types'
-import { ANY, repr } from './types'
+import { ANY, inferDataType, repr } from './types'
 import { CoercionError, coerce } from './coerce'
 import type { SlotDef } from './registry'
 import { PREVIEW_WIDGET_NAME, getNodeDef, setDirtyHandler } from './registry'
@@ -462,7 +462,10 @@ export class Engine {
     const subgraph = this.graph.subgraphs.get(defId as never)
     if (!subgraph) throw new Error(`subgraph definition "${defId}" is missing from the document`)
     const budget = { remaining: SUBGRAPH_EVAL_BUDGET }
-    return this.evaluateInterior(subgraph, meta, inputs, scope, budget, signal, `apply${this.applySeq++}`)
+    // Like an instance boundary: coerce each value to the declared slot type,
+    // inferring the source type from the runtime value itself.
+    const bound = meta.inputs.map((slot, i) => coerce(inputs[i], inferDataType(inputs[i]), slot.type))
+    return this.evaluateInterior(subgraph, meta, bound, scope, budget, signal, `apply${this.applySeq++}`)
   }
 
   private applySeq = 0
