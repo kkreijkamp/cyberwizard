@@ -11,13 +11,14 @@ export async function runOp(
   type: string,
   inputs: Record<string, unknown> = {},
   params: Record<string, unknown> = {},
+  ctxPartial: Partial<RunContext> = {},
 ): Promise<Record<string, unknown>> {
   const def = getDefByType(type)
   if (!def) throw new Error(`unregistered op: ${type}`)
   const fullParams: Record<string, unknown> = {}
   for (const p of def.params ?? []) fullParams[p.name] = p.default
   Object.assign(fullParams, params)
-  return def.run(inputs, fullParams, ctx)
+  return def.run(inputs, fullParams, { ...ctx, ...ctxPartial })
 }
 
 export function bytesOf(text: string): Uint8Array {
