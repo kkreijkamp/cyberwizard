@@ -123,6 +123,11 @@ function registerFactory(subgraph: Subgraph): void {
       this.addWidget('text', PREVIEW_WIDGET_NAME, '∅', null, { multiline: true })
       this.color = colors.color
       this.bgcolor = colors.bgcolor
+      // The library's enter-subgraph title button renders a PrimeIcons glyph
+      // (pi-window-maximize), but PrimeIcons isn't loaded in this app — it
+      // paints as a tofu square. Repaint it as a vector "enter" arrow.
+      const enterButton = this.title_buttons?.find((b) => b.name === 'enter_subgraph')
+      if (enterButton) paintEnterIcon(enterButton)
     }
 
     // SubgraphNode has no registry-generated onConnectionsChange — without
@@ -161,6 +166,61 @@ function uniqueName(desired: string, taken: ReadonlySet<string>): string {
   for (let i = 2; ; i++) {
     const candidate = `${desired} ${i}`
     if (!taken.has(candidate)) return candidate
+  }
+}
+
+/** Structural view of the library's LGraphButton (only what we repaint). */
+interface TitleButtonLike {
+  text: string | undefined
+  height: number
+  xOffset: number
+  yOffset: number
+  readonly _last_area: { [index: number]: number }
+  getWidth(ctx: CanvasRenderingContext2D): number
+  draw(ctx: CanvasRenderingContext2D, x: number, y: number): void
+}
+
+const ENTER_ICON_SIZE = 14
+
+/**
+ * Repaints the enter-subgraph title button as a vector icon (the stock glyph
+ * is a PrimeIcons codepoint and PrimeIcons isn't loaded — it renders as a
+ * tofu box). Draws an "open / step into" arrow: a small corner bracket with
+ * a diagonal arrow rising out of it, in the node's title text colour. The
+ * button's text stays set (it drives `visible`), but is never painted.
+ */
+function paintEnterIcon(button: TitleButtonLike): void {
+  button.getWidth = () => ENTER_ICON_SIZE
+  button.draw = (ctx, x, y) => {
+    button._last_area[0] = x + button.xOffset
+    button._last_area[1] = y + button.yOffset
+    button._last_area[2] = ENTER_ICON_SIZE
+    button._last_area[3] = button.height
+
+    const cx = x + button.xOffset + ENTER_ICON_SIZE / 2
+    const cy = y + button.yOffset + button.height / 2
+
+    ctx.save()
+    ctx.strokeStyle = ctx.fillStyle || '#ffffff'
+    ctx.lineWidth = 1.5
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+
+    const a = 4.5 // arrow half-extent
+    ctx.beginPath()
+    // diagonal shaft: bottom-left → top-right
+    ctx.moveTo(cx - a + 1, cy + a - 1)
+    ctx.lineTo(cx + a, cy - a)
+    // arrowhead: horizontal then vertical into the tip
+    ctx.moveTo(cx + a - 4, cy - a)
+    ctx.lineTo(cx + a, cy - a)
+    ctx.lineTo(cx + a, cy - a + 4)
+    // corner bracket bottom-left (the "window" being opened)
+    ctx.moveTo(cx - a - 1, cy + 1)
+    ctx.lineTo(cx - a - 1, cy + a + 1)
+    ctx.lineTo(cx - 1, cy + a + 1)
+    ctx.stroke()
+    ctx.restore()
   }
 }
 
