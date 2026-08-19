@@ -1,6 +1,6 @@
 import '@comfyorg/litegraph/style.css'
 import './ui/app.css'
-import { LGraph, LGraphCanvas } from '@comfyorg/litegraph'
+import { LGraph, LGraphCanvas, LiteGraph } from '@comfyorg/litegraph'
 import { Engine } from './core/engine'
 import { installConnectionRules } from './core/registry'
 import { deserializeGraph } from './core/serialize'
@@ -18,6 +18,10 @@ import { applyTheme } from './ui/theme'
 import './nodes'
 
 installConnectionRules()
+
+// Dragged nodes and reroutes snap to the 10px canvas grid (LiteGraph's
+// default is Shift-to-snap only).
+LiteGraph.alwaysSnapToGrid = true
 
 const canvasElement = document.querySelector<HTMLCanvasElement>('#graph')
 if (!canvasElement) throw new Error('Missing #graph canvas element')
