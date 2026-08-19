@@ -7,6 +7,13 @@ describe('io ops', () => {
     expect((await runOp('io/number-input', {}, { value: 42 })).number).toBe(42)
   })
 
+  it('integer input rounds decimals to whole numbers', async () => {
+    expect((await runOp('io/integer-input', {}, { value: 42 })).number).toBe(42)
+    expect((await runOp('io/integer-input', {}, { value: 3.7 })).number).toBe(4)
+    expect((await runOp('io/integer-input', {}, { value: -3.7 })).number).toBe(-4)
+    expect((await runOp('io/integer-input')).number).toBe(0)
+  })
+
   it('file input yields empty bytes and name before a file is chosen', async () => {
     const out = await runOp('io/file-input')
     expect(out.data).toEqual(new Uint8Array())

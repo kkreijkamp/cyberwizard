@@ -4,6 +4,7 @@
  */
 import './io/text-input'
 import './io/number-input'
+import './io/integer-input'
 import './io/file-input'
 import './io/download'
 import './io/preview'
