@@ -16,7 +16,7 @@ import {
   renameSubgraphDef,
   spawnSubgraphNode,
 } from '../../src/core/subgraph'
-import { NUMBER, STRING } from '../../src/core/types'
+import { ANY, NUMBER, STRING } from '../../src/core/types'
 
 installConnectionRules()
 
@@ -76,6 +76,15 @@ defineNode({
     counters.join++
     return { out: `${inputs.a ?? ''}|${inputs.b ?? ''}` }
   },
+})
+
+defineNode({
+  type: 'test-sub/anypass',
+  title: 'AnyPass',
+  category: 'Test',
+  inputs: [{ name: 'value', type: ANY }] as const,
+  outputs: [{ name: 'value', type: ANY }] as const,
+  run: (inputs) => ({ value: inputs.value }),
 })
 
 const sinkCaptured: unknown[] = []
@@ -573,6 +582,24 @@ describe('Subgraph evaluation', () => {
     sub.removeInput(sub.inputs[0]!)
     await flush()
     expect(getSubgraphDef(graph, meta.id)?.inputs).toEqual([])
+    dispose()
+  })
+
+  it('connecting an any-typed slot via the native empty panel slot never breaks connection checks', () => {
+    const { graph, dispose } = rig()
+    const meta = createSubgraphDef(graph, 'PanelTypes')
+    const sub = interior(graph, meta.id)
+    const pass = spawnInterior(sub, 'test-sub/anypass') // wildcard type 0 slots
+
+    const link = sub.inputNode.emptySlot.connect(pass.inputs[0]!, pass)
+    expect(link).toBeTruthy()
+    // The native empty-slot path stringifies the slot type: wildcard 0 → '0'.
+    expect(sub.inputs[0]?.type).toBe('0')
+    // These run on every hover during a drag — they must never throw.
+    expect(LiteGraph.isValidConnection(0, '0')).toBe(true)
+    expect(LiteGraph.isValidConnection('string', '0')).toBe(true)
+    expect(LiteGraph.isValidConnection('0', 'number')).toBe(true)
+    expect(LiteGraph.isValidConnection('some-custom-type', 'bytes')).toBe(true)
     dispose()
   })
 })

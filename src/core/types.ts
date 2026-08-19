@@ -55,9 +55,25 @@ export function toSlotType(t: DataType): string | 0 {
   return t.kind === 'any' ? 0 : t.kind
 }
 
+/**
+ * Maps a raw slot type to a tag. Total by design: the wildcard 0, the empty
+ * string (native panel empty slots), the stringified '0' (native empty-slot
+ * connects store String(slot.type), turning our `any` wildcard into "0"),
+ * and any unknown tag all behave as `any` — connection validity checks run
+ * on every hover during a drag and must never throw.
+ */
 export function fromSlotType(t: string | number): SlotTypeTag {
-  if (t === 0 || t === '') return 'any'
-  return t as SlotTypeTag
+  switch (t) {
+    case 'bytes':
+    case 'string':
+    case 'number':
+    case 'boolean':
+    case 'json':
+    case 'list':
+      return t
+    default:
+      return 'any'
+  }
 }
 
 /** DataType from its kind string (as stored on IO slots and in documents). */
