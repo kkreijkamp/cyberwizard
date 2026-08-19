@@ -6,6 +6,7 @@ import { installConnectionRules } from './core/registry'
 import { deserializeGraph } from './core/serialize'
 import { attachSubgraphSupport } from './core/subgraph'
 import { buildShowcaseGraph } from './showcase'
+import { installNodeLayout } from './ui/layout'
 import { createPalette } from './ui/palette'
 import { initialDocument, startAutosave, wirePersistence } from './ui/persistence'
 import {
@@ -20,13 +21,16 @@ import './nodes'
 installConnectionRules()
 
 // Dragged nodes and reroutes snap to the 10px canvas grid (LiteGraph's
-// default is Shift-to-snap only).
+// default is Shift-to-snap only). Node sizes snap to 50px cells with
+// column reflow (ui/layout).
 LiteGraph.alwaysSnapToGrid = true
 
 const canvasElement = document.querySelector<HTMLCanvasElement>('#graph')
 if (!canvasElement) throw new Error('Missing #graph canvas element')
 
 const graph = new LGraph()
+
+installNodeLayout(graph)
 
 // Boot order: engine + subgraph coordinator first, so nodes and definitions
 // restored below flow through their normal hooks. Then: URL → autosave → showcase.
