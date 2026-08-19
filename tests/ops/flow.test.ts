@@ -92,3 +92,18 @@ describe('flow/select', () => {
     expect((await runOp('flow/select', { then: 'yes', else: 'no' })).result).toBe('no')
   })
 })
+
+describe('flow/pass', () => {
+  it('passes any value through unchanged — same reference for lists and bytes', async () => {
+    expect((await runOp('flow/pass', { value: 42 })).value).toBe(42)
+    expect((await runOp('flow/pass', { value: 'text' })).value).toBe('text')
+    const list = [1, [2]]
+    const bytes = new Uint8Array([7])
+    expect((await runOp('flow/pass', { value: list })).value).toBe(list)
+    expect((await runOp('flow/pass', { value: bytes })).value).toBe(bytes)
+  })
+
+  it('unwired input passes undefined through', async () => {
+    expect((await runOp('flow/pass', {})).value).toBeUndefined()
+  })
+})
