@@ -74,3 +74,21 @@ describe('flow/list ops', () => {
     await expect(runOp('flow/list-range', {}, { count: 2_000_000 })).rejects.toThrow(/too large/)
   })
 })
+
+describe('flow/select', () => {
+  it('picks then on true, else on false', async () => {
+    expect((await runOp('flow/select', { cond: true, then: 'yes', else: 'no' })).result).toBe('yes')
+    expect((await runOp('flow/select', { cond: false, then: 'yes', else: 'no' })).result).toBe('no')
+  })
+
+  it('passes values through untouched (lists, bytes)', async () => {
+    const list = [1, [2, 3]]
+    const bytes = new Uint8Array([1, 2])
+    expect((await runOp('flow/select', { cond: true, then: list, else: [] })).result).toBe(list)
+    expect((await runOp('flow/select', { cond: false, then: 0, else: bytes })).result).toBe(bytes)
+  })
+
+  it('unwired cond acts as false', async () => {
+    expect((await runOp('flow/select', { then: 'yes', else: 'no' })).result).toBe('no')
+  })
+})
