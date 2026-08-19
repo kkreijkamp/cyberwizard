@@ -33,7 +33,18 @@ export type ParamDef =
       /** Param holds a subgraph definition's name (map/filter/fold's fn, If's then/else) — edits to that definition must dirty this node. */
       readonly subgraphRef?: boolean
     }
-  | { readonly kind: 'number'; readonly name: string; readonly label?: string; readonly default: number; readonly min?: number; readonly max?: number; readonly step?: number }
+  | {
+      readonly kind: 'number'
+      readonly name: string
+      readonly label?: string
+      readonly default: number
+      readonly min?: number
+      readonly max?: number
+      /** Literal step for the stepper arrows/drag (translated to litegraph's step2 — its `step` option is in tenths). */
+      readonly step?: number
+      /** Decimal places shown in the widget (litegraph default: 3). */
+      readonly precision?: number
+    }
   | { readonly kind: 'boolean'; readonly name: string; readonly label?: string; readonly default: boolean }
   | { readonly kind: 'enum'; readonly name: string; readonly label?: string; readonly default: string; readonly options: readonly string[] }
 
@@ -215,7 +226,7 @@ export function defineNode<
           widget = this.addWidget('text', label, param.default, onChange, { multiline: param.multiline ?? false }) as unknown as IWidget
           break
         case 'number':
-          widget = this.addWidget('number', label, param.default, onChange, { min: param.min, max: param.max, step: param.step }) as unknown as IWidget
+          widget = this.addWidget('number', label, param.default, onChange, { min: param.min, max: param.max, step2: param.step, precision: param.precision }) as unknown as IWidget
           break
         case 'boolean':
           widget = this.addWidget('toggle', label, param.default, onChange) as unknown as IWidget

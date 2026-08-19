@@ -8,6 +8,6 @@ defineNode({
   description: 'Whole numbers only — a typed decimal is rounded to the nearest integer.',
   inputs: [] as const,
   outputs: [{ name: 'number', type: NUMBER }] as const,
-  params: [{ kind: 'number', name: 'value', label: 'Value', default: 0, step: 1 }] as const,
+  params: [{ kind: 'number', name: 'value', label: 'Value', default: 0, step: 1, precision: 0 }] as const,
   run: (_inputs, params) => ({ number: Math.round(params.value) }),
 })
