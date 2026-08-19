@@ -20,9 +20,10 @@ import './nodes'
 
 installConnectionRules()
 
-// Dragged nodes and reroutes snap to the 10px canvas grid (LiteGraph's
-// default is Shift-to-snap only). Node sizes snap to 50px cells with
-// column reflow (ui/layout).
+// The grid is one cell = 50px (library default: 10px); dragged nodes and
+// reroutes snap to it unconditionally (library default: Shift-to-snap only).
+// Node sizes snap to cells with column reflow (ui/layout).
+LiteGraph.CANVAS_GRID_SIZE = 50
 LiteGraph.alwaysSnapToGrid = true
 
 const canvasElement = document.querySelector<HTMLCanvasElement>('#graph')

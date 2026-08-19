@@ -12,8 +12,9 @@
  * Enforcement is a prototype-level LGraphNode.onResize: in 0.17.2 every
  * size change funnels through setSize → onResize (creation, widget/slot
  * adds, subgraph IO sync, manual corner-drags), so one hook covers all of
- * them. Positions snap to the 10px grid at add time (drags are handled by
- * LiteGraph.alwaysSnapToGrid, see main.ts).
+ * them. Positions snap to the 50px cell grid at add time (drags are
+ * handled by LiteGraph.alwaysSnapToGrid with CANVAS_GRID_SIZE=50, see
+ * main.ts).
  *
  * Resizing reflows the column below: growing pushes overlapped neighbours
  * down so the one-row margin is restored (transitively); shrinking pulls
@@ -172,8 +173,8 @@ function hookAdds(graph: LGraph): void {
   const previous = graph.onNodeAdded
   graph.onNodeAdded = function (node: LGraphNode) {
     previous?.call(graph, node)
-    node.pos[0] = Math.round(node.pos[0] / LAYOUT_MARGIN) * LAYOUT_MARGIN
-    node.pos[1] = Math.round(node.pos[1] / LAYOUT_MARGIN) * LAYOUT_MARGIN
+    node.pos[0] = Math.round(node.pos[0] / LAYOUT_CELL) * LAYOUT_CELL
+    node.pos[1] = Math.round(node.pos[1] / LAYOUT_CELL) * LAYOUT_CELL
     // Routes the constructor's natural size through the onResize snap.
     node.setSize(node.computeSize())
   }
