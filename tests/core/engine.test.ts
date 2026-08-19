@@ -234,7 +234,7 @@ describe('Engine', () => {
     engine.dispose()
   })
 
-  it('marks cyclic nodes with a cycle error and never executes them', async () => {
+  it('leaves an undemanded cycle inert, and errors once a sink demands it', async () => {
     reset()
     const graph = new LGraph()
     const a = spawn(graph, 'test-eng/suffix')
@@ -245,9 +245,19 @@ describe('Engine', () => {
     const engine = new Engine(graph)
     await engine.whenIdle()
 
+    // Nothing demands the cycle: it never evaluates and shows no errors.
+    expect(counters.suffix).toBe(0)
+    expect(engine.stateOf(a).error).toBeUndefined()
+    expect(engine.stateOf(b).error).toBeUndefined()
+
+    // A sink demands it: the cycle is diagnosed, its nodes never execute.
+    const sink = spawn(graph, 'test-eng/sink')
+    a.connect(0, sink, 0)
+    await engine.whenIdle()
     expect(counters.suffix).toBe(0)
     expect(engine.stateOf(a).error?.message).toMatch(/cycle/)
     expect(engine.stateOf(b).error?.message).toMatch(/cycle/)
+    expect(engine.stateOf(sink).blocked).toBe(true)
     engine.dispose()
   })
 
@@ -265,15 +275,53 @@ describe('Engine', () => {
     engine.dispose()
   })
 
+  it('never runs nodes that no sink demands, and activates them when one does', async () => {
+    reset()
+    const graph = new LGraph()
+    const src = spawn(graph, 'test-eng/src')
+    const mid = spawn(graph, 'test-eng/suffix')
+    const boom = spawn(graph, 'test-eng/boom') // would error if it ran
+    src.connect(0, mid, 0)
+    mid.connect(0, boom, 0)
+
+    const engine = new Engine(graph)
+    await engine.whenIdle()
+    // No sink anywhere: the whole chain rests, no previews, no errors.
+    expect(counters.src).toBe(0)
+    expect(counters.suffix).toBe(0)
+    expect(counters.boom).toBe(0)
+    expect(engine.outputsOf(mid)).toBeUndefined()
+
+    // Attaching a sink backpropagates demand along the path — boom errors.
+    const sink = spawn(graph, 'test-eng/sink')
+    boom.connect(0, sink, 0)
+    await engine.whenIdle()
+    expect(counters.src).toBe(1)
+    expect(counters.suffix).toBe(1)
+    expect(counters.boom).toBe(1)
+    expect(engine.stateOf(boom).error?.message).toBe('boom')
+    expect(engine.stateOf(sink).blocked).toBe(true)
+
+    // A second, unrelated chain still rests.
+    reset()
+    const stray = spawn(graph, 'test-eng/suffix')
+    await engine.whenIdle()
+    expect(counters.suffix).toBe(0)
+    expect(engine.outputsOf(stray)).toBeUndefined()
+    engine.dispose()
+  })
+
   it('paints live previews: value on success, warning on error', async () => {
     reset()
     const graph = new LGraph()
     const src = spawn(graph, 'test-eng/src')
     const mid = spawn(graph, 'test-eng/suffix')
     const boom = spawn(graph, 'test-eng/boom')
+    const sink = spawn(graph, 'test-eng/sink')
     setParam(mid, 'suffix', '!')
     src.connect(0, mid, 0)
     mid.connect(0, boom, 0)
+    boom.connect(0, sink, 0)
 
     const engine = new Engine(graph)
     await engine.whenIdle()

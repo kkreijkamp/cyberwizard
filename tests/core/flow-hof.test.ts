@@ -98,6 +98,12 @@ function rig(): { graph: LGraph; engine: Engine; dispose: () => void } {
   }
 }
 
+/** Attaches a Preview sink so the engine demands this node's output. */
+function demand(graph: LGraph, node: LGraphNode): void {
+  const sink = spawn(graph, 'io/preview')
+  node.connect(0, sink, 0)
+}
+
 /** Def "Shout": text → to-upper-case → text (1-in-1-out). */
 function buildShout(graph: LGraph): string {
   const meta = createSubgraphDef(graph, 'Shout')
@@ -127,6 +133,7 @@ describe('higher-order flow ops', () => {
     buildShout(graph)
     const map = buildListPipeline(graph, 'flow/map', 'a,b,c')
     setParam(map, 'fn', 'Shout')
+    demand(graph, map)
 
     await engine.whenIdle()
     expect(engine.outputsOf(map)).toEqual([['A', 'B', 'C']])
@@ -160,6 +167,7 @@ describe('higher-order flow ops', () => {
     const map = spawn(graph, 'flow/map')
     setParam(map, 'fn', 'How Long')
     outer.connect(0, map, 0)
+    demand(graph, map)
 
     await engine.whenIdle()
     expect(engine.outputsOf(map)).toEqual([[2, 1]])
@@ -179,6 +187,7 @@ describe('higher-order flow ops', () => {
 
     const filter = buildListPipeline(graph, 'flow/filter', 'a,bb,c,dd')
     setParam(filter, 'fn', 'Long Enough')
+    demand(graph, filter)
 
     await engine.whenIdle()
     expect(engine.outputsOf(filter)).toEqual([['bb', 'dd']])
@@ -205,6 +214,7 @@ describe('higher-order flow ops', () => {
     setParam(fold, 'fn', 'Sum')
     range.connect(0, fold, 0)
     init.connect(0, fold, 1)
+    demand(graph, fold)
 
     await engine.whenIdle()
     expect(engine.outputsOf(fold)).toEqual([13])
@@ -235,6 +245,7 @@ describe('higher-order flow ops', () => {
     setParam(wrongArity, 'fn', 'Binary')
     const failing = buildListPipeline(graph, 'flow/map', 'a,b,c')
     setParam(failing, 'fn', 'Boomy')
+    for (const op of [unpicked, unknown, wrongArity, failing]) demand(graph, op)
 
     await engine.whenIdle()
     expect(engine.stateOf(unpicked).error?.message).toMatch(/no subgraph selected/)
@@ -266,6 +277,7 @@ describe('higher-order flow ops', () => {
     graph.add(instance)
     input.connect(0, split, 0)
     split.connect(0, instance, 0)
+    demand(graph, instance)
 
     await engine.whenIdle()
     expect(engine.outputsOf(instance)).toEqual([['X', 'Y']])
@@ -282,6 +294,7 @@ describe('higher-order flow ops', () => {
     range.connect(0, map, 0)
     const length = spawn(graph, 'text/length')
     map.connect(0, length, 0)
+    demand(graph, length)
 
     await engine.whenIdle()
     expect(engine.outputsOf(length)).toEqual([3000])

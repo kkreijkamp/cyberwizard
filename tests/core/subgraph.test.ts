@@ -371,7 +371,9 @@ describe('Subgraph evaluation', () => {
 
     const src = spawn(graph, 'test-sub/src')
     const instance = spawnInstance(graph, meta.id)
+    const sink = spawn(graph, 'test-sub/sink')
     src.connect(0, instance, 0)
+    instance.connect(0, sink, 0) // sinks demand evaluation — nothing runs unpulled
 
     await engine.whenIdle() // 2^depth would explode; the ~1000 budget must hit first
     expect(engine.stateOf(instance).error?.message).toMatch(/budget|depth limit/)
@@ -469,7 +471,9 @@ describe('Subgraph evaluation', () => {
     const { defId, a, b } = buildTwoBranchDef(graph)
     const src = spawn(graph, 'test-sub/src')
     const instance = spawnInstance(graph, defId)
+    const sink = spawn(graph, 'test-sub/sink')
     src.connect(0, instance, 0)
+    instance.connect(0, sink, 0)
 
     await engine.whenIdle()
     expect(engine.outputsOf(instance)).toEqual(['x1', 'x2'])
@@ -489,7 +493,9 @@ describe('Subgraph evaluation', () => {
     const { defId, b } = buildTwoBranchDef(graph)
     const src = spawn(graph, 'test-sub/src')
     const instance = spawnInstance(graph, defId)
+    const sink = spawn(graph, 'test-sub/sink')
     src.connect(0, instance, 0)
+    instance.connect(0, sink, 0)
 
     await engine.whenIdle()
     expect(engine.outputsOf(instance)).toEqual(['x1', 'x2'])

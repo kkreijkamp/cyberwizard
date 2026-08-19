@@ -1,11 +1,11 @@
 import { getDefByType } from '../../src/core/registry'
 import type { RunContext } from '../../src/core/registry'
 
-const ctx: RunContext = { signal: new AbortController().signal, node: undefined as never }
-
 /**
  * Calls an operation's run() directly with engine-equivalent params
- * (defaults filled from the def, then overrides applied).
+ * (defaults filled from the def, then overrides applied). ctx.pull reads
+ * straight from the inputs record, so lazy-input ops can be tested without
+ * an engine; override it via ctxPartial to observe pull calls.
  */
 export async function runOp(
   type: string,
@@ -18,6 +18,11 @@ export async function runOp(
   const fullParams: Record<string, unknown> = {}
   for (const p of def.params ?? []) fullParams[p.name] = p.default
   Object.assign(fullParams, params)
+  const ctx: RunContext = {
+    signal: new AbortController().signal,
+    node: undefined as never,
+    pull: async (slotName: string) => inputs[slotName],
+  }
   return def.run(inputs, fullParams, { ...ctx, ...ctxPartial })
 }
 

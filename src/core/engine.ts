@@ -1,37 +1,47 @@
 /**
- * The execution engine — the piece that makes CyberWizard a reactive dataflow
- * system rather than a frame-polled LiteGraph demo.
+ * The execution engine — demand-driven reactive dataflow.
  *
  * Semantics:
- *  - Editing a param or changing a connection marks the node dirty; dirtiness
- *    propagates to everything downstream (cycle-safe).
- *  - Evaluation is microtask-batched: a burst of edits triggers one pass.
- *  - Each pass walks dirty nodes in topological order (Kahn). A node reads
- *    its inputs from upstream output caches, coerces them to its declared
- *    slot types, runs (possibly async), and caches its outputs.
+ *  - Sinks drive evaluation. Registry nodes with no declared outputs
+ *    (Preview, Download) are pull roots: a microtask-batched flush ensures
+ *    each dirty sink, which recursively ensures the upstream nodes it
+ *    actually reads from. Nodes nothing demands never run — a disconnected
+ *    branch, an unwired cycle, or the untaken side of a conditional.
+ *  - Editing a param or changing a connection marks the node dirty;
+ *    dirtiness propagates downstream (cycle-safe). Pulling re-runs only
+ *    dirty nodes — clean cached outputs are memo hits, so evaluation work
+ *    is confined to what changed AND what is demanded.
+ *  - Lazy inputs (a def's `lazyInputs`, e.g. Select's then/else) are not
+ *    pre-evaluated: the op pulls them on demand via RunContext.pull. The
+ *    untaken branch never runs, so recursion terminates through an ordinary
+ *    conditional — no subgraph-thunk ceremony required.
  *  - Stale-run cancellation: every run records the node's generation; if the
  *    node was marked dirty again while the run was in flight, the result is
- *    discarded and a fresh run follows.
+ *    discarded and the node stays dirty for the next flush.
  *  - Errors are captured per node and block downstream nodes instead of
  *    cascading garbage values.
- *  - Nodes left over by Kahn's algorithm are (tainted by) cycles — they get a
- *    cycle error and never execute.
+ *  - A pull that (transitively) demands the node itself is a cycle: the
+ *    nodes on the cycle get a cycle error and never execute. Pulls within a
+ *    scope are sequential — the pull stack is the single active chain, which
+ *    is what makes re-entrancy detection exact (never Promise.all ensures).
  *
  * Subgraph instances (core/subgraph.ts) evaluate with call semantics: the
- * instance is one node in its parent's topo order; running it evaluates the
- * definition's interior with the instance inputs bound at the input panel and
- * reads the output panel back as the instance's outputs. Interior node state
- * is cached per instance path, so unchanged instances never re-run and
- * interior edits re-evaluate only the affected branch. Recursion (a
- * definition containing an instance of itself) is bounded by a depth limit
- * and a per-call-tree evaluation budget.
+ * instance is one pull away in its parent; ensuring it evaluates the
+ * definition's interior with the instance inputs bound at the input panel
+ * and reads the output panel back. Interior evaluation is itself pull-based:
+ * the output panel's feeders plus interior sinks (e.g. a Preview inside a
+ * definition) are the pull roots, so dead interior branches don't run and
+ * can't fail the instance. Interior node state is cached per instance path,
+ * so unchanged instances never re-run and interior edits re-evaluate only
+ * the affected branch. Recursion (a definition containing an instance of
+ * itself) is bounded by a depth limit and a per-call-tree evaluation budget.
  */
 
 import type { LGraph, LGraphNode, NodeId, Subgraph, SubgraphNode } from '@comfyorg/litegraph'
 import type { DataType } from './types'
 import { ANY, inferDataType, repr } from './types'
 import { CoercionError, coerce } from './coerce'
-import type { SlotDef } from './registry'
+import type { SlotDef, UntypedNodeDef } from './registry'
 import { PREVIEW_WIDGET_NAME, getNodeDef, setDirtyHandler } from './registry'
 import type { SubgraphDefMeta } from './subgraph'
 import { getSubgraphDef } from './subgraph'
@@ -45,10 +55,15 @@ export interface NodeState {
   error: Error | undefined
   /** True when an upstream node errored and this node was skipped. */
   blocked: boolean
+  /** In-flight ensure() promise — dedups concurrent pulls of the same node. */
+  inFlight: Promise<void> | undefined
+  /** True when this node sits on a detected cycle; its error sticks until an edit re-dirties it. */
+  cycle: boolean
 }
 
 const COLOR_ERROR = '#ef4444'
 const COLOR_BLOCKED = '#6b7280'
+const CYCLE_MESSAGE = 'graph contains a cycle through this node'
 
 /** Max call depth for nested instances — the guard on true recursive self-reference. */
 export const MAX_SUBGRAPH_DEPTH = 64
@@ -62,6 +77,11 @@ interface ResolvedInput {
   value: unknown
   fromType: DataType
 }
+
+/** Thrown out of RunContext.pull when the pulled slot's upstream errored/is blocked. */
+class UpstreamBlocked extends Error {}
+/** Thrown out of RunContext.pull when the pulled slot's upstream was superseded mid-pull. */
+class UpstreamStale extends Error {}
 
 /**
  * One evaluation context: the root graph, or the interior of one subgraph
@@ -94,6 +114,14 @@ interface EvalScope {
    * meaningless — and for large maps, unbounded).
    */
   transient: boolean
+  /** The active pull chain, innermost last — the cycle detector. */
+  pullStack: LGraphNode[]
+  /**
+   * First error captured during this scope's pull, if any. A blocked output
+   * panel feeder reports this as the instance error (the root cause), rather
+   * than an uninformative "blocked upstream".
+   */
+  firstError: { title: string; message: string } | null
 }
 
 export class Engine {
@@ -144,9 +172,8 @@ export class Engine {
    * Drop all engine state for a removed node: abort its in-flight run and
    * delete its state entry so a dirty flag on a ghost can never wedge the
    * evaluation loop. (markDirty may still re-create a state lazily via
-   * connection callbacks firing during removal — anyDirty() guards on graph
-   * membership for exactly that reason.) Also drops interior state rooted at
-   * a removed subgraph instance.
+   * connection callbacks firing during removal.) Also drops interior state
+   * rooted at a removed subgraph instance.
    */
   private forget(node: LGraphNode): void {
     this.abortControllers.get(node.id)?.abort()
@@ -174,14 +201,20 @@ export class Engine {
     return this.state(node).outputs
   }
 
-  /** Resolves when no evaluation is running/scheduled and no node is dirty. */
+  /** Resolves when no flush is running or scheduled. Undemanded dirty nodes rest. */
   async whenIdle(): Promise<void> {
-    while (this.evaluating || this.scheduled || this.anyDirty()) {
+    while (this.evaluating || this.scheduled) {
       await new Promise<void>((resolve) => this.idleWaiters.push(resolve))
     }
   }
 
-  markDirty(node: LGraphNode): void {
+  /**
+   * Marks a node and everything downstream of it dirty. Fresh values may flow
+   * into any instance reached this way, so its precise interior seeds are
+   * void — except when the mark itself comes from seedSubgraphInstanceDirty
+   * (preserveSeeds), which just wrote those seeds.
+   */
+  markDirty(node: LGraphNode, opts?: { preserveSeeds?: boolean }): void {
     const stack: LGraphNode[] = [node]
     const visited = new Set<NodeId>()
     while (stack.length > 0) {
@@ -193,6 +226,10 @@ export class Engine {
       s.dirty = true
       s.generation++
       this.abortControllers.get(current.id)?.abort()
+
+      if (current.isSubgraphNode() && !(opts?.preserveSeeds && current === node)) {
+        this.invalidatedSeeds.add(String(current.id))
+      }
 
       for (const output of current.outputs ?? []) {
         for (const linkId of output.links ?? []) {
@@ -208,7 +245,7 @@ export class Engine {
 
   /**
    * An interior node of a definition went dirty while `instance` (root-level)
-   * is alive: seed a precise re-evaluation — on the instance's next run only
+   * is alive: seed a precise re-evaluation — on the instance's next pull only
    * the seeded nodes and their interior downstream re-execute.
    */
   seedSubgraphInstanceDirty(instance: LGraphNode, interiorNodeId: NodeId): void {
@@ -218,7 +255,7 @@ export class Engine {
       this.pendingSeeds.set(String(instance.id), seeds)
     }
     seeds.add(interiorNodeId)
-    this.markDirty(instance)
+    this.markDirty(instance, { preserveSeeds: true })
   }
 
   /** An instance's own edges changed — its inputs may differ, so interior seeds are void. */
@@ -228,7 +265,7 @@ export class Engine {
     this.markDirty(instance)
   }
 
-  // ─── Evaluation ──────────────────────────────────────────────────────────
+  // ─── Evaluation driver ───────────────────────────────────────────────────
 
   private schedule(): void {
     if (this.scheduled) return
@@ -248,8 +285,8 @@ export class Engine {
     try {
       do {
         this.rerunRequested = false
-        await this.evaluatePass()
-      } while (this.rerunRequested || this.anyDirty())
+        await this.pullSinks()
+      } while (this.rerunRequested || this.anySinkDirty())
     } finally {
       this.evaluating = false
       this.drainIdleWaiters()
@@ -257,13 +294,21 @@ export class Engine {
   }
 
   private drainIdleWaiters(): void {
-    if (this.anyDirty() || this.scheduled) return
+    if (this.evaluating || this.scheduled) return
     const waiters = this.idleWaiters.splice(0)
     for (const resolve of waiters) resolve()
   }
 
-  private async evaluatePass(): Promise<void> {
-    const scope: EvalScope = {
+  /** A sink is a registry node with no outputs (Preview, Download) or a 0-output instance. */
+  private isSink(node: LGraphNode): boolean {
+    if (node.isSubgraphNode()) {
+      return getSubgraphDef(this.graph, node.type)?.outputs.length === 0
+    }
+    return getNodeDef(node)?.outputs.length === 0
+  }
+
+  private rootScope(): EvalScope {
+    return {
       graph: this.graph,
       store: this.states,
       path: '',
@@ -272,101 +317,179 @@ export class Engine {
       signal: null,
       boundary: null,
       transient: false,
-    }
-    const { order, cyclicIds } = topoOrder(this.graph)
-
-    for (const id of cyclicIds) {
-      const node = this.graph.getNodeById(id)
-      if (!node) continue
-      const s = this.state(node)
-      s.error = new Error('graph contains a cycle through this node')
-      s.outputs = undefined
-      s.dirty = false
-      this.paint(node, s)
-    }
-
-    for (const node of order) {
-      const s = this.state(node)
-      if (!s.dirty) continue
-      await this.runNode(node, s, scope)
+      pullStack: [],
+      firstError: null,
     }
   }
 
-  private async runNode(node: LGraphNode, s: NodeState, scope: EvalScope): Promise<void> {
-    if (node.isSubgraphNode()) return this.runSubgraphNode(node, s, scope)
+  private async pullSinks(): Promise<void> {
+    const scope = this.rootScope()
+    for (const node of this.graph._nodes) {
+      if (this.isSink(node)) await this.ensure(node, scope)
+    }
+  }
 
-    const def = getNodeDef(node)
-    if (!def) {
-      // Foreign node (not created via defineNode) — outside engine semantics.
-      s.dirty = false
+  private anySinkDirty(): boolean {
+    for (const node of this.graph._nodes) {
+      if (this.states.get(node.id)?.dirty && this.isSink(node)) return true
+    }
+    return false
+  }
+
+  // ─── Pulling ─────────────────────────────────────────────────────────────
+
+  /**
+   * Ensures the node's cached state is fresh: runs it if dirty, returns
+   * immediately on a memo hit, dedups concurrent pulls, and marks cycles on
+   * re-entrant demand. Never rejects — every outcome lands in the node state.
+   */
+  private async ensure(node: LGraphNode, scope: EvalScope): Promise<void> {
+    const s = this.stateIn(scope.store, node)
+    if (!s.dirty) return
+    const onStack = scope.pullStack.indexOf(node)
+    if (onStack !== -1) {
+      // Re-entrant pull: this node (transitively) demands itself. Every node
+      // on the cycle gets the error; they never execute.
+      for (const cyclic of scope.pullStack.slice(onStack)) {
+        const st = this.stateIn(scope.store, cyclic)
+        st.error = new Error(CYCLE_MESSAGE)
+        st.outputs = undefined
+        st.dirty = false
+        st.cycle = true
+        this.paint(cyclic, st)
+      }
       return
     }
-    const generation = s.generation
-
-    // Gather inputs from upstream caches; upstream errors block this node.
-    // A dirty/running upstream means its cached output is stale (its fresh run
-    // was superseded mid-pass) — skip and let the next pass run us properly.
-    const inputs: Record<string, unknown> = {}
-    for (const [index, slot] of def.inputs.entries()) {
-      const resolved = this.resolveInput(node, index, scope)
-      if (resolved.status === 'stale') return
-      if (resolved.status === 'blocked') {
-        s.blocked = true
-        s.error = undefined
-        s.outputs = undefined
-        s.dirty = false
-        this.paint(node, s)
-        this.propagateToDownstream(node, scope)
-        return
-      }
-      try {
-        inputs[slot.name] = coerce(resolved.value, resolved.fromType, slot.type)
-      } catch (err) {
-        this.captureError(node, s, err, scope)
-        return
-      }
-    }
-
-    const params: Record<string, unknown> = {}
-    for (const p of def.params ?? []) params[p.name] = node.properties[p.name] ?? p.default
-
-    // Interior nodes share the enclosing instance run's signal; only root
-    // nodes get their own controller (keyed by id — interior ids from
-    // different scopes would collide).
-    const controller = scope.signal ? null : new AbortController()
-    if (controller) this.abortControllers.set(node.id, controller)
-    s.running = true
+    if (s.inFlight) return s.inFlight
+    s.inFlight = this.doEnsure(node, s, scope)
     try {
-      const signal = scope.signal ?? (controller as AbortController).signal
-      const result = await def.run(inputs, params, {
-        signal,
-        node,
-        apply: (defId, applyInputs) => this.applySubgraph(defId, applyInputs, scope, signal),
-      })
-      if (generation !== s.generation) return // superseded while running — discard
-      s.outputs = def.outputs.map((o) => result[o.name])
-      s.error = undefined
-      s.blocked = false
-      s.dirty = false
-      this.paint(node, s)
-      this.propagateToDownstream(node, scope)
-    } catch (err) {
-      if (generation !== s.generation) return
-      this.captureError(node, s, err, scope)
+      await s.inFlight
     } finally {
-      s.running = false
-      if (controller && this.abortControllers.get(node.id) === controller) {
-        this.abortControllers.delete(node.id)
-      }
+      s.inFlight = undefined
     }
+  }
+
+  private async doEnsure(node: LGraphNode, s: NodeState, scope: EvalScope): Promise<void> {
+    scope.pullStack.push(node)
+    try {
+      // A superseded interior run stops early; its result would be discarded
+      // at the boundary anyway (generation check), so leave the state dirty.
+      if (scope.signal?.aborted) return
+
+      if (node.isSubgraphNode()) {
+        return await this.ensureSubgraphInstance(node as SubgraphNode, s, scope)
+      }
+
+      const def = getNodeDef(node)
+      if (!def) {
+        // Foreign node (not created via defineNode) — outside engine semantics.
+        s.dirty = false
+        return
+      }
+      const generation = s.generation
+
+      // Eager inputs: pulled up front. Lazy inputs (def.lazyInputs) are left
+      // for the op to demand via RunContext.pull.
+      const lazy = new Set(def.lazyInputs ?? [])
+      const inputs: Record<string, unknown> = {}
+      for (const [index, slot] of def.inputs.entries()) {
+        if (lazy.has(slot.name)) continue
+        const resolved = await this.pullInput(node, index, scope)
+        if (resolved.status === 'stale') return
+        if (resolved.status === 'blocked') {
+          this.markBlocked(node, s)
+          return
+        }
+        try {
+          inputs[slot.name] = coerce(resolved.value, resolved.fromType, slot.type)
+        } catch (err) {
+          this.captureError(node, s, err, scope)
+          return
+        }
+      }
+
+      const params: Record<string, unknown> = {}
+      for (const p of def.params ?? []) params[p.name] = node.properties[p.name] ?? p.default
+
+      // Interior nodes share the enclosing instance run's signal; only root
+      // nodes get their own controller (keyed by id — interior ids from
+      // different scopes would collide).
+      const controller = scope.signal ? null : new AbortController()
+      if (controller) this.abortControllers.set(node.id, controller)
+      s.running = true
+      try {
+        const signal = scope.signal ?? (controller as AbortController).signal
+        const result = await def.run(inputs, params, {
+          signal,
+          node,
+          apply: (defId, applyInputs) => this.applySubgraph(defId, applyInputs, scope, signal),
+          pull: (slotName) => this.pullSlot(node, def, slotName, scope),
+        })
+        if (generation !== s.generation) return // superseded while running — discard
+        s.outputs = def.outputs.map((o) => result[o.name])
+        s.error = undefined
+        s.blocked = false
+        s.dirty = false
+        s.cycle = false
+        this.paint(node, s)
+      } catch (err) {
+        if (generation !== s.generation) return
+        if (err instanceof UpstreamBlocked) {
+          this.markBlocked(node, s)
+          return
+        }
+        if (err instanceof UpstreamStale) return // stay dirty; a later flush retries
+        this.captureError(node, s, err, scope)
+      } finally {
+        s.running = false
+        if (controller && this.abortControllers.get(node.id) === controller) {
+          this.abortControllers.delete(node.id)
+        }
+      }
+    } finally {
+      scope.pullStack.pop()
+    }
+  }
+
+  /** Ensures the upstream feeding one input slot and resolves its value. */
+  private async pullInput(node: LGraphNode, index: number, scope: EvalScope): Promise<ResolvedInput> {
+    const linkId = node.inputs[index]?.link
+    if (linkId == null) return { status: 'empty', value: undefined, fromType: ANY }
+    const link = scope.graph.getLink(linkId)
+    if (!link) return { status: 'empty', value: undefined, fromType: ANY }
+
+    // Boundary: the enclosing definition's input panel supplies the value.
+    if (scope.boundary && link.origin_id === scope.boundary.inputPanelId) {
+      const fromType = scope.boundary.inputDefs[link.origin_slot]?.type ?? ANY
+      return { status: 'ok', value: scope.boundary.inputs[link.origin_slot], fromType }
+    }
+
+    const origin = scope.graph.getNodeById(link.origin_id)
+    if (!origin) return { status: 'empty', value: undefined, fromType: ANY }
+
+    await this.ensure(origin, scope)
+    const originState = this.stateIn(scope.store, origin)
+    if (originState.error || originState.blocked) return { status: 'blocked', value: undefined, fromType: ANY }
+    if (originState.dirty || originState.running) return { status: 'stale', value: undefined, fromType: ANY }
+    return { status: 'ok', value: originState.outputs?.[link.origin_slot], fromType: this.outputTypeOf(origin, link.origin_slot) }
+  }
+
+  /** RunContext.pull: demand one (typically lazy) input slot's coerced value. */
+  private async pullSlot(node: LGraphNode, def: UntypedNodeDef, slotName: string, scope: EvalScope): Promise<unknown> {
+    const index = def.inputs.findIndex((slot) => slot.name === slotName)
+    if (index === -1) throw new Error(`unknown input slot "${slotName}"`)
+    const resolved = await this.pullInput(node, index, scope)
+    if (resolved.status === 'blocked') throw new UpstreamBlocked()
+    if (resolved.status === 'stale') throw new UpstreamStale()
+    return coerce(resolved.value, resolved.fromType, def.inputs[index]!.type)
   }
 
   /**
    * Call-semantics evaluation of a subgraph instance: bind the (coerced)
-   * instance inputs at the definition's input panel, evaluate the interior in
-   * the instance's own state store, read the output panel back.
+   * instance inputs at the definition's input panel, pull the interior's
+   * sinks and output-panel feeders, read the output panel back.
    */
-  private async runSubgraphNode(node: SubgraphNode, s: NodeState, scope: EvalScope): Promise<void> {
+  private async ensureSubgraphInstance(node: SubgraphNode, s: NodeState, scope: EvalScope): Promise<void> {
     const meta = getSubgraphDef(this.graph, node.type)
     const generation = s.generation
     if (!meta) {
@@ -376,15 +499,10 @@ export class Engine {
 
     const inputValues: unknown[] = []
     for (const [index, slot] of meta.inputs.entries()) {
-      const resolved = this.resolveInput(node, index, scope)
+      const resolved = await this.pullInput(node, index, scope)
       if (resolved.status === 'stale') return
       if (resolved.status === 'blocked') {
-        s.blocked = true
-        s.error = undefined
-        s.outputs = undefined
-        s.dirty = false
-        this.paint(node, s)
-        this.propagateToDownstream(node, scope)
+        this.markBlocked(node, s)
         return
       }
       try {
@@ -429,8 +547,8 @@ export class Engine {
       s.error = undefined
       s.blocked = false
       s.dirty = false
+      s.cycle = false
       this.paint(node, s)
-      this.propagateToDownstream(node, scope)
     } catch (err) {
       if (generation !== s.generation) return
       this.captureError(node, s, err, scope)
@@ -481,8 +599,7 @@ export class Engine {
   ): Promise<unknown[]> {
     // Store retention: instance runs in a stable scope keep their interior
     // caches; recursive re-entries and apply() calls evaluate transiently.
-    const retained =
-      !parentScope.transient && !parentScope.defStack.includes(meta.id)
+    const retained = !parentScope.transient && !parentScope.defStack.includes(meta.id)
     const path = parentScope.path === '' ? pathSegment : `${parentScope.path}/${pathSegment}`
 
     let store = retained ? this.interiorStores.get(path) : undefined
@@ -511,32 +628,24 @@ export class Engine {
       signal,
       boundary: { inputPanelId, inputs: inputValues, inputDefs: meta.inputs },
       transient: !retained,
+      pullStack: [],
+      firstError: null,
     }
 
-    const { order, cyclicIds } = topoOrder(subgraph, inputPanelId)
-    for (const id of cyclicIds) {
-      const node = subgraph.getNodeById(id)
-      if (!node) continue
-      const st = this.stateIn(store, node)
-      st.error = new Error('graph contains a cycle through this node')
-      st.outputs = undefined
-      st.dirty = false
-    }
-    for (const node of order) {
+    // Interior sinks (a Preview inside the definition) are pull roots too —
+    // they are why interior nodes off the output path ever run. Their errors
+    // stay local (ensure captures per node; the instance result is unaffected).
+    for (const node of subgraph._nodes) {
       if (signal.aborted) throw new Error('subgraph run aborted')
-      const st = this.stateIn(store, node)
-      if (!st.dirty) continue
-      await this.runNode(node, st, scope)
+      if (this.isSink(node)) await this.ensure(node, scope)
     }
 
-    // The first interior error (in topo order) becomes the instance error.
-    // Blocked nodes only exist downstream of an error, so this covers them.
-    for (const node of order) {
-      const st = store.get(node.id)
-      if (st?.error) throw new Error(`[${node.title}] ${st.error.message}`)
+    const outputs: unknown[] = []
+    for (const [index, slot] of meta.outputs.entries()) {
+      if (signal.aborted) throw new Error('subgraph run aborted')
+      outputs.push(await this.readBoundaryOutput(subgraph, scope, slot, index))
     }
-
-    return meta.outputs.map((slot, i) => this.readBoundaryOutput(subgraph, store, slot, i))
+    return outputs
   }
 
   /** Marks the given starting points and everything downstream of them dirty in the store. */
@@ -558,59 +667,59 @@ export class Engine {
     // first runs and freshly added interior nodes need no marking here.
   }
 
-  /** Reads one declared output back from the interior, coerced to its slot type. */
-  private readBoundaryOutput(
+  /** Ensures the feeder of one declared output, then reads it back coerced to the slot type. */
+  private async readBoundaryOutput(
     subgraph: Subgraph,
-    store: Map<NodeId, NodeState>,
+    scope: EvalScope,
     slot: SlotDef,
     index: number,
-  ): unknown {
+  ): Promise<unknown> {
     const ioSlot = subgraph.outputs[index]
     const linkId = ioSlot?.linkIds?.[0]
     if (linkId == null) return undefined
     const link = subgraph.getLink(linkId)
     if (!link) return undefined
+
+    // Pass-through: the output panel is wired straight from the input panel.
+    if (scope.boundary && link.origin_id === scope.boundary.inputPanelId) {
+      const fromType = scope.boundary.inputDefs[link.origin_slot]?.type ?? ANY
+      return coerce(scope.boundary.inputs[link.origin_slot], fromType, slot.type)
+    }
+
     const origin = subgraph.getNodeById(link.origin_id)
     if (!origin) return undefined
-    const st = store.get(origin.id)
+    await this.ensure(origin, scope)
+    const st = scope.store.get(origin.id)
     if (!st) return undefined
     if (st.error) throw new Error(`[${origin.title}] ${st.error.message}`)
-    if (st.blocked) throw new Error(`[${origin.title}] blocked upstream`)
+    if (st.blocked) {
+      const first = scope.firstError
+      throw new Error(first ? `[${first.title}] ${first.message}` : `[${origin.title}] blocked upstream`)
+    }
     if (st.dirty || st.running) {
       throw new Error(`subgraph evaluation incomplete — "${origin.title}" never ran`)
     }
     return coerce(st.outputs?.[link.origin_slot], this.outputTypeOf(origin, link.origin_slot), slot.type)
   }
 
+  private markBlocked(node: LGraphNode, s: NodeState): void {
+    if (s.cycle) return // the cycle error is the more precise diagnosis — keep it
+    s.blocked = true
+    s.error = undefined
+    s.outputs = undefined
+    s.dirty = false
+    this.paint(node, s)
+  }
+
   private captureError(node: LGraphNode, s: NodeState, err: unknown, scope: EvalScope): void {
+    if (s.cycle) return
     s.error =
       err instanceof CoercionError || err instanceof Error ? err : new Error(String(err))
     s.outputs = undefined
     s.blocked = false
     s.dirty = false
+    if (!scope.firstError) scope.firstError = { title: node.title, message: s.error.message }
     this.paint(node, s)
-    this.propagateToDownstream(node, scope)
-  }
-
-  private resolveInput(node: LGraphNode, index: number, scope: EvalScope): ResolvedInput {
-    const linkId = node.inputs[index]?.link
-    if (linkId == null) return { status: 'empty', value: undefined, fromType: ANY }
-    const link = scope.graph.getLink(linkId)
-    if (!link) return { status: 'empty', value: undefined, fromType: ANY }
-
-    // Boundary: the enclosing definition's input panel supplies the value.
-    if (scope.boundary && link.origin_id === scope.boundary.inputPanelId) {
-      const fromType = scope.boundary.inputDefs[link.origin_slot]?.type ?? ANY
-      return { status: 'ok', value: scope.boundary.inputs[link.origin_slot], fromType }
-    }
-
-    const origin = scope.graph.getNodeById(link.origin_id)
-    if (!origin) return { status: 'empty', value: undefined, fromType: ANY }
-
-    const originState = this.stateIn(scope.store, origin)
-    if (originState.error || originState.blocked) return { status: 'blocked', value: undefined, fromType: ANY }
-    if (originState.dirty || originState.running) return { status: 'stale', value: undefined, fromType: ANY }
-    return { status: 'ok', value: originState.outputs?.[link.origin_slot], fromType: this.outputTypeOf(origin, link.origin_slot) }
   }
 
   /** Declared output type of a node, whether a registry node or a subgraph instance. */
@@ -619,24 +728,6 @@ export class Engine {
       return getSubgraphDef(this.graph, node.type)?.outputs[slot]?.type ?? ANY
     }
     return getNodeDef(node)?.outputs[slot]?.type ?? ANY
-  }
-
-  private propagateToDownstream(node: LGraphNode, scope: EvalScope): void {
-    for (const output of node.outputs ?? []) {
-      for (const linkId of output.links ?? []) {
-        const target = scope.graph.getNodeById(scope.graph.getLink(linkId)?.target_id ?? null)
-        if (!target) continue
-        const s = this.stateIn(scope.store, target)
-        s.dirty = true
-        s.generation++
-        // Cancellation lives at the root: interior runs share the enclosing
-        // instance's signal, and interior ids could collide with root ids.
-        if (scope.signal === null) this.abortControllers.get(target.id)?.abort()
-        // Fresh values are flowing into this instance — precise interior
-        // seeds no longer describe what must re-run.
-        if (target.isSubgraphNode()) this.invalidatedSeeds.add(childPath(scope, target))
-      }
-    }
   }
 
   private paint(node: LGraphNode, s: NodeState): void {
@@ -674,70 +765,19 @@ export class Engine {
     let s = store.get(node.id)
     if (!s) {
       // Nodes the engine never saw (e.g. added before attach, or foreign)
-      // start dirty so the next pass evaluates them.
-      s = { dirty: true, running: false, generation: 0, outputs: undefined, error: undefined, blocked: false }
+      // start dirty so the next flush can evaluate them.
+      s = {
+        dirty: true,
+        running: false,
+        generation: 0,
+        outputs: undefined,
+        error: undefined,
+        blocked: false,
+        inFlight: undefined,
+        cycle: false,
+      }
       store.set(node.id, s)
     }
     return s
   }
-
-  private anyDirty(): boolean {
-    for (const [id, s] of this.states) {
-      // Ghost states (node removed from the graph but re-dirtied by a late
-      // connection callback) must not block quiescence. Note: getNodeById
-      // returns undefined (not null) for missing ids in 0.17.2 — hence !=.
-      if (s.dirty && this.graph.getNodeById(id) != null) return true
-    }
-    return false
-  }
-}
-
-function childPath(scope: EvalScope, node: LGraphNode): string {
-  return scope.path === '' ? String(node.id) : `${scope.path}/${String(node.id)}`
-}
-
-/**
- * Kahn's algorithm over the graph's links. Nodes not emitted are in (or
- * downstream of) a cycle. Links originating at `ignoreOriginId` (a
- * definition's input panel) are excluded — the panel is a boundary seed, not
- * a node, and counting it would wedge interior nodes' indegrees.
- */
-function topoOrder(graph: LGraph, ignoreOriginId?: NodeId): { order: LGraphNode[]; cyclicIds: Set<NodeId> } {
-  const nodes = graph._nodes
-  const byId = new Map<NodeId, LGraphNode>()
-  const indegree = new Map<NodeId, number>()
-  const downstream = new Map<NodeId, NodeId[]>()
-
-  for (const node of nodes) {
-    byId.set(node.id, node)
-    indegree.set(node.id, 0)
-  }
-  for (const link of graph._links.values()) {
-    if (ignoreOriginId !== undefined && link.origin_id === ignoreOriginId) continue
-    indegree.set(link.target_id, (indegree.get(link.target_id) ?? 0) + 1)
-    const list = downstream.get(link.origin_id)
-    if (list) list.push(link.target_id)
-    else downstream.set(link.origin_id, [link.target_id])
-  }
-
-  const queue = nodes.filter((n) => indegree.get(n.id) === 0).map((n) => n.id)
-  const order: LGraphNode[] = []
-  const emitted = new Set<NodeId>()
-
-  for (let head = 0; head < queue.length; head++) {
-    const id = queue[head] as NodeId
-    const node = byId.get(id)
-    if (!node || emitted.has(id)) continue
-    emitted.add(id)
-    order.push(node)
-    for (const targetId of downstream.get(id) ?? []) {
-      const remaining = (indegree.get(targetId) ?? 0) - 1
-      indegree.set(targetId, remaining)
-      if (remaining === 0) queue.push(targetId)
-    }
-  }
-
-  const cyclicIds = new Set<NodeId>()
-  for (const node of nodes) if (!emitted.has(node.id)) cyclicIds.add(node.id)
-  return { order, cyclicIds }
 }

@@ -54,6 +54,14 @@ export interface RunContext {
    * evaluation (flow/map & friends). Present when the engine drives the run.
    */
   readonly apply?: (defId: string, inputs: readonly unknown[]) => Promise<readonly unknown[]>
+  /**
+   * Pulls one input slot's value on demand: the upstream is evaluated and
+   * the value coerced to the slot type. Throws when the upstream is blocked
+   * or stale. Only slots declared in the def's `lazyInputs` need this —
+   * eager inputs arrive in the `inputs` argument. The untaken side of a
+   * conditional is never pulled, hence never evaluated.
+   */
+  readonly pull: (slotName: string) => Promise<unknown>
 }
 
 export interface NodeDef<
@@ -69,6 +77,12 @@ export interface NodeDef<
   readonly inputs: I
   readonly outputs: O
   readonly params?: P
+  /**
+   * Names of input slots the engine must NOT pre-evaluate: they are absent
+   * from `inputs`, and the op demands them via ctx.pull (flow/select's
+   * then/else — the untaken branch never runs). Coercion applies as usual.
+   */
+  readonly lazyInputs?: readonly string[]
   /**
    * Browser-side hook for nodes needing custom widgets (file picker, action
    * buttons). Runs once at construction, after slots and param widgets.

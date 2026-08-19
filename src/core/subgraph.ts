@@ -279,7 +279,10 @@ function syncMetaFromSubgraph(meta: SubgraphDefMeta, subgraph: Subgraph): void {
 /**
  * Deferred, batched sync for native panel edits. Some library events are
  * pre-mutation ('removing-input'), so the rebuild must run after the edit
- * lands — a microtask per subgraph, coalescing bursts.
+ * lands — a microtask per subgraph, coalescing bursts. API edits already
+ * synced (and dirtied instances) via editIO, but fire the same library
+ * events — so only dirty instances when the signature actually changed,
+ * otherwise this deferred dirty lands mid-run and forces a re-evaluation.
  */
 const pendingMetaSyncs = new Set<string>()
 
@@ -290,10 +293,16 @@ function scheduleMetaSync(rootGraph: LGraph, subgraph: Subgraph): void {
     pendingMetaSyncs.delete(subgraph.id)
     const meta = getSubgraphDef(rootGraph, subgraph.id)
     if (!meta || !rawSubgraph(rootGraph, subgraph.id)) return
+    const before = ioSignature(meta)
     syncMetaFromSubgraph(meta, subgraph)
+    if (ioSignature(meta) === before) return
     dirtyAllInstances(rootGraph, subgraph.id)
     emitDefsChange(rootGraph)
   })
+}
+
+function ioSignature(meta: SubgraphDefMeta): string {
+  return globalThis.JSON.stringify({ inputs: meta.inputs, outputs: meta.outputs })
 }
 
 /** Creates an empty definition with no IO and returns its metadata. */

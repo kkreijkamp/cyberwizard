@@ -54,7 +54,9 @@ function buildDoc(): { graph: LGraph; defId: string } {
   const instance = spawnSubgraphNode(defId)
   if (!instance) throw new Error('no factory')
   graph.add(instance)
+  const preview = mk(graph, 'io/preview') // sink: demands the instance's output
   input.connect(0, instance, 0)
+  instance.connect(0, preview, 0)
   return { graph, defId }
 }
 
@@ -135,7 +137,9 @@ describe('serialize v2 — subgraph round-trip', () => {
     const instance = spawnSubgraphNode(meta.id)
     if (!instance) throw new Error('no factory')
     graph.add(instance)
+    const preview = mk(graph, 'io/preview') // sink: demands the instance
     input.connect(0, instance, 0)
+    instance.connect(0, preview, 0)
 
     const doc = parseGraphDocument(JSON.parse(JSON.stringify(serializeGraph(graph))))
     const rig = restoredRig(doc)

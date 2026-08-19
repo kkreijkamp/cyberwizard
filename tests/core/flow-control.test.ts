@@ -123,7 +123,7 @@ function buildBoom(graph: LGraph): string {
   return meta.id
 }
 
-/** Root pipeline: const value → if.value, boolean const → if.cond. */
+/** Root pipeline: const value → if.value, boolean const → if.cond, Preview sink demanding the result. */
 function buildIf(graph: LGraph, value: number, cond: boolean, then: string, els: string): LGraphNode {
   const src = constNum(graph, value)
   const cmpA = constNum(graph, 1)
@@ -136,6 +136,8 @@ function buildIf(graph: LGraph, value: number, cond: boolean, then: string, els:
   setParam(ifNode, 'else', els)
   equals.connect(0, ifNode, 0)
   src.connect(0, ifNode, 1)
+  const sink = spawn(graph, 'io/preview')
+  ifNode.connect(0, sink, 0)
   return ifNode
 }
 
@@ -222,12 +224,16 @@ describe('flow/if', () => {
     if (!fact5) throw new Error('no factory')
     graph.add(fact5)
     five.connect(0, fact5, 0)
+    const sink5 = spawn(graph, 'io/preview')
+    fact5.connect(0, sink5, 0)
 
     const zero = constNum(graph, 0)
     const fact0 = spawnSubgraphNode(fact.id)
     if (!fact0) throw new Error('no factory')
     graph.add(fact0)
     zero.connect(0, fact0, 0)
+    const sink0 = spawn(graph, 'io/preview')
+    fact0.connect(0, sink0, 0)
 
     await engine.whenIdle()
     expect(engine.stateOf(fact5).error).toBeUndefined()
@@ -259,6 +265,8 @@ describe('flow/if', () => {
     if (!instance) throw new Error('no factory')
     graph.add(instance)
     src.connect(0, instance, 0)
+    const sink = spawn(graph, 'io/preview')
+    instance.connect(0, sink, 0)
 
     await engine.whenIdle() // must terminate
     expect(engine.stateOf(instance).error?.message).toMatch(/depth limit/)
