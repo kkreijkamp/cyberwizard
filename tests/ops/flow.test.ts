@@ -107,3 +107,20 @@ describe('flow/pass', () => {
     expect((await runOp('flow/pass', {})).value).toBeUndefined()
   })
 })
+
+describe('flow/select laziness', () => {
+  it('pulls only the taken branch slot', async () => {
+    const pulled: string[] = []
+    const ctx = {
+      pull: async (name: string) => {
+        pulled.push(name)
+        return name === 'then' ? 'T' : 'E'
+      },
+    }
+    expect((await runOp('flow/select', { cond: true }, {}, ctx)).result).toBe('T')
+    expect(pulled).toEqual(['then'])
+    expect((await runOp('flow/select', { cond: false }, {}, ctx)).result).toBe('E')
+    expect(pulled).toEqual(['then', 'else'])
+    expect((await runOp('flow/select', {}, {}, ctx)).result).toBe('E') // unwired cond → else
+  })
+})

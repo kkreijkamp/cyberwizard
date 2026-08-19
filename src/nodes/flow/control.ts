@@ -1,21 +1,20 @@
 /**
- * Flow — conditionals, eager and lazy.
+ * Flow — conditionals. Both are lazy: the untaken branch never runs.
  *
- * Select is the plain ternary: cond, then, and else are ordinary wired
- * inputs, so both branches always compute (the engine is eager dataflow).
- * Cheap and simple for picking between two already-cheap values.
+ * Select is the value-level ternary: cond ? then : else, with the branches
+ * as ordinary wired inputs. Its then/else slots are lazy (def.lazyInputs) —
+ * the engine evaluates only the one Select pulls. That is what recursion
+ * terminates through: the branch feeding the recursive call is never pulled
+ * once the base case holds, so a self-instancing definition bottoms out
+ * instead of demanding its own output forever.
  *
- * If is the lazy conditional — the functional-programming keystone. Its
- * branches are subgraph definitions (thunks); only the taken one is applied
- * (RunContext.apply), the other never evaluates. That is what recursion
- * terminates through: with the base case in one branch subgraph and the
- * recursive call in the other, a self-instancing definition bottoms out at
- * the base case. Through an eager node both sides would evaluate on every
- * level, and the recursion could only stop at the depth limit — in error.
- *
- * Branch shape: 1 output; 1 input (receives the value) or 0 inputs (a
- * constant base case). Both branches are validated up front, so a miswired
- * branch errors deterministically instead of only when the cond flips.
+ * If is the branch-subgraph conditional: its branches are definitions
+ * (thunks) picked in the then/else dropdowns, and only the taken one is
+ * applied (RunContext.apply). Use it when the branches are worth naming and
+ * reusing; use Select for inline wiring. Branch shape: 1 output; 1 input
+ * (receives the value) or 0 inputs (a constant base case). Both branches
+ * are validated up front, so a miswired branch errors deterministically
+ * instead of only when the cond flips.
  */
 
 import { defineNode } from '../../core/registry'
@@ -27,14 +26,17 @@ defineNode({
   type: 'flow/select',
   title: 'Select',
   category: 'Flow',
-  description: 'cond ? then : else. Both branches are always computed — for recursion or expensive branches use If.',
+  description: 'cond ? then : else — lazy: only the taken branch is evaluated, so recursion terminates through it.',
   inputs: [
     { name: 'cond', type: BOOLEAN },
     { name: 'then', type: ANY },
     { name: 'else', type: ANY },
   ] as const,
   outputs: [{ name: 'result', type: ANY }] as const,
-  run: (inputs) => ({ result: (inputs.cond ?? false) ? inputs.then : inputs.else }),
+  lazyInputs: ['then', 'else'],
+  run: async (inputs, _params, ctx) => ({
+    result: (inputs.cond ?? false) ? await ctx.pull('then') : await ctx.pull('else'),
+  }),
 })
 
 function branchArity(meta: SubgraphDefMeta, param: string): void {

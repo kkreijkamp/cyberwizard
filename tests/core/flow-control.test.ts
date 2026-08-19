@@ -293,3 +293,84 @@ describe('flow/if', () => {
     dispose()
   })
 })
+
+describe('flow/select (lazy value-level conditional)', () => {
+  function buildSelect(graph: LGraph, value: number, cond: boolean, elseBoom: boolean): LGraphNode {
+    const src = constNum(graph, value)
+    const cmpA = constNum(graph, 1)
+    const cmpB = constNum(graph, cond ? 1 : 2)
+    const equals = spawn(graph, 'math/equals')
+    cmpA.connect(0, equals, 0)
+    cmpB.connect(0, equals, 1)
+    const select = spawn(graph, 'flow/select')
+    equals.connect(0, select, 0)
+    src.connect(0, select, 1)
+    if (elseBoom) {
+      const boomSrc = constNum(graph, 99)
+      const boom = spawn(graph, 'test-control/boom')
+      boomSrc.connect(0, boom, 0)
+      boom.connect(0, select, 2)
+    } else {
+      constNum(graph, -1).connect(0, select, 2)
+    }
+    const sink = spawn(graph, 'io/preview')
+    select.connect(0, sink, 0)
+    return select
+  }
+
+  it('never evaluates the untaken branch, even when it would error', async () => {
+    const { graph, engine, dispose } = rig()
+    boomCount = 0
+    const taken = buildSelect(graph, 10, true, true) // Boom on else, untaken
+    const fallen = buildSelect(graph, 10, false, true) // Boom on else, taken
+
+    await engine.whenIdle()
+    expect(engine.outputsOf(taken)).toEqual([10])
+    expect(engine.stateOf(taken).error).toBeUndefined()
+    expect(engine.stateOf(fallen).blocked).toBe(true) // Boom errored → select blocked
+    expect(boomCount).toBe(1) // exactly the taken Boom ran
+    dispose()
+  })
+
+  it('recursion terminates through Select: factorial with no If anywhere', async () => {
+    const { graph, engine, dispose } = rig()
+
+    // "FactS": n → Select (n ≤ 1) ? 1 : n × FactS(n − 1). The recursive
+    // instance feeds Select's else slot — never pulled at the base case.
+    const fact = createSubgraphDef(graph, 'FactS')
+    addDefInput(graph, fact.id, 'n', NUMBER)
+    addDefOutput(graph, fact.id, 'result', NUMBER)
+    const sub = interiorOf(graph, fact.id)
+    const lessEq = spawnInterior(sub, 'math/less-eq')
+    wirePanelIn(sub, 0, lessEq, 0)
+    constNum(sub, 1).connect(0, lessEq, 1)
+    const select = spawnInterior(sub, 'flow/select')
+    lessEq.connect(0, select, 0)
+    constNum(sub, 1).connect(0, select, 1) // then: constant 1
+    const subtr = spawnInterior(sub, 'math/subtract')
+    wirePanelIn(sub, 0, subtr, 0)
+    constNum(sub, 1).connect(0, subtr, 1)
+    const self = spawnSubgraphNode(fact.id)
+    if (!self) throw new Error('no factory')
+    sub.add(self)
+    subtr.connect(0, self, 0)
+    const mul = spawnInterior(sub, 'math/multiply')
+    wirePanelIn(sub, 0, mul, 0)
+    self.connect(0, mul, 1)
+    mul.connect(0, select, 2)
+    wirePanelOut(sub, select, 0, 0)
+
+    const five = constNum(graph, 5)
+    const instance = spawnSubgraphNode(fact.id)
+    if (!instance) throw new Error('no factory')
+    graph.add(instance)
+    five.connect(0, instance, 0)
+    const sink = spawn(graph, 'io/preview')
+    instance.connect(0, sink, 0)
+
+    await engine.whenIdle()
+    expect(engine.stateOf(instance).error).toBeUndefined()
+    expect(engine.outputsOf(instance)).toEqual([120])
+    dispose()
+  })
+})
