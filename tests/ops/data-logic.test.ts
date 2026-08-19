@@ -49,3 +49,25 @@ describe('to/from bytes', () => {
     expect((await runOp('data/to-bytes', { value: { a: 1 } })).data).toEqual(bytesOf('{"a":1}'))
   })
 })
+
+describe('boolean combinators', () => {
+  it('and / or over both inputs', async () => {
+    expect((await runOp('logic/and', { a: true, b: true })).result).toBe(true)
+    expect((await runOp('logic/and', { a: true, b: false })).result).toBe(false)
+    expect((await runOp('logic/or', { a: false, b: true })).result).toBe(true)
+    expect((await runOp('logic/or', { a: false, b: false })).result).toBe(false)
+  })
+
+  it('unwired inputs act as the identity (true for and, false for or)', async () => {
+    expect((await runOp('logic/and', { a: true })).result).toBe(true)
+    expect((await runOp('logic/and', { a: false })).result).toBe(false)
+    expect((await runOp('logic/or', { b: true })).result).toBe(true)
+    expect((await runOp('logic/or', {})).result).toBe(false)
+  })
+
+  it('not inverts, unwired acts as false', async () => {
+    expect((await runOp('logic/not', { value: true })).result).toBe(false)
+    expect((await runOp('logic/not', { value: false })).result).toBe(true)
+    expect((await runOp('logic/not', {})).result).toBe(true)
+  })
+})
