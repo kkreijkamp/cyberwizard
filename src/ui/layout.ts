@@ -1,11 +1,11 @@
 /**
  * Cell layout — keeps every node aligned to the 50px cell grid.
  *
- * Sizes always snap to whole cells minus the one-row margin: width and
- * height ≡ 40 (mod 50), snapping UP so content always fits. Note the
+ * Sizes always snap to whole cells minus the margin between nodes: width
+ * and height ≡ 30 (mod 50), snapping UP so content always fits. Note the
  * fork's size model: node.size is the BODY only — the 30px title bar
  * renders ABOVE pos, outside node.size (see LGraphNode.measure). So the
- * body's height snaps to ≡ 10 (mod 50), putting title+body on the cell
+ * body's height snaps to ≡ 0 (mod 50), putting title+body on the cell
  * rhythm, and all stacking/reflow math works in visual bounds:
  * visualTop = pos − 30, visualBottom = pos + size.
  *
@@ -19,7 +19,7 @@
  * Resizing reflows the column below: growing pushes overlapped neighbours
  * down so the one-row margin is restored (transitively); shrinking pulls
  * directly-underneath neighbours back up. A node is "directly underneath"
- * when it overlaps horizontally and has at most one grid row (10px) of
+ * when it overlaps horizontally and has at most one margin (20px) of
  * vertical gap. Pull-ups are clamped so a rising node never collides with
  * an unrelated node above it.
  */
@@ -30,8 +30,8 @@ import { onSubgraphDefsChange } from '../core/subgraph'
 
 /** Five grid squares (LiteGraph.CANVAS_GRID_SIZE is 10). */
 export const LAYOUT_CELL = 50
-/** The one-row margin between stacked nodes. */
-export const LAYOUT_MARGIN = 10
+/** The margin between stacked/side-by-side nodes. */
+export const LAYOUT_MARGIN = 20
 /** Title bar height — rendered above pos, outside node.size. */
 export const TITLE_HEIGHT = LiteGraph.NODE_TITLE_HEIGHT
 const MIN_DIM = LAYOUT_CELL - LAYOUT_MARGIN

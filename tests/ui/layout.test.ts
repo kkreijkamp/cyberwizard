@@ -29,16 +29,16 @@ function stackBelow(a: LGraphNode, b: LGraphNode): void {
 }
 
 describe('snapDim', () => {
-  it('snaps up to the next 40-mod-50 cell size', () => {
-    expect(snapDim(0)).toBe(40)
-    expect(snapDim(40)).toBe(40)
-    expect(snapDim(41)).toBe(90)
-    expect(snapDim(89)).toBe(90)
-    expect(snapDim(90)).toBe(90)
-    expect(snapDim(91)).toBe(140)
-    expect(snapDim(140)).toBe(140)
-    expect(snapDim(141)).toBe(190)
-    expect(snapDim(1000)).toBe(1040)
+  it('snaps up to the next 30-mod-50 cell size', () => {
+    expect(snapDim(0)).toBe(30)
+    expect(snapDim(30)).toBe(30)
+    expect(snapDim(31)).toBe(80)
+    expect(snapDim(79)).toBe(80)
+    expect(snapDim(80)).toBe(80)
+    expect(snapDim(81)).toBe(130)
+    expect(snapDim(130)).toBe(130)
+    expect(snapDim(131)).toBe(180)
+    expect(snapDim(1000)).toBe(1030)
   })
 })
 
@@ -47,9 +47,9 @@ describe('cell layout', () => {
     const graph = new LGraph()
     installNodeLayout(graph)
     const node = spawn(graph, 0, 0)
-    expect((node.size[0] - 40) % LAYOUT_CELL).toBe(0)
-    // Body ≡ 10 (mod 50), so title + body ≡ 40 (mod 50) — the cell rule.
-    expect((node.size[1] + TITLE_HEIGHT - 40) % LAYOUT_CELL).toBe(0)
+    expect((node.size[0] - 30) % LAYOUT_CELL).toBe(0)
+    // Body ≡ 0 (mod 50), so title + body ≡ 30 (mod 50) — the cell rule.
+    expect((node.size[1] + TITLE_HEIGHT - 30) % LAYOUT_CELL).toBe(0)
   })
 
   it('snaps a manual resize up to the next cell', () => {
