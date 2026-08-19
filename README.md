@@ -39,6 +39,24 @@ Pick the subgraph in the node's `fn` dropdown (create it first with
 `+ Subgraph`). Nested lists work throughout: coercion recurses, previews
 render nested structure, and Flatten peels one level at a time.
 
+## Math, logic & conditionals — functional graphs
+
+**Math** covers arithmetic (Add … Power, Min/Max, Floor/Ceil/Round) and
+structural comparisons; **Logic** has the boolean combinators (And/Or/Not)
+for composing conditions. **Flow** has two conditionals:
+
+- **Select** — the eager ternary `cond ? then : else` on plain wired
+  values. Both sides always compute.
+- **If** — the lazy conditional: its branches are subgraphs (pick them in
+  the `then`/`else` dropdowns) and only the taken one runs. This is what
+  recursion terminates through — e.g. factorial is a definition whose If
+  returns constant 1 when `n ≤ 1` and otherwise applies a branch subgraph
+  containing `n × Fact(n − 1)`. With an eager node both sides would
+  evaluate on every level, so recursion could never bottom out.
+
+Recursion stays guarded: depth-limited and budget-capped, so a runaway
+definition shows a node error instead of freezing the page.
+
 ## Status
 
 Early development — see [PLAN.md](PLAN.md) for architecture and roadmap.

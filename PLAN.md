@@ -129,7 +129,8 @@ The registry drives the node palette, search, and slot-type compatibility checks
 
 **Phase 3 — flow & power features**
 - ~~List ops: Map (apply subgraph per element), Filter, Unique, Sort, Zip, Flatten~~ **(done, M5** — plus Fold, Pack/Get/Take/Drop/Reverse/Concat/Range; nested lists recurse through coercion and repr)
-- Control: Switch (route by condition), Merge, Gate
+- ~~Math & logic: arithmetic, structural comparisons, boolean combinators~~ **(done, M5)**
+- ~~Control: If (lazy — branch subgraphs, so recursion terminates), Select (eager ternary)~~ **(done, M5)** — Switch (route by condition), Merge, Gate still open
 - ~~**Subgraphs**: select nodes → collapse into a composite node with exposed slots~~ **(done, M5)**
 - Diff/Compare node, frequency analysis, entropy meter
 
@@ -162,7 +163,7 @@ cyberwizard/
 | M2 | MVP app | Phase-1 ops, palette w/ search, live previews — genuinely usable |
 | M3 | Persistence | Save/load/autosave/URL-share work, schema versioned |
 | M4 | Phase-2 ops | Crypto, compression, formats |
-| M5 | Power features | ~~Subgraphs~~ (done), ~~list ops~~ (done), switch/merge |
+| M5 | Power features | ~~Subgraphs~~ (done), ~~list ops~~ (done), ~~math/logic/conditionals~~ (done), switch/merge |
 | M6 | Ship | README+docs, graph templates, deployed to GitHub Pages |
 
 ## Testing strategy
