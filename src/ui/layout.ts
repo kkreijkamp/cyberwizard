@@ -2,11 +2,17 @@
  * Cell layout — keeps every node aligned to the 50px cell grid.
  *
  * Sizes always snap to whole cells minus the one-row margin: width and
- * height ≡ 40 (mod 50), snapping UP so content always fits. Enforcement is
- * a prototype-level LGraphNode.onResize: in 0.17.2 every size change
- * funnels through setSize → onResize (creation, widget/slot adds, subgraph
- * IO sync, manual corner-drags), so one hook covers all of them. Positions
- * snap to the 10px grid at add time (drags are handled by
+ * height ≡ 40 (mod 50), snapping UP so content always fits. Note the
+ * fork's size model: node.size is the BODY only — the 30px title bar
+ * renders ABOVE pos, outside node.size (see LGraphNode.measure). So the
+ * body's height snaps to ≡ 10 (mod 50), putting title+body on the cell
+ * rhythm, and all stacking/reflow math works in visual bounds:
+ * visualTop = pos − 30, visualBottom = pos + size.
+ *
+ * Enforcement is a prototype-level LGraphNode.onResize: in 0.17.2 every
+ * size change funnels through setSize → onResize (creation, widget/slot
+ * adds, subgraph IO sync, manual corner-drags), so one hook covers all of
+ * them. Positions snap to the 10px grid at add time (drags are handled by
  * LiteGraph.alwaysSnapToGrid, see main.ts).
  *
  * Resizing reflows the column below: growing pushes overlapped neighbours
@@ -17,7 +23,7 @@
  * an unrelated node above it.
  */
 
-import { LGraphNode } from '@comfyorg/litegraph'
+import { LGraphNode, LiteGraph } from '@comfyorg/litegraph'
 import type { LGraph, Size } from '@comfyorg/litegraph'
 import { onSubgraphDefsChange } from '../core/subgraph'
 
@@ -25,11 +31,27 @@ import { onSubgraphDefsChange } from '../core/subgraph'
 export const LAYOUT_CELL = 50
 /** The one-row margin between stacked nodes. */
 export const LAYOUT_MARGIN = 10
+/** Title bar height — rendered above pos, outside node.size. */
+export const TITLE_HEIGHT = LiteGraph.NODE_TITLE_HEIGHT
 const MIN_DIM = LAYOUT_CELL - LAYOUT_MARGIN
 
 /** Snaps one dimension up to the next cell size: 40, 90, 140, 190, … */
 export function snapDim(x: number): number {
   return Math.max(MIN_DIM, Math.ceil((x - MIN_DIM) / LAYOUT_CELL) * LAYOUT_CELL + MIN_DIM)
+}
+
+/** Snaps a BODY height so title + body lands on the cell rule (total ≡ 40 mod 50). */
+function snapHeight(bodyH: number): number {
+  return snapDim(bodyH + TITLE_HEIGHT) - TITLE_HEIGHT
+}
+
+/** Visual bounds: the title bar occupies the 30px above pos. */
+function topOf(node: LGraphNode): number {
+  return node.pos[1] - TITLE_HEIGHT
+}
+
+function bottomOf(node: LGraphNode): number {
+  return node.pos[1] + node.size[1]
 }
 
 /**
@@ -67,7 +89,7 @@ function installResizeHook(): void {
 function onNodeResize(node: LGraphNode, requested: Size): void {
   const min = node.computeSize()
   const w = snapDim(Math.max(min[0], requested[0]))
-  const h = snapDim(Math.max(min[1], requested[1]))
+  const h = snapHeight(Math.max(min[1], requested[1]))
   const prevH = snappedSizes.get(node)?.[1] ?? node.size[1]
   snappedSizes.set(node, [w, h])
   if (w !== requested[0] || h !== requested[1]) {
@@ -84,13 +106,12 @@ function xOverlap(a: LGraphNode, b: LGraphNode): boolean {
   return a.pos[0] < b.pos[0] + b.size[0] && b.pos[0] < a.pos[0] + a.size[0]
 }
 
-/** The lowest y a rising node may occupy: one row below anything directly above it. */
+/** The lowest y (pos) a rising node may occupy: one row below anything directly above it. */
 function topFloor(graph: LGraph, node: LGraphNode): number {
   let floor = Number.NEGATIVE_INFINITY
   for (const c of graph._nodes) {
     if (c === node || !xOverlap(c, node)) continue
-    const cBottom = c.pos[1] + c.size[1]
-    if (cBottom <= node.pos[1]) floor = Math.max(floor, cBottom + LAYOUT_MARGIN)
+    if (bottomOf(c) <= topOf(node)) floor = Math.max(floor, bottomOf(c) + LAYOUT_MARGIN + TITLE_HEIGHT)
   }
   return floor
 }
@@ -110,13 +131,13 @@ function reflowBelow(node: LGraphNode, delta: number): void {
     const [mover, bottomDelta] = queue.shift() as [LGraphNode, number]
     if (seen.has(mover)) continue
     seen.add(mover)
-    const moverBottom = mover.pos[1] + mover.size[1]
+    const moverBottom = bottomOf(mover)
     for (const other of graph._nodes) {
       if (other === mover || other.pinned || seen.has(other)) continue
       if (other.pos[1] < mover.pos[1]) continue // above or enclosing — not underneath
       if (!xOverlap(mover, other)) continue
       if (bottomDelta > 0) {
-        const gap = other.pos[1] - moverBottom
+        const gap = topOf(other) - moverBottom
         if (gap >= LAYOUT_MARGIN) continue
         const d = LAYOUT_MARGIN - gap
         other.pos[1] += d
@@ -125,9 +146,10 @@ function reflowBelow(node: LGraphNode, delta: number): void {
       } else {
         // Only nodes that were directly underneath before the shrink (their
         // gap against the mover's previous bottom was at most one row).
-        const oldGap = other.pos[1] - (moverBottom - bottomDelta)
+        const oldGap = topOf(other) - (moverBottom - bottomDelta)
         if (oldGap > LAYOUT_MARGIN) continue
-        let d = moverBottom + LAYOUT_MARGIN - other.pos[1]
+        // other's pos must restore the margin against the mover's VISUAL bottom.
+        let d = moverBottom + LAYOUT_MARGIN + TITLE_HEIGHT - other.pos[1]
         if (d >= 0) continue // already at/past the new margin — never push on shrink
         const floor = topFloor(graph, other)
         if (other.pos[1] + d < floor) d = floor - other.pos[1]
