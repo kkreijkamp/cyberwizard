@@ -13,7 +13,7 @@ LiteGraph.js. Fully client-side — data never leaves the browser.
 | Key/params must be retyped per op | Multi-input ops: wire a key node into XOR / AES / HMAC |
 | Intermediate values hidden | Live preview badge on every node |
 | Recipe = flat op list | Subgraphs: collapse a graph into a reusable custom node |
-| No conditionals or iteration | Switch/merge routing, list ops (map/filter/unique/sort) |
+| No conditionals or iteration | Lazy conditionals, recursion via self-instancing subgraphs, list ops (map/filter/fold…) |
 
 ## Tech stack
 
@@ -62,13 +62,21 @@ defineNode({
 The registry drives the node palette, search, and slot-type compatibility checks.
 
 ### 3. Execution engine (`core/engine.ts`)
-- **Reactive dataflow**: editing a param or input marks the node dirty; dirtiness
-  propagates downstream; affected subgraph re-evaluates in topological order
-- **Async-aware**: crypto/compression ops are async; engine awaits them and batches
-  UI updates
-- **Cancellation**: each run carries a generation token — a stale run (user edited
-  mid-flight) discards its result instead of overwriting newer state
-- **Output caching**: unchanged upstream branches are never re-executed
+- **Demand-driven (pull)**: sinks — nodes with no declared outputs (Preview,
+  Download) — pull their inputs; evaluation recurses upstream and runs only
+  what a sink actually demands. Undemanded nodes rest: disconnected branches
+  never run, unwired cycles stay inert (a demanded cycle is diagnosed by
+  re-entrant pull), dead interior branches can't fail an instance.
+- **Incremental**: editing a param or connection marks the node dirty;
+  dirtiness propagates downstream. Pulling re-runs only dirty nodes — clean
+  cached outputs are memo hits.
+- **Lazy slots**: a def may declare `lazyInputs` (Select's then/else); the op
+  pulls them via `ctx.pull`, which is why recursion terminates through an
+  ordinary value-level conditional.
+- **Async-aware**: crypto/compression ops are async; the engine awaits them
+  and batches UI updates
+- **Cancellation**: each run carries a generation token — a stale run (user
+  edited mid-flight) discards its result instead of overwriting newer state
 - **Later**: Web Worker execution for heavy ops; streaming for large files
 
 ### 4. Serialization (`core/serialize.ts`)
@@ -130,7 +138,7 @@ The registry drives the node palette, search, and slot-type compatibility checks
 **Phase 3 — flow & power features**
 - ~~List ops: Map (apply subgraph per element), Filter, Unique, Sort, Zip, Flatten~~ **(done, M5** — plus Fold, Pack/Get/Take/Drop/Reverse/Concat/Range; nested lists recurse through coercion and repr)
 - ~~Math & logic: arithmetic, structural comparisons, boolean combinators~~ **(done, M5)**
-- ~~Control: If (lazy — branch subgraphs, so recursion terminates), Select (eager ternary)~~ **(done, M5)** — Switch (route by condition), Merge, Gate still open
+- ~~Control: Select + If (both lazy — the untaken branch never evaluates, so recursion terminates through either)~~ **(done, M5)** — Switch (route by condition), Merge, Gate still open
 - ~~**Subgraphs**: select nodes → collapse into a composite node with exposed slots~~ **(done, M5)**
 - Diff/Compare node, frequency analysis, entropy meter
 
@@ -163,7 +171,7 @@ cyberwizard/
 | M2 | MVP app | Phase-1 ops, palette w/ search, live previews — genuinely usable |
 | M3 | Persistence | Save/load/autosave/URL-share work, schema versioned |
 | M4 | Phase-2 ops | Crypto, compression, formats |
-| M5 | Power features | ~~Subgraphs~~ (done), ~~list ops~~ (done), ~~math/logic/conditionals~~ (done), switch/merge |
+| M5 | Power features | ~~Subgraphs~~ (done), ~~list ops~~ (done), ~~math/logic/conditionals~~ (done), ~~demand-driven engine~~ (done), switch/merge |
 | M6 | Ship | README+docs, graph templates, deployed to GitHub Pages |
 
 ## Testing strategy

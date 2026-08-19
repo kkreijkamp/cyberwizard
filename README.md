@@ -39,20 +39,27 @@ Pick the subgraph in the node's `fn` dropdown (create it first with
 `+ Subgraph`). Nested lists work throughout: coercion recurses, previews
 render nested structure, and Flatten peels one level at a time.
 
+## Demand-driven evaluation
+
+Nothing runs unless a sink (Preview, Download) demands it, and nothing
+re-runs unless its inputs changed. A half-wired branch, an unused
+definition, or the untaken side of a conditional simply rests — wire a
+Preview onto a path and it lights up.
+
 ## Math, logic & conditionals — functional graphs
 
 **Math** covers arithmetic (Add … Power, Min/Max, Floor/Ceil/Round) and
 structural comparisons; **Logic** has the boolean combinators (And/Or/Not)
-for composing conditions. **Flow** has two conditionals:
+for composing conditions. **Flow** has two lazy conditionals — the untaken
+branch never evaluates, which is what recursion terminates through:
 
-- **Select** — the eager ternary `cond ? then : else` on plain wired
-  values. Both sides always compute.
-- **If** — the lazy conditional: its branches are subgraphs (pick them in
-  the `then`/`else` dropdowns) and only the taken one runs. This is what
-  recursion terminates through — e.g. factorial is a definition whose If
-  returns constant 1 when `n ≤ 1` and otherwise applies a branch subgraph
-  containing `n × Fact(n − 1)`. With an eager node both sides would
-  evaluate on every level, so recursion could never bottom out.
+- **Select** — the ternary `cond ? then : else` on plain wired values.
+  Only the taken branch is pulled, so `Fact(n) = Select(n ≤ 1, 1, n ×
+  Fact(n−1))` bottoms out at the base case instead of demanding itself
+  forever.
+- **If** — branches are reusable subgraph definitions (picked in the
+  `then`/`else` dropdowns); only the taken one is applied. Use it when the
+  branches are worth naming and sharing.
 
 Recursion stays guarded: depth-limited and budget-capped, so a runaway
 definition shows a node error instead of freezing the page.
