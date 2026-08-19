@@ -10,7 +10,7 @@
 
 import { defineNode } from '../../core/registry'
 import { ANY, NUMBER, listOf } from '../../core/types'
-import { repr } from '../../core/types'
+import { repr, valueKey } from '../../core/types'
 
 const listIn = { name: 'items', type: listOf(ANY) } as const
 const listOut = { name: 'items', type: listOf(ANY) } as const
@@ -88,13 +88,7 @@ defineNode({
   run: (inputs) => ({ items: [...(inputs.items ?? [])].reverse() }),
 })
 
-function uniqueKey(value: unknown): string {
-  if (value instanceof Uint8Array) return `bytes:${[...value].map((b) => b.toString(16).padStart(2, '0')).join('')}`
-  if (typeof value === 'object' && value !== null) return `json:${globalThis.JSON.stringify(value)}`
-  return `prim:${typeof value}:${String(value)}`
-}
-
-/** Stable dedup — first occurrence wins. Objects compare by JSON. */
+/** Stable dedup — first occurrence wins. Structural identity (core/types valueKey). */
 defineNode({
   type: 'flow/list-unique',
   title: 'Unique',
@@ -105,7 +99,7 @@ defineNode({
     const seen = new Set<string>()
     const items: unknown[] = []
     for (const item of inputs.items ?? []) {
-      const key = uniqueKey(item)
+      const key = valueKey(item)
       if (seen.has(key)) continue
       seen.add(key)
       items.push(item)

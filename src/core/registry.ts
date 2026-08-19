@@ -270,6 +270,7 @@ const CATEGORY_COLORS: Record<string, { color: string; bgcolor: string }> = {
   Data: { color: '#be185d', bgcolor: '#30091b' },
   Crypto: { color: '#b91c1c', bgcolor: '#2d0f0f' },
   Flow: { color: '#4b5563', bgcolor: '#1a1d23' },
+  Math: { color: '#0f766e', bgcolor: '#062e2b' },
 }
 
 export function categoryColors(category: string): { color: string; bgcolor: string } {

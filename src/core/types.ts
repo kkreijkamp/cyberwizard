@@ -94,6 +94,30 @@ function truncate(s: string): string {
   return s.length > REPR_LIMIT ? `${s.slice(0, REPR_LIMIT)}…` : s
 }
 
+/**
+ * Structural identity key for a value: primitives by type+value (NaN equals
+ * NaN), bytes by hex, objects/lists by JSON. Shared by Unique and the
+ * equality comparisons — one definition of "same value".
+ */
+export function valueKey(value: unknown): string {
+  if (value instanceof Uint8Array) {
+    return `bytes:${[...value].map((b) => b.toString(16).padStart(2, '0')).join('')}`
+  }
+  if (typeof value === 'object' && value !== null) {
+    try {
+      return `json:${globalThis.JSON.stringify(value)}`
+    } catch {
+      return `obj:${String(value)}`
+    }
+  }
+  return `prim:${typeof value}:${String(value)}`
+}
+
+/** Structural value equality — see valueKey. */
+export function valuesEqual(a: unknown, b: unknown): boolean {
+  return valueKey(a) === valueKey(b)
+}
+
 /** Human-readable one-line rendering of a value, for previews and debugging. */
 export function repr(value: unknown): string {
   if (value === undefined) return '∅'
