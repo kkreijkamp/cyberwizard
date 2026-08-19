@@ -52,6 +52,16 @@ defineNode({
   },
 })
 
+defineNode({
+  type: 'test-hof/affix',
+  title: 'Affix',
+  category: 'Test',
+  inputs: [{ name: 'text', type: STRING }] as const,
+  outputs: [{ name: 'out', type: STRING }] as const,
+  params: [{ kind: 'string', name: 'pre', default: '' }] as const,
+  run: (inputs, params) => ({ out: params.pre + (inputs.text ?? '') }),
+})
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function spawn(graph: LGraph, type: string): LGraphNode {
@@ -299,6 +309,32 @@ describe('higher-order flow ops', () => {
     await engine.whenIdle()
     expect(engine.outputsOf(length)).toEqual([3000])
     expect(engine.stateOf(map).error).toBeUndefined()
+    dispose()
+  })
+})
+
+describe('subgraph-name consumers (hof)', () => {
+  it('editing the fn definition re-runs the map that applies it', async () => {
+    const { graph, engine, dispose } = rig()
+    // Def "Affix": text → pre + text.
+    const meta = createSubgraphDef(graph, 'Affix')
+    addDefInput(graph, meta.id, 'text', STRING)
+    addDefOutput(graph, meta.id, 'out', STRING)
+    const sub = interiorOf(graph, meta.id)
+    const affix = spawnInterior(sub, 'test-hof/affix')
+    setParam(affix, 'pre', '[')
+    wirePanelIn(sub, 0, affix, 0)
+    wirePanelOut(sub, affix, 0, 0)
+
+    const map = buildListPipeline(graph, 'flow/map', 'a,b')
+    setParam(map, 'fn', 'Affix')
+    demand(graph, map)
+    await engine.whenIdle()
+    expect(engine.outputsOf(map)).toEqual([['[a', '[b']])
+
+    setParam(affix, 'pre', '<') // interior edit — the map must re-run
+    await engine.whenIdle()
+    expect(engine.outputsOf(map)).toEqual([['<a', '<b']])
     dispose()
   })
 })

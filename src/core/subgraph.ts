@@ -31,7 +31,7 @@ import type { ExportedSubgraph } from '@comfyorg/litegraph'
 import type { DataType } from './types'
 import { dataTypeFromKind, toSlotType } from './types'
 import type { SlotDef } from './registry'
-import { PREVIEW_WIDGET_NAME, categoryColors, markNodeDirty, setDirtyHandler } from './registry'
+import { PREVIEW_WIDGET_NAME, categoryColors, getNodeDef, markNodeDirty, setDirtyHandler } from './registry'
 import type { Engine } from './engine'
 
 /** Palette/engine category for subgraph instances. */
@@ -296,7 +296,7 @@ function scheduleMetaSync(rootGraph: LGraph, subgraph: Subgraph): void {
     const before = ioSignature(meta)
     syncMetaFromSubgraph(meta, subgraph)
     if (ioSignature(meta) === before) return
-    dirtyAllInstances(rootGraph, subgraph.id)
+    dirtyDependents(rootGraph, subgraph.id)
     emitDefsChange(rootGraph)
   })
 }
@@ -340,6 +340,9 @@ export function renameSubgraphDef(rootGraph: LGraph, defId: string, name: string
       instance.setDirtyCanvas(true, true)
     }
   }
+  // By-name consumers still point at the old name — dirty them so the
+  // "renamed? re-pick it" error surfaces on their next pull.
+  dirtyFnConsumersNamed(rootGraph, oldName)
   emitDefsChange(rootGraph)
 }
 
@@ -357,7 +360,7 @@ function editIO(
   syncMetaFromSubgraph(meta, subgraph)
   // Instance slots track IO edits natively (SubgraphNode slot listeners);
   // every instance must re-evaluate against the new signature.
-  dirtyAllInstances(rootGraph, defId)
+  dirtyDependents(rootGraph, defId)
   emitDefsChange(rootGraph)
 }
 
@@ -417,6 +420,7 @@ export function removeDefOutput(rootGraph: LGraph, defId: string, index: number)
 
 /** Deletes a definition and every instance of it across the document. */
 export function deleteSubgraphDef(rootGraph: LGraph, defId: string): void {
+  const name = getSubgraphDef(rootGraph, defId)?.name
   for (const instance of [...instancesOf(rootGraph, defId)]) {
     instance.graph?.remove(instance)
   }
@@ -427,6 +431,9 @@ export function deleteSubgraphDef(rootGraph: LGraph, defId: string): void {
   if (subgraph) unwatchSubgraph(rootGraph, subgraph)
   rootGraph.subgraphs.delete(defId as never)
   metasOf(rootGraph).delete(defId)
+  // By-name consumers now point at nothing — dirty them so the "not found"
+  // error surfaces on their next pull.
+  if (name !== undefined) dirtyFnConsumersNamed(rootGraph, name)
   emitDefsChange(rootGraph)
 }
 
@@ -471,6 +478,39 @@ function instancesOf(rootGraph: LGraph, defId: string): ReadonlySet<SubgraphNode
 
 function dirtyAllInstances(rootGraph: LGraph, defId: string): void {
   for (const instance of instancesOf(rootGraph, defId)) markNodeDirty(instance)
+}
+
+/**
+ * Nodes referencing a definition BY NAME in a subgraph-ref param (map/
+ * filter/fold's fn, If's then/else) are not instances — dirtyAllInstances
+ * never reaches them, so editing a picked definition used to leave their
+ * outputs stale. Scan the root graph and every interior for such params
+ * and dirty the holders.
+ */
+function dirtyFnConsumersNamed(rootGraph: LGraph, name: string): void {
+  const visit = (node: LGraphNode): void => {
+    for (const param of getNodeDef(node)?.params ?? []) {
+      if (param.kind === 'string' && param.subgraphRef && node.properties[param.name] === name) {
+        markNodeDirty(node)
+        break
+      }
+    }
+  }
+  for (const node of rootGraph._nodes) visit(node)
+  for (const subgraph of rootGraph.subgraphs.values()) {
+    for (const node of subgraph._nodes) visit(node)
+  }
+}
+
+function dirtyFnConsumers(rootGraph: LGraph, defId: string): void {
+  const meta = getSubgraphDef(rootGraph, defId)
+  if (meta) dirtyFnConsumersNamed(rootGraph, meta.name)
+}
+
+/** Definition changed: dirty its instances AND its by-name consumers. */
+function dirtyDependents(rootGraph: LGraph, defId: string): void {
+  dirtyAllInstances(rootGraph, defId)
+  dirtyFnConsumers(rootGraph, defId)
 }
 
 /**
@@ -573,6 +613,8 @@ function onInteriorNodeDirty(rootGraph: LGraph, subgraph: Subgraph, node: LGraph
         markNodeDirty(instance)
       }
     }
+    // And the by-name consumers (map/filter/fold/if picking this definition).
+    dirtyFnConsumers(rootGraph, subgraph.id)
   } finally {
     activeBroadcasts.delete(key)
   }
@@ -587,12 +629,12 @@ function watchGraphNodes(graph: LGraph | Subgraph, attachment: Attachment): () =
   graph.onNodeAdded = function (node: LGraphNode) {
     previousAdd?.call(graph, node)
     indexNode(attachment, node)
-    if (isInterior) dirtyAllInstances(attachment.engine.graph, (graph as Subgraph).id)
+    if (isInterior) dirtyDependents(attachment.engine.graph, (graph as Subgraph).id)
   }
   graph.onNodeRemoved = function (node: LGraphNode) {
     previousRemove?.call(graph, node)
     unindexNode(attachment, node)
-    if (isInterior) dirtyAllInstances(attachment.engine.graph, (graph as Subgraph).id)
+    if (isInterior) dirtyDependents(attachment.engine.graph, (graph as Subgraph).id)
   }
   return () => {
     graph.onNodeAdded = previousAdd

@@ -9,6 +9,7 @@ import {
   attachSubgraphSupport,
   createSubgraphDef,
   rawSubgraph,
+  renameSubgraphDef,
   spawnSubgraphNode,
 } from '../../src/core/subgraph'
 import { NUMBER } from '../../src/core/types'
@@ -371,6 +372,48 @@ describe('flow/select (lazy value-level conditional)', () => {
     await engine.whenIdle()
     expect(engine.stateOf(instance).error).toBeUndefined()
     expect(engine.outputsOf(instance)).toEqual([120])
+    dispose()
+  })
+})
+
+describe('subgraph-name consumers', () => {
+  it('editing a picked branch definition re-runs the If that applies it', async () => {
+    const { graph, engine, dispose } = rig()
+
+    // "Inc": n → n + k, with k held in an interior constant.
+    const inc = createSubgraphDef(graph, 'Inc')
+    addDefInput(graph, inc.id, 'n', NUMBER)
+    addDefOutput(graph, inc.id, 'result', NUMBER)
+    const sub = interiorOf(graph, inc.id)
+    const add = spawnInterior(sub, 'math/add')
+    wirePanelIn(sub, 0, add, 0)
+    const k = constNum(sub, 1)
+    k.connect(0, add, 1)
+    wirePanelOut(sub, add, 0, 0)
+    buildDouble(graph)
+
+    const ifNode = buildIf(graph, 10, true, 'Inc', 'Double')
+    await engine.whenIdle()
+    expect(engine.outputsOf(ifNode)).toEqual([11])
+
+    // Editing the branch definition's interior must re-run the If.
+    setParam(k, 'value', 5)
+    await engine.whenIdle()
+    expect(engine.outputsOf(ifNode)).toEqual([15])
+    dispose()
+  })
+
+  it('renaming a picked definition surfaces the re-pick error on the consumer', async () => {
+    const { graph, engine, dispose } = rig()
+    const incId = buildInc(graph)
+    buildDouble(graph)
+    const ifNode = buildIf(graph, 10, true, 'Inc', 'Double')
+    await engine.whenIdle()
+    expect(engine.outputsOf(ifNode)).toEqual([11])
+
+    renameSubgraphDef(graph, incId, 'Increment')
+    await engine.whenIdle()
+    expect(engine.stateOf(ifNode).error?.message).toMatch(/"Inc" not found/)
     dispose()
   })
 })

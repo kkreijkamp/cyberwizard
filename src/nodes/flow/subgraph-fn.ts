@@ -19,7 +19,7 @@ const NONE = '(none)'
 
 /** A string param holding a subgraph name; setup() swaps its widget for a picker. */
 export function fnParam<N extends string>(name: N) {
-  return { kind: 'string', name, label: `${name} (subgraph)`, default: '' } as const
+  return { kind: 'string', name, label: `${name} (subgraph)`, default: '', subgraphRef: true } as const
 }
 
 /**

@@ -24,7 +24,15 @@ export interface SlotDef<N extends string = string, T extends DataType = DataTyp
 }
 
 export type ParamDef =
-  | { readonly kind: 'string'; readonly name: string; readonly label?: string; readonly default: string; readonly multiline?: boolean }
+  | {
+      readonly kind: 'string'
+      readonly name: string
+      readonly label?: string
+      readonly default: string
+      readonly multiline?: boolean
+      /** Param holds a subgraph definition's name (map/filter/fold's fn, If's then/else) — edits to that definition must dirty this node. */
+      readonly subgraphRef?: boolean
+    }
   | { readonly kind: 'number'; readonly name: string; readonly label?: string; readonly default: number; readonly min?: number; readonly max?: number; readonly step?: number }
   | { readonly kind: 'boolean'; readonly name: string; readonly label?: string; readonly default: boolean }
   | { readonly kind: 'enum'; readonly name: string; readonly label?: string; readonly default: string; readonly options: readonly string[] }
