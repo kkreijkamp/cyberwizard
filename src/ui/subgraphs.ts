@@ -40,14 +40,16 @@ export function wireNewSubgraphButton(
   button.addEventListener('click', () => {
     const name = window.prompt('Subgraph name:', 'New Subgraph')
     if (name === null) return
-    const meta = createSubgraphDef(rootGraph, name.trim() || 'New Subgraph')
+    // Created inside a definition? Then it belongs to it (scoped/local).
+    const scope = canvas.graph instanceof Subgraph ? canvas.graph.id : undefined
+    const meta = createSubgraphDef(rootGraph, name.trim() || 'New Subgraph', scope)
     const subgraph = rawSubgraph(rootGraph, meta.id)
     if (subgraph) canvas.openSubgraph(subgraph)
   })
 }
 
 /** Subscribes to canvas graph switches (dispatched as DOM events on the canvas element). */
-function onSetGraph(canvas: LGraphCanvasT, listener: (newGraph: LGraph | Subgraph) => void): void {
+export function onSetGraph(canvas: LGraphCanvasT, listener: (newGraph: LGraph | Subgraph) => void): void {
   canvas.canvas.addEventListener('litegraph:set-graph', (e: Event) => {
     const newGraph = (e as CustomEvent).detail?.newGraph as LGraph | Subgraph | undefined
     if (newGraph) listener(newGraph)
@@ -126,8 +128,8 @@ export function installIOPanel(host: HTMLElement, canvas: LGraphCanvasT, rootGra
         const name = window.prompt('Subgraph name:', meta.name)
         if (name !== null && name.trim()) renameSubgraphDef(rootGraph, meta.id, name.trim())
       }),
-      iconButton('🗑', 'Delete subgraph and its instances', () => {
-        if (window.confirm(`Delete subgraph “${meta.name}” and all its instances?`)) {
+      iconButton('🗑', 'Delete subgraph, its instances, and its scoped helpers', () => {
+        if (window.confirm(`Delete subgraph “${meta.name}”, its instances, and its scoped helpers?`)) {
           deleteSubgraphDef(rootGraph, meta.id)
           canvas.setGraph(rootGraph)
         }

@@ -16,8 +16,9 @@
 import { LiteGraph } from '@comfyorg/litegraph'
 import type { LGraph, LGraphCanvas } from '@comfyorg/litegraph'
 import { allNodeDefs } from '../core/registry'
-import { SUBGRAPH_CATEGORY, allSubgraphDefs, onSubgraphDefsChange } from '../core/subgraph'
+import { SUBGRAPH_CATEGORY, onSubgraphDefsChange, reScopeDef, scopeChainOf, visibleSubgraphDefs } from '../core/subgraph'
 import { fuzzyMatch } from './fuzzy'
+import { onSetGraph } from './subgraphs'
 
 const DRAG_MIME = 'application/x-cyberwizard-node'
 
@@ -26,6 +27,8 @@ interface PaletteEntry {
   readonly title: string
   readonly category: string
   readonly description?: string
+  /** Subgraph definitions only: the parent scope id (undefined = global). */
+  readonly scope?: string
 }
 
 export function createPalette(host: HTMLElement, canvas: LGraphCanvas, graph: LGraph): void {
@@ -46,11 +49,14 @@ export function createPalette(host: HTMLElement, canvas: LGraphCanvas, graph: LG
       category: d.category,
       description: d.description,
     }))
-    const subs: PaletteEntry[] = allSubgraphDefs(graph).map((d) => ({
+    // Only definitions visible from the graph currently on screen: globals
+    // at root, globals + the lexical chain inside a definition.
+    const subs: PaletteEntry[] = visibleSubgraphDefs(graph, canvas.graph).map((d) => ({
       type: d.id,
       title: d.name,
       category: SUBGRAPH_CATEGORY,
-      description: `${d.inputs.map((i) => i.name).join(', ') || '∅'} → ${d.outputs.map((o) => o.name).join(', ') || '∅'}`,
+      scope: d.scope,
+      description: `${d.scope ? 'local · ' : ''}${d.inputs.map((i) => i.name).join(', ') || '∅'} → ${d.outputs.map((o) => o.name).join(', ') || '∅'}`,
     }))
     return [...ops, ...subs].sort(
       (a, b) => a.category.localeCompare(b.category) || a.title.localeCompare(b.title),
@@ -93,6 +99,12 @@ export function createPalette(host: HTMLElement, canvas: LGraphCanvas, graph: LG
         e.dataTransfer?.setData(DRAG_MIME, def.type)
         if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy'
       })
+      if (def.category === SUBGRAPH_CATEGORY) {
+        item.addEventListener('contextmenu', (e) => {
+          e.preventDefault()
+          openScopeMenu(e, def)
+        })
+      }
       firstItem ??= item
       list.append(item)
     }
@@ -113,8 +125,10 @@ export function createPalette(host: HTMLElement, canvas: LGraphCanvas, graph: LG
     }
   })
 
-  // Subgraph definitions come and go — refresh the listing on any change.
+  // Subgraph definitions come and go — refresh the listing on any change,
+  // and on navigation (visible defs differ between root and interiors).
   onSubgraphDefsChange(graph, () => render(search.value.trim()))
+  onSetGraph(canvas, () => render(search.value.trim()))
 
   // '/' focuses the palette search from anywhere (unless already typing).
   document.addEventListener('keydown', (e) => {
@@ -144,6 +158,30 @@ export function createPalette(host: HTMLElement, canvas: LGraphCanvas, graph: LG
   function centerOfView(): [number, number] {
     const rect = canvasEl.getBoundingClientRect()
     return canvas.ds.convertOffsetToCanvas([rect.width / 2, rect.height / 2]) as [number, number]
+  }
+
+  /**
+   * Right-click on a Subgraphs item: move the definition between scopes —
+   * up to Global, or down/sideways into any visible definition that isn't
+   * itself or one of its descendants (cycles are hidden, and reScopeDef
+   * refuses them too). The current scope is ticked.
+   */
+  function openScopeMenu(e: MouseEvent, def: PaletteEntry): void {
+    const descendants = new Set(scopeChainOf(graph, def.type))
+    const targets: Array<{ label: string; value: string | undefined }> = [
+      { label: 'Global', value: undefined },
+      ...visibleSubgraphDefs(graph, canvas.graph)
+        .filter((d) => d.id !== def.type && !descendants.has(d.id))
+        .map((d) => ({ label: d.name, value: d.id })),
+    ]
+    const current = def.scope
+    new LiteGraph.ContextMenu(
+      targets.map((t) => ({
+        content: `${t.value === current ? '✓ ' : ''}${t.label}`,
+        callback: () => reScopeDef(graph, def.type, t.value),
+      })),
+      { event: e, className: 'dark', title: `Scope of “${def.title}”` },
+    )
   }
 
   render('')
