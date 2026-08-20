@@ -8,6 +8,7 @@ import { attachSubgraphSupport } from './core/subgraph'
 import { buildShowcaseGraph } from './showcase'
 import { installComputeMenu } from './ui/compute-menu'
 import { installNodeLayout } from './ui/layout'
+import { installWidgetInputMenu } from './ui/widget-inputs'
 import { createPalette } from './ui/palette'
 import { initialDocument, startAutosave, wirePersistence } from './ui/persistence'
 import {
@@ -39,6 +40,7 @@ installNodeLayout(graph)
 const engine = new Engine(graph)
 attachSubgraphSupport(graph, engine)
 installComputeMenu(engine)
+installWidgetInputMenu()
 
 const doc = initialDocument()
 if (doc) deserializeGraph(doc, graph)

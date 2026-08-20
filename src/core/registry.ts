@@ -161,6 +161,58 @@ export function setParam(node: LGraphNode, name: string, value: string | number 
   markNodeDirty(node)
 }
 
+// ─── Widget params ↔ connection points ───────────────────────────────────────
+
+/**
+ * Params that may be promoted from widget to wired input slot. Subgraph
+ * pickers are excluded — they resolve definition names, not values.
+ */
+export function isConvertibleParam(param: ParamDef): boolean {
+  return !(param.kind === 'string' && param.subgraphRef === true)
+}
+
+/** The DataType a converted param's slot accepts and its value coerces to. */
+export function paramDataType(param: ParamDef): DataType {
+  switch (param.kind) {
+    case 'number': return NUMBER
+    case 'boolean': return BOOLEAN
+    default: return STRING // string + enum
+  }
+}
+
+/**
+ * Promotes a param to a connection point: an input slot bound to its widget
+ * (litegraph's widget-input slot — the dot renders inline at the widget, and
+ * the widget hides while wired). The engine feeds wired values through as
+ * the param value (see doEnsure); unwired, the widget value stands.
+ */
+export function convertParamToInput(node: LGraphNode, param: ParamDef): void {
+  const slot = node.addInput(param.name, toSlotType(paramDataType(param)) as string)
+  ;(slot as unknown as { widget: { name: string } }).widget = { name: param.name }
+  markNodeDirty(node)
+}
+
+/** Reverts a converted param back to widget-only, provided its slot is unwired. */
+export function revertParamToWidget(node: LGraphNode, paramName: string, declaredInputs: number): void {
+  const index = node.inputs.findIndex(
+    (s, i) => i >= declaredInputs && (s as { widget?: { name?: unknown } }).widget?.name === paramName,
+  )
+  if (index === -1) return
+  if ((node.inputs[index] as { link?: unknown }).link != null) return // wired — disconnect first
+  node.removeInput(index)
+  markNodeDirty(node)
+}
+
+/** Param names currently promoted to connection points, in slot order (for serialization). */
+export function widgetInputParams(node: LGraphNode, declaredInputs: number): string[] {
+  const names: string[] = []
+  for (let i = declaredInputs; i < node.inputs.length; i++) {
+    const name = (node.inputs[i] as { widget?: { name?: unknown } }).widget?.name
+    if (typeof name === 'string') names.push(name)
+  }
+  return names
+}
+
 const PARAM_WIDGETS = Symbol('cyberwizard.paramWidgets')
 
 /** Name of the auto-added live-preview widget (glyph doubles as its label). */

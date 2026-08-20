@@ -22,7 +22,7 @@ import type { LGraph, LGraphCanvas, LGraphNode } from '@comfyorg/litegraph'
 import type { ExportedSubgraph } from '@comfyorg/litegraph'
 import { binaryStringToBytes, bytesToBinaryString } from './binary'
 import { canCoerce } from './coerce'
-import { getNodeDef, setParam } from './registry'
+import { convertParamToInput, getNodeDef, isConvertibleParam, setParam, widgetInputParams } from './registry'
 import {
   SUBGRAPH_INPUT_NODE_ID,
   SUBGRAPH_OUTPUT_NODE_ID,
@@ -46,6 +46,8 @@ export interface SerializedNode {
   /** Only set when the user renamed the node. */
   title?: string
   params: Record<string, string | number | boolean>
+  /** Param names promoted to connection points, in slot order (core/registry widgetInputParams). */
+  widgetInputs?: string[]
   /** Base64-encoded file bytes for io/file-input nodes. */
   fileData?: string
   fileName?: string
@@ -124,6 +126,9 @@ function serializeFragment(graph: LGraph): { nodes: SerializedNode[]; links: Ser
       params,
     }
     if (node.title !== def.title) out.title = node.title
+
+    const widgetInputs = widgetInputParams(node, def.inputs.length)
+    if (widgetInputs.length > 0) out.widgetInputs = widgetInputs
 
     const fileData = node.properties.fileData
     if (fileData instanceof Uint8Array && fileData.length > 0 && fileData.length <= FILE_EMBED_LIMIT) {
@@ -289,6 +294,17 @@ function populateFragment(
 
     for (const [name, value] of Object.entries(saved.params)) {
       setParam(node, name, value)
+    }
+    if (saved.widgetInputs !== undefined) {
+      const def = getNodeDef(node)
+      for (const name of saved.widgetInputs) {
+        const param = def?.params?.find((p) => p.name === name)
+        if (!param || !isConvertibleParam(param)) {
+          warnings.push(`${saved.type}: cannot convert param "${name}" to an input — skipped`)
+          continue
+        }
+        convertParamToInput(node, param)
+      }
     }
     if (saved.fileData !== undefined) {
       node.properties.fileData = binaryStringToBytes(atob(saved.fileData))

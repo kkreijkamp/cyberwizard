@@ -42,7 +42,7 @@ import type { DataType } from './types'
 import { ANY, inferDataType, repr } from './types'
 import { CoercionError, coerce } from './coerce'
 import type { SlotDef, UntypedNodeDef } from './registry'
-import { PREVIEW_WIDGET_NAME, getNodeDef, setDirtyHandler } from './registry'
+import { PREVIEW_WIDGET_NAME, getNodeDef, paramDataType, setDirtyHandler } from './registry'
 import type { SubgraphDefMeta } from './subgraph'
 import { getSubgraphDef } from './subgraph'
 
@@ -427,6 +427,30 @@ export class Engine {
 
       const params: Record<string, unknown> = {}
       for (const p of def.params ?? []) params[p.name] = node.properties[p.name] ?? p.default
+
+      // Converted widget inputs (core/registry convertParamToInput): params
+      // promoted to connection points. A wired slot overrides the widget's
+      // stored value; unwired, the widget value stands.
+      for (let index = def.inputs.length; index < node.inputs.length; index++) {
+        const slot = node.inputs[index]
+        const paramName = (slot as { widget?: { name?: unknown } }).widget?.name
+        if (typeof paramName !== 'string') continue
+        const param = (def.params ?? []).find((p) => p.name === paramName)
+        if (!param) continue
+        const resolved = await this.pullInput(node, index, scope)
+        if (resolved.status === 'stale') return
+        if (resolved.status === 'blocked') {
+          this.markBlocked(node, s)
+          return
+        }
+        if (resolved.status === 'empty') continue
+        try {
+          params[paramName] = coerce(resolved.value, resolved.fromType, paramDataType(param))
+        } catch (err) {
+          this.captureError(node, s, err, scope)
+          return
+        }
+      }
 
       // Interior nodes share the enclosing instance run's signal; only root
       // nodes get their own controller (keyed by id — interior ids from
