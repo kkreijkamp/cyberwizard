@@ -7,6 +7,7 @@
 
 import type { DataType } from './types'
 import { typesEqual } from './types'
+import { concatBytes } from './binary'
 
 export class CoercionError extends Error {
   constructor(
@@ -107,8 +108,13 @@ export function coerce(value: unknown, from: DataType, to: DataType): unknown {
       return utf8Encode(stringifyJson(value, from, to))
     case 'list→string':
       return stringifyJson(value, from, to)
-    case 'list→bytes':
+    case 'list→bytes': {
+      // A list of byte arrays means "join these bytes" — chunker output into
+      // a bytes input should never become JSON text. Anything else: JSON.
+      const items = expect(value, 'list', from, to)
+      if (items.every((i) => i instanceof Uint8Array)) return concatBytes(items)
       return utf8Encode(stringifyJson(value, from, to))
+    }
     case 'list→json':
       return value
     default:

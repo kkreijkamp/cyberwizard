@@ -42,6 +42,19 @@ export function xorBytes(data: Uint8Array, key: Uint8Array): Uint8Array {
   return out
 }
 
+/** Concatenates byte arrays in order — b''.join for our byte type. */
+export function concatBytes(parts: readonly Uint8Array[]): Uint8Array {
+  let total = 0
+  for (const p of parts) total += p.length
+  const out = new Uint8Array(total)
+  let offset = 0
+  for (const p of parts) {
+    out.set(p, offset)
+    offset += p.length
+  }
+  return out
+}
+
 /** Big-endian bignum view of a byte string: [0x1f, 0x4a] ↔ 8010n. */
 export function bytesToBigInt(data: Uint8Array): bigint {
   let n = 0n

@@ -136,3 +136,16 @@ describe('repr', () => {
     expect(repr([1, 2, 3, 4, 5, 6, 7])).toContain(', …')
   })
 })
+
+describe('list→bytes', () => {
+  it('concatenates a list of byte arrays (chunker semantics, not JSON)', () => {
+    expect(coerce([new Uint8Array([1, 2]), new Uint8Array([3]), new Uint8Array(0)], listOf(BYTES), BYTES))
+      .toEqual(new Uint8Array([1, 2, 3]))
+    expect(coerce([], listOf(BYTES), BYTES)).toEqual(new Uint8Array(0))
+  })
+
+  it('falls back to JSON (hex bytes) for mixed lists', () => {
+    expect(coerce([new Uint8Array([1, 2]), 'x'], listOf(BYTES), BYTES))
+      .toEqual(utf8Encode('["0102","x"]'))
+  })
+})
