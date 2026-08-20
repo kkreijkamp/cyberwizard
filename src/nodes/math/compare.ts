@@ -2,11 +2,13 @@
  * Math — comparisons. Equality is structural (see core/types valueKey):
  * primitives by value (1 ≠ "1" — types differ), bytes by hex, objects and
  * lists by JSON. Ordering compares numbers numerically, strings
- * lexicographically, and anything else by its repr.
+ * lexicographically, bytes (and mixed bytes/number/hex-string) as unsigned
+ * big-endian bignums, and anything else by its repr.
  */
 
 import { defineNode } from '../../core/registry'
 import { ANY, BOOLEAN, repr, valuesEqual } from '../../core/types'
+import { stringToBignum, toBignum, toOperand } from './operand'
 
 const binary = {
   inputs: [
@@ -17,6 +19,11 @@ const binary = {
 }
 
 function compareOrder(a: unknown, b: unknown): number {
+  if (a instanceof Uint8Array || b instanceof Uint8Array) {
+    const x = typeof a === 'string' ? stringToBignum(a) : toBignum(toOperand(a))
+    const y = typeof b === 'string' ? stringToBignum(b) : toBignum(toOperand(b))
+    return x < y ? -1 : x > y ? 1 : 0
+  }
   if (typeof a === 'number' && typeof b === 'number') return a - b
   if (typeof a === 'string' && typeof b === 'string') return a < b ? -1 : a > b ? 1 : 0
   const ra = repr(a)

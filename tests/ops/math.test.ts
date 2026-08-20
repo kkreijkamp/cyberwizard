@@ -75,18 +75,18 @@ describe('math/comparisons', () => {
 
 describe('math/bitwise shifts', () => {
   it('shifts left and right', async () => {
-    expect((await runOp('math/shift-left', { value: 1, by: 4 })).result).toBe(16)
-    expect((await runOp('math/shift-right', { value: 256, by: 4 })).result).toBe(16)
+    expect((await runOp('math/shift-left', { value: 1, bits: 4 })).result).toBe(16)
+    expect((await runOp('math/shift-right', { value: 256, bits: 4 })).result).toBe(16)
   })
 
   it('keeps the sign on >> and zero-fills on >>>', async () => {
-    expect((await runOp('math/shift-right', { value: -8, by: 1 })).result).toBe(-4)
-    expect((await runOp('math/shift-right-unsigned', { value: -8, by: 1 })).result).toBe(2147483644)
+    expect((await runOp('math/shift-right', { value: -8, bits: 1 })).result).toBe(-4)
+    expect((await runOp('math/shift-right-unsigned', { value: -8, bits: 1 })).result).toBe(2147483644)
   })
 
   it('masks the count to 5 bits and truncates operands to 32-bit', async () => {
-    expect((await runOp('math/shift-left', { value: 1, by: 32 })).result).toBe(1)
-    expect((await runOp('math/shift-left', { value: 1.9, by: 1.7 })).result).toBe(2)
+    expect((await runOp('math/shift-left', { value: 1, bits: 32 })).result).toBe(1)
+    expect((await runOp('math/shift-left', { value: 1.9, bits: 1.7 })).result).toBe(2)
   })
 
   it('unwired inputs act as 0 (a no-op shift)', async () => {
@@ -97,11 +97,11 @@ describe('math/bitwise shifts', () => {
 
 describe('math/shifts on bytes (big-endian bignum)', () => {
   it('appends a zero bit: << 1 doubles, growing as needed', async () => {
-    expect((await runOp('math/shift-left', { value: new Uint8Array([1]), by: 1 })).result)
+    expect((await runOp('math/shift-left', { value: new Uint8Array([1]), bits: 1 })).result)
       .toEqual(new Uint8Array([2]))
-    expect((await runOp('math/shift-left', { value: new Uint8Array([0xff]), by: 1 })).result)
+    expect((await runOp('math/shift-left', { value: new Uint8Array([0xff]), bits: 1 })).result)
       .toEqual(new Uint8Array([1, 0xfe]))
-    expect((await runOp('math/shift-left', { value: new Uint8Array([0x48, 0x69]), by: 1 })).result)
+    expect((await runOp('math/shift-left', { value: new Uint8Array([0x48, 0x69]), bits: 1 })).result)
       .toEqual(new Uint8Array([0x90, 0xd2])) // "Hi" << 1
   })
 
@@ -117,29 +117,95 @@ describe('math/shifts on bytes (big-endian bignum)', () => {
       for (let i = 0; i < out.length; i++) out[i] = parseInt(padded.slice(i * 2, i * 2 + 2), 16)
       return out
     })()
-    expect((await runOp('math/shift-left', { value: text, by: 1 })).result).toEqual(expected)
+    expect((await runOp('math/shift-left', { value: text, bits: 1 })).result).toEqual(expected)
   })
 
   it('shifts right, dropping low bits', async () => {
-    expect((await runOp('math/shift-right', { value: new Uint8Array([0x90, 0xd2]), by: 1 })).result)
+    expect((await runOp('math/shift-right', { value: new Uint8Array([0x90, 0xd2]), bits: 1 })).result)
       .toEqual(new Uint8Array([0x48, 0x69]))
-    expect((await runOp('math/shift-right', { value: new Uint8Array([1]), by: 1 })).result)
+    expect((await runOp('math/shift-right', { value: new Uint8Array([1]), bits: 1 })).result)
       .toEqual(new Uint8Array([0])) // 0 stays a single zero byte
   })
 
   it('drops leading zero bytes (minimal length), delegates negative counts', async () => {
-    expect((await runOp('math/shift-left', { value: new Uint8Array([0, 1]), by: 0 })).result)
+    expect((await runOp('math/shift-left', { value: new Uint8Array([0, 1]), bits: 0 })).result)
       .toEqual(new Uint8Array([1]))
-    expect((await runOp('math/shift-left', { value: new Uint8Array([0x90, 0xd2]), by: -1 })).result)
+    expect((await runOp('math/shift-left', { value: new Uint8Array([0x90, 0xd2]), bits: -1 })).result)
       .toEqual(new Uint8Array([0x48, 0x69]))
   })
 
   it('unsigned right shift matches on bytes', async () => {
-    expect((await runOp('math/shift-right-unsigned', { value: new Uint8Array([0x90, 0xd2]), by: 1 })).result)
+    expect((await runOp('math/shift-right-unsigned', { value: new Uint8Array([0x90, 0xd2]), bits: 1 })).result)
       .toEqual(new Uint8Array([0x48, 0x69]))
   })
 
   it('hex strings still shift 32-bit', async () => {
-    expect((await runOp('math/shift-left', { value: 'ff', by: 1 })).result).toBe(510)
+    expect((await runOp('math/shift-left', { value: 'ff', bits: 1 })).result).toBe(510)
+  })
+})
+
+describe('math/bignum arithmetic on bytes', () => {
+  it('adds: bytes + bytes, bytes + number, bytes + hex string', async () => {
+    expect((await runOp('math/add', { a: new Uint8Array([0xff]), b: new Uint8Array([1]) })).result)
+      .toEqual(new Uint8Array([1, 0]))
+    expect((await runOp('math/add', { a: new Uint8Array([0xff]), b: 1 })).result)
+      .toEqual(new Uint8Array([1, 0]))
+    expect((await runOp('math/add', { a: 1, b: new Uint8Array([0xff]) })).result)
+      .toEqual(new Uint8Array([1, 0]))
+    expect((await runOp('math/add', { a: new Uint8Array([1]), b: 'ff' })).result)
+      .toEqual(new Uint8Array([1, 0])) // hex string stays exact
+  })
+
+  it('SHA-1 padding style: shift left 8 (append zero byte), then add 0x80', async () => {
+    const text = new TextEncoder().encode('abc')
+    const shifted = (await runOp('math/shift-left', { value: text, bits: 8 })).result
+    expect(shifted).toEqual(new Uint8Array([0x61, 0x62, 0x63, 0x00]))
+    const padded = (await runOp('math/add', { a: shifted, b: 0x80 })).result
+    expect(padded).toEqual(new Uint8Array([0x61, 0x62, 0x63, 0x80]))
+    // and appending the single 1 bit: << 1, then + 1
+    const bit = (await runOp('math/shift-left', { value: text, bits: 1 })).result
+    const setBit = (await runOp('math/add', { a: bit, b: 1 })).result
+    expect(setBit).toEqual(new Uint8Array([0xc2, 0xc4, 0xc7]))
+  })
+
+  it('subtracts, erroring on a negative result', async () => {
+    expect((await runOp('math/subtract', { a: new Uint8Array([1, 0]), b: new Uint8Array([0xff]) })).result)
+      .toEqual(new Uint8Array([1]))
+    await expect(runOp('math/subtract', { a: new Uint8Array([1]), b: new Uint8Array([2]) }))
+      .rejects.toThrow(/negative/)
+  })
+
+  it('multiplies, divides (floor), modulo — all staying bytes', async () => {
+    expect((await runOp('math/multiply', { a: new Uint8Array([0x10]), b: new Uint8Array([0x10]) })).result)
+      .toEqual(new Uint8Array([1, 0]))
+    expect((await runOp('math/divide', { a: new Uint8Array([1, 0]), b: 2 })).result)
+      .toEqual(new Uint8Array([0x80]))
+    expect((await runOp('math/modulo', { a: new Uint8Array([1, 0]), b: new Uint8Array([0xff]) })).result)
+      .toEqual(new Uint8Array([1]))
+    await expect(runOp('math/divide', { a: new Uint8Array([1]), b: 0 })).rejects.toThrow(/division by zero/)
+    await expect(runOp('math/modulo', { a: new Uint8Array([1]), b: 0 })).rejects.toThrow(/modulo by zero/)
+  })
+
+  it('power, min, max as bignums', async () => {
+    expect((await runOp('math/power', { a: new Uint8Array([2]), b: 8 })).result)
+      .toEqual(new Uint8Array([1, 0]))
+    expect((await runOp('math/min', { a: new Uint8Array([0xff]), b: new Uint8Array([1, 0]) })).result)
+      .toEqual(new Uint8Array([0xff])) // 255 < 256 as bignum, not as repr
+    expect((await runOp('math/max', { a: new Uint8Array([0xff]), b: new Uint8Array([1, 0]) })).result)
+      .toEqual(new Uint8Array([1, 0]))
+  })
+
+  it('keeps number-path identities and unary behavior', async () => {
+    expect((await runOp('math/multiply', {})).result).toBe(1) // identity preserved
+    expect((await runOp('math/abs', { n: new Uint8Array([5]) })).result).toEqual(new Uint8Array([5]))
+    await expect(runOp('math/negate', { n: new Uint8Array([5]) })).rejects.toThrow(/cannot negate/)
+  })
+})
+
+describe('math/comparisons on bytes (bignum ordering)', () => {
+  it('orders bytes and mixed operands as unsigned bignums', async () => {
+    expect((await runOp('math/less', { a: new Uint8Array([0xff]), b: new Uint8Array([1, 0]) })).result).toBe(true)
+    expect((await runOp('math/greater', { a: new Uint8Array([1, 0]), b: 255 })).result).toBe(true)
+    expect((await runOp('math/less-eq', { a: 'ff', b: new Uint8Array([0xff]) })).result).toBe(true)
   })
 })
