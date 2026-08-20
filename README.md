@@ -48,10 +48,12 @@ Preview onto a path and it lights up.
 
 ## Math, logic & conditionals — functional graphs
 
-**Math** covers arithmetic (Add … Power, Min/Max, Floor/Ceil/Round) and
-structural comparisons; **Logic** has the boolean combinators (And/Or/Not)
-for composing conditions. **Flow** has two lazy conditionals — the untaken
-branch never evaluates, which is what recursion terminates through:
+**Math** covers arithmetic (Add … Power, Min/Max, Floor/Ceil/Round),
+bitwise shifts (`<<`, `>>`, `>>>`), and structural comparisons; **Logic**
+has the boolean combinators (And/Or/Not) for composing conditions. Number
+inputs accept hex strings (`1f`, `0x1f`, `deadbeef` — decimal/scientific
+notation wins where both parse). **Flow** has two lazy conditionals — the
+untaken branch never evaluates, which is what recursion terminates through:
 
 - **Select** — the ternary `cond ? then : else` on plain wired values.
   Only the taken branch is pulled, so `Fact(n) = Select(n ≤ 1, 1, n ×

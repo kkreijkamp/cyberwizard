@@ -57,8 +57,21 @@ describe('coerce', () => {
   it('parses strings', () => {
     expect(coerce(' 3.14 ', STRING, NUMBER)).toBe(3.14)
     expect(coerce('true', STRING, BOOLEAN)).toBe(true)
-    expect(() => coerce('abc', STRING, NUMBER)).toThrow(CoercionError)
+    expect(() => coerce('xyz', STRING, NUMBER)).toThrow(CoercionError)
     expect(() => coerce('yes', STRING, BOOLEAN)).toThrow(CoercionError)
+  })
+
+  it('parses hex strings to numbers — decimal wins, bare hex with letters falls back', () => {
+    expect(coerce('0x1f', STRING, NUMBER)).toBe(31) // Number() handles the prefixes
+    expect(coerce('0b101', STRING, NUMBER)).toBe(5)
+    expect(coerce('1f', STRING, NUMBER)).toBe(31)
+    expect(coerce('FF', STRING, NUMBER)).toBe(255)
+    expect(coerce('abc', STRING, NUMBER)).toBe(2748)
+    expect(coerce('deadbeef', STRING, NUMBER)).toBe(0xdeadbeef)
+    expect(coerce('-ff', STRING, NUMBER)).toBe(-255)
+    expect(coerce('1e5', STRING, NUMBER)).toBe(100000) // decimal scientific, not hex
+    expect(coerce('42', STRING, NUMBER)).toBe(42) // digit-only stays decimal
+    expect(() => coerce('0x', STRING, NUMBER)).toThrow(CoercionError)
   })
 
   it('parses and serialises json', () => {

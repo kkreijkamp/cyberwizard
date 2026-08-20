@@ -84,8 +84,8 @@ export function coerce(value: unknown, from: DataType, to: DataType): unknown {
       return utf8Encode(String(value))
     case 'string→number': {
       const s = expect(value, 'string', from, to).trim()
-      const n = Number(s)
-      if (s === '' || Number.isNaN(n)) throw new CoercionError(from, to, JSON.stringify(s))
+      const n = parseNumeric(s)
+      if (n === undefined) throw new CoercionError(from, to, JSON.stringify(s))
       return n
     }
     case 'string→boolean': {
@@ -127,6 +127,22 @@ function parseJson(s: string, from: DataType, to: DataType): unknown {
   } catch (err) {
     throw new CoercionError(from, to, err instanceof Error ? err.message : String(err))
   }
+}
+
+/**
+ * Decimal/scientific via Number() — which already covers the 0x/0b/0o
+ * prefixes — falling back to bare hex when the string contains hex letters:
+ * '1f', 'deadbeef', '-ff' all parse base 16. Digit-only strings never reach
+ * the fallback ('1e5' is decimal, not hex), and non-hex garbage stays an error.
+ */
+function parseNumeric(s: string): number | undefined {
+  if (s === '') return undefined
+  const n = Number(s)
+  if (!Number.isNaN(n)) return n
+  const hex = /^-?(?:0x)?([0-9a-f]+)$/i.exec(s)
+  if (!hex || !/[a-f]/i.test(hex[1]!)) return undefined
+  const digits = Number.parseInt(hex[1]!, 16)
+  return s.startsWith('-') ? -digits : digits
 }
 
 function stringifyJson(value: unknown, from: DataType, to: DataType): string {
