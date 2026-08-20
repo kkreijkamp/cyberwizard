@@ -13,7 +13,7 @@ import type { LGraphNode } from '@comfyorg/litegraph'
 import { markNodeDirty, paramWidgets } from '../../core/registry'
 import type { RunContext } from '../../core/registry'
 import type { SubgraphDefMeta } from '../../core/subgraph'
-import { allSubgraphDefs, onSubgraphDefsChange } from '../../core/subgraph'
+import { allSubgraphDefs, getSubgraphDef, onSubgraphDefsChange, resolveVisibleDef, visibleSubgraphDefs } from '../../core/subgraph'
 
 const NONE = '(none)'
 
@@ -50,7 +50,8 @@ export function installFnPickers(node: LGraphNode, names: readonly string[]): vo
   const refresh = (): void => {
     const root = node.graph?.rootGraph
     if (!root) return
-    const defs = allSubgraphDefs(root).map((d) => d.name)
+    // Only definitions visible from this node's location (its lexical chain).
+    const defs = visibleSubgraphDefs(root, node.graph).map((d) => d.name)
     for (const values of pickers) values.splice(1, values.length, ...defs)
   }
 
@@ -75,9 +76,14 @@ export function resolveFnDef(ctx: RunContext, picked: unknown, param: string): S
     throw new Error(`no subgraph selected for ${param} — pick one in the node’s ${param} dropdown`)
   }
   const root = ctx.node?.graph?.rootGraph
-  const meta = root ? allSubgraphDefs(root).find((d) => d.name === picked) : undefined
-  if (!meta) throw new Error(`subgraph "${picked}" not found (renamed? re-pick it in ${param})`)
-  return meta
+  const meta = root ? resolveVisibleDef(root, ctx.node.graph, picked) : undefined
+  if (meta) return meta
+  const global = root ? allSubgraphDefs(root).find((d) => d.name === picked) : undefined
+  if (root && global?.scope) {
+    const parentName = getSubgraphDef(root, global.scope)?.name ?? global.scope
+    throw new Error(`subgraph "${picked}" is scoped to "${parentName}" — not visible here`)
+  }
+  throw new Error(`subgraph "${picked}" not found (renamed? re-pick it in ${param})`)
 }
 
 /** Higher-order ops take exactly `inputs`-in-1-out definitions. */

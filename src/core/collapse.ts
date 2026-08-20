@@ -123,7 +123,7 @@ export function collapseToSubgraph(
   })
 
   // Create the definition (at the document root — definitions are flat).
-  const meta = createSubgraphDef(rootGraph, name)
+  const meta = createSubgraphDef(rootGraph, name, graph instanceof Subgraph ? graph.id : undefined)
   for (const d of inputDefs) addDefInput(rootGraph, meta.id, d.name, d.type)
   for (const d of outputDefs) addDefOutput(rootGraph, meta.id, d.name, d.type)
   const subgraph = rawSubgraph(rootGraph, meta.id)

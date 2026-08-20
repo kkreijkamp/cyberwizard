@@ -66,6 +66,8 @@ export interface SerializedSubgraph {
   /** Definition UUID — instance nodes reference it as their `type`. */
   id: string
   name: string
+  /** Lexical scope: the parent definition's UUID. Absent = global. */
+  scope?: string
   inputs: SerializedSubgraphIO[]
   outputs: SerializedSubgraphIO[]
   /** IO panel node bounds ([x, y, w, h]) — the panels' positions inside the definition. */
@@ -155,6 +157,7 @@ export function serializeGraph(graph: LGraph, canvas?: LGraphCanvas): GraphDocum
       return {
         id: meta.id,
         name: meta.name,
+        scope: meta.scope,
         inputs: meta.inputs.map((slot) => ({ name: slot.name, type: slot.type.kind })),
         outputs: meta.outputs.map((slot) => ({ name: slot.name, type: slot.type.kind })),
         // Panel positions, in the same shape the library writes (dropped on
@@ -228,7 +231,18 @@ export function deserializeGraph(doc: GraphDocument, graph: LGraph, canvas?: LGr
       config: {},
       extra: {},
     } as unknown as ExportedSubgraph)
-    registerRestoredDef(graph, subgraph)
+    registerRestoredDef(graph, subgraph, typeof saved.scope === 'string' ? saved.scope : undefined)
+  }
+
+  // Scope targets are resolved after every definition is registered; a
+  // missing parent degrades the definition to global rather than dropping it.
+  for (const saved of doc.subgraphs ?? []) {
+    if (typeof saved.scope !== 'string') continue
+    if (!getSubgraphDef(graph, saved.scope)) {
+      warnings.push(`subgraph "${saved.name}" scopes to a missing definition — treating it as global`)
+      const meta = getSubgraphDef(graph, saved.id)
+      if (meta) meta.scope = undefined
+    }
   }
 
   // Phase 2: populate interiors.
@@ -371,6 +385,9 @@ export function parseGraphDocument(data: unknown): GraphDocument {
       const s = entry as Record<string, unknown>
       if (typeof s?.id !== 'string' || typeof s.name !== 'string') {
         throw new Error(`subgraph #${i} is malformed`)
+      }
+      if (s.scope !== undefined && typeof s.scope !== 'string') {
+        throw new Error(`subgraph #${i} scope is malformed`)
       }
       validateIO(s.inputs, `subgraph #${i} inputs`)
       validateIO(s.outputs, `subgraph #${i} outputs`)

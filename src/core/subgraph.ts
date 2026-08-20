@@ -25,8 +25,8 @@
  * module's coordinator half (one-directional dependency: subgraph → engine).
  */
 
-import { LiteGraph, SubgraphNode } from '@comfyorg/litegraph'
-import type { ISlotType, LGraph, LGraphNode, LLink, NodeId, Subgraph } from '@comfyorg/litegraph'
+import { LiteGraph, Subgraph, SubgraphNode } from '@comfyorg/litegraph'
+import type { ISlotType, LGraph, LGraphNode, LLink, NodeId } from '@comfyorg/litegraph'
 import type { ExportedSubgraph } from '@comfyorg/litegraph'
 import type { DataType } from './types'
 import { dataTypeFromKind, toSlotType } from './types'
@@ -51,6 +51,14 @@ export interface SubgraphDefMeta {
   /** Declared, typed inputs — authoritative for the engine and serializer. */
   inputs: SlotDef[]
   outputs: SlotDef[]
+  /**
+   * Lexical scope: the definition this one belongs to. A scoped definition
+   * is visible (palette, fn pickers, name resolution) only inside its
+   * parent's subtree — inner scopes see outer bindings, siblings do not.
+   * Absent = global. Storage stays flat on the root; scope is a visibility
+   * property, never containment (recursion and serialization are unaffected).
+   */
+  scope?: string
 }
 
 // ─── Per-document registries (keyed by root graph) ──────────────────────────
@@ -74,6 +82,83 @@ export function getSubgraphDef(rootGraph: LGraph, defId: string): SubgraphDefMet
 /** All definitions of the document, in creation order. */
 export function allSubgraphDefs(rootGraph: LGraph): readonly SubgraphDefMeta[] {
   return [...(metasByRoot.get(rootGraph)?.values() ?? [])]
+}
+
+/**
+ * The lexical ancestor chain of a definition: [def, its scope-parent, …].
+ * Cycle-safe — a hand-edited scope loop degrades to the ids visited so far.
+ */
+export function scopeChainOf(rootGraph: LGraph, defId: string): string[] {
+  const chain: string[] = []
+  const seen = new Set<string>()
+  let current: string | undefined = defId
+  while (current !== undefined && !seen.has(current)) {
+    seen.add(current)
+    chain.push(current)
+    current = metasOf(rootGraph).get(current)?.scope
+  }
+  return chain
+}
+
+/** Where a node lives: the root graph, or a definition's interior. */
+export type DefLocation = LGraph | Subgraph | null | undefined
+
+/**
+ * Definitions visible from a location: globals are visible everywhere; a
+ * scoped definition only inside its parent's subtree (the location's own
+ * chain). The palette, fn pickers, and name resolution all use this.
+ */
+export function visibleSubgraphDefs(rootGraph: LGraph, location: DefLocation): SubgraphDefMeta[] {
+  const defs = [...metasOf(rootGraph).values()]
+  if (!(location instanceof Subgraph)) return defs.filter((d) => d.scope === undefined)
+  const chain = new Set(scopeChainOf(rootGraph, location.id))
+  return defs.filter((d) => d.scope === undefined || chain.has(d.scope))
+}
+
+/** Resolves a name the way a picker at `location` sees it — first visible match. */
+export function resolveVisibleDef(rootGraph: LGraph, location: DefLocation, name: string): SubgraphDefMeta | undefined {
+  return visibleSubgraphDefs(rootGraph, location).find((d) => d.name === name)
+}
+
+/**
+ * Moves a definition between scopes: up to global, down into a parent, or
+ * sideways to another parent. Refuses to scope a definition into itself or
+ * its own descendants (a cyclic chain). The name is uniquified within the
+ * new scope; consumers of the old/new name are re-dirtied so resolution
+ * errors and re-picks surface immediately.
+ */
+export function reScopeDef(rootGraph: LGraph, defId: string, newScope: string | undefined): void {
+  const meta = getSubgraphDef(rootGraph, defId)
+  if (!meta || meta.scope === newScope) return
+  if (newScope !== undefined) {
+    if (!getSubgraphDef(rootGraph, newScope)) return
+    if (scopeChainOf(rootGraph, newScope).includes(defId)) return
+  }
+  const oldName = meta.name
+  meta.scope = newScope
+  meta.name = uniqueNameForScope(rootGraph, meta.name, newScope, defId)
+  const subgraph = rawSubgraph(rootGraph, defId)
+  if (subgraph) subgraph.name = meta.name
+  const factory = factories.get(defId)
+  if (factory) factory.title = meta.name
+  dirtyFnConsumersNamed(rootGraph, oldName, defId)
+  dirtyDependents(rootGraph, defId)
+  emitDefsChange(rootGraph)
+}
+
+/** Free display name for a definition within a scope (siblings may share names across scopes). */
+function uniqueNameForScope(
+  rootGraph: LGraph,
+  desired: string,
+  scope: string | undefined,
+  excludeId?: string,
+): string {
+  const taken = new Set(
+    [...metasOf(rootGraph).values()]
+      .filter((m) => m.scope === scope && m.id !== excludeId)
+      .map((m) => m.name),
+  )
+  return uniqueName(desired, taken)
 }
 
 /** Factory classes are registered globally (keyed by UUID); tracked for rename/delete. */
@@ -247,10 +332,11 @@ function emptySubgraphData(id: string, name: string): ExportedSubgraph {
 }
 
 /** Registers metadata + factory for a definition that exists on the root graph. */
-function registerExisting(rootGraph: LGraph, subgraph: Subgraph): SubgraphDefMeta {
+function registerExisting(rootGraph: LGraph, subgraph: Subgraph, scope?: string): SubgraphDefMeta {
   const meta: SubgraphDefMeta = {
     id: subgraph.id,
     name: subgraph.name,
+    scope,
     inputs: [],
     outputs: [],
   }
@@ -305,18 +391,23 @@ function ioSignature(meta: SubgraphDefMeta): string {
   return globalThis.JSON.stringify({ inputs: meta.inputs, outputs: meta.outputs })
 }
 
-/** Creates an empty definition with no IO and returns its metadata. */
-export function createSubgraphDef(rootGraph: LGraph, name: string): SubgraphDefMeta {
-  const subgraph = rootGraph.createSubgraph(emptySubgraphData(crypto.randomUUID(), name))
-  return registerExisting(rootGraph, subgraph) // registers + emits
+/**
+ * Creates an empty definition with no IO and returns its metadata. With
+ * `scope`, the definition is local to that parent (visible only inside its
+ * subtree); the name is uniquified within the scope.
+ */
+export function createSubgraphDef(rootGraph: LGraph, name: string, scope?: string): SubgraphDefMeta {
+  const unique = uniqueNameForScope(rootGraph, name, scope)
+  const subgraph = rootGraph.createSubgraph(emptySubgraphData(crypto.randomUUID(), unique))
+  return registerExisting(rootGraph, subgraph, scope) // registers + emits
 }
 
 /**
  * Re-registers a definition that was created outside this module's lifecycle
  * (deserialization restores definitions, then populates their interiors).
  */
-export function registerRestoredDef(rootGraph: LGraph, subgraph: Subgraph): SubgraphDefMeta {
-  return registerExisting(rootGraph, subgraph)
+export function registerRestoredDef(rootGraph: LGraph, subgraph: Subgraph, scope?: string): SubgraphDefMeta {
+  return registerExisting(rootGraph, subgraph, scope)
 }
 
 /** The raw library Subgraph behind a definition id. */
@@ -342,7 +433,7 @@ export function renameSubgraphDef(rootGraph: LGraph, defId: string, name: string
   }
   // By-name consumers still point at the old name — dirty them so the
   // "renamed? re-pick it" error surfaces on their next pull.
-  dirtyFnConsumersNamed(rootGraph, oldName)
+  dirtyFnConsumersNamed(rootGraph, oldName, defId)
   emitDefsChange(rootGraph)
 }
 
@@ -418,8 +509,19 @@ export function removeDefOutput(rootGraph: LGraph, defId: string, index: number)
   })
 }
 
-/** Deletes a definition and every instance of it across the document. */
+/**
+ * Deletes a definition, every instance of it, and its whole scope subtree —
+ * scoped helpers are lexically part of their parent, so deleting a
+ * definition deletes the definitions nested under it too.
+ */
 export function deleteSubgraphDef(rootGraph: LGraph, defId: string): void {
+  const descendants = [...metasOf(rootGraph).values()]
+    .filter((m) => m.id !== defId && scopeChainOf(rootGraph, m.id).includes(defId))
+    .map((m) => m.id)
+  for (const id of [defId, ...descendants]) deleteOne(rootGraph, id)
+}
+
+function deleteOne(rootGraph: LGraph, defId: string): void {
   const name = getSubgraphDef(rootGraph, defId)?.name
   for (const instance of [...instancesOf(rootGraph, defId)]) {
     instance.graph?.remove(instance)
@@ -433,7 +535,7 @@ export function deleteSubgraphDef(rootGraph: LGraph, defId: string): void {
   metasOf(rootGraph).delete(defId)
   // By-name consumers now point at nothing — dirty them so the "not found"
   // error surfaces on their next pull.
-  if (name !== undefined) dirtyFnConsumersNamed(rootGraph, name)
+  if (name !== undefined) dirtyFnConsumersNamed(rootGraph, name, defId)
   emitDefsChange(rootGraph)
 }
 
@@ -485,15 +587,25 @@ function dirtyAllInstances(rootGraph: LGraph, defId: string): void {
  * filter/fold's fn, If's then/else) are not instances — dirtyAllInstances
  * never reaches them, so editing a picked definition used to leave their
  * outputs stale. Scan the root graph and every interior for such params
- * and dirty the holders.
+ * and dirty the holders. With scoped names, a consumer is only dirtied when
+ * the name resolves to THIS definition from its own location — a same-named
+ * definition in another scope must not be shadowed by accident.
  */
-function dirtyFnConsumersNamed(rootGraph: LGraph, name: string): void {
+function dirtyFnConsumersNamed(rootGraph: LGraph, name: string, defId?: string): void {
   const visit = (node: LGraphNode): void => {
     for (const param of getNodeDef(node)?.params ?? []) {
-      if (param.kind === 'string' && param.subgraphRef && node.properties[param.name] === name) {
-        markNodeDirty(node)
-        break
+      if (param.kind !== 'string' || !param.subgraphRef || node.properties[param.name] !== name) {
+        continue
       }
+      if (defId !== undefined) {
+        const resolved = resolveVisibleDef(rootGraph, node.graph, name)
+        // Skip only when the name resolves to a DIFFERENT definition (a same-
+        // named def shadows ours). An orphan (rename/delete) must be dirtied
+        // so the resolution error surfaces.
+        if (resolved !== undefined && resolved.id !== defId) continue
+      }
+      markNodeDirty(node)
+      break
     }
   }
   for (const node of rootGraph._nodes) visit(node)
@@ -504,7 +616,7 @@ function dirtyFnConsumersNamed(rootGraph: LGraph, name: string): void {
 
 function dirtyFnConsumers(rootGraph: LGraph, defId: string): void {
   const meta = getSubgraphDef(rootGraph, defId)
-  if (meta) dirtyFnConsumersNamed(rootGraph, meta.name)
+  if (meta) dirtyFnConsumersNamed(rootGraph, meta.name, defId)
 }
 
 /** Definition changed: dirty its instances AND its by-name consumers. */
