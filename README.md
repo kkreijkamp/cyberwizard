@@ -22,6 +22,12 @@ outputs — a function, basically:
   inside other subgraphs — including themselves (recursion is depth-limited
   and budget-capped, so a runaway definition shows a node error instead of
   freezing the page).
+- **Scope**: definitions created inside another definition (via `+ Subgraph`
+  or collapse) are **local to it** — visible in the palette and fn pickers
+  only inside that parent's subtree, and free to share names with helpers in
+  other scopes. Right-click a definition in the palette to move it between
+  scopes (up to Global, down into a parent); deleting a definition deletes
+  its scoped helpers with it.
 - **Share**: definitions embed in save files and share URLs — documents stay
   fully self-contained.
 

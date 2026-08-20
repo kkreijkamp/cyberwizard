@@ -100,6 +100,12 @@ The registry drives the node palette, search, and slot-type compatibility checks
   per-instance state store with inputs bound at the boundary panels. Unchanged
   instances never re-run; interior edits re-run only the affected branch
   (seeded dirty propagation across the boundary).
+- **Lexical scope**: definitions are stored flat on the root but may be scoped
+  to a parent definition — visible (palette, pickers, name resolution) only
+  inside the parent's subtree, like local functions. Scope is a visibility
+  property, never containment, so recursion and serialization are unaffected;
+  definitions move between scopes (`reScopeDef`), and deleting a definition
+  cascades through its scope subtree.
 - **Recursion-compatible**: a definition may contain an instance of itself.
   Evaluation is guarded by a depth limit (64) and a per-call-tree evaluation
   budget (1000), surfacing as ordinary node errors — never a stack overflow
