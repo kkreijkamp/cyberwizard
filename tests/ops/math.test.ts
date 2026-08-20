@@ -72,3 +72,25 @@ describe('math/comparisons', () => {
     expect((await runOp('math/greater', { a: 'b', b: 10 })).result).toBe(true) // 'b' > '10'
   })
 })
+
+describe('math/bitwise shifts', () => {
+  it('shifts left and right', async () => {
+    expect((await runOp('math/shift-left', { value: 1, by: 4 })).result).toBe(16)
+    expect((await runOp('math/shift-right', { value: 256, by: 4 })).result).toBe(16)
+  })
+
+  it('keeps the sign on >> and zero-fills on >>>', async () => {
+    expect((await runOp('math/shift-right', { value: -8, by: 1 })).result).toBe(-4)
+    expect((await runOp('math/shift-right-unsigned', { value: -8, by: 1 })).result).toBe(2147483644)
+  })
+
+  it('masks the count to 5 bits and truncates operands to 32-bit', async () => {
+    expect((await runOp('math/shift-left', { value: 1, by: 32 })).result).toBe(1)
+    expect((await runOp('math/shift-left', { value: 1.9, by: 1.7 })).result).toBe(2)
+  })
+
+  it('unwired inputs act as 0 (a no-op shift)', async () => {
+    expect((await runOp('math/shift-left', { value: 5 })).result).toBe(5)
+    expect((await runOp('math/shift-right', {})).result).toBe(0)
+  })
+})
