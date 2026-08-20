@@ -42,6 +42,25 @@ export function xorBytes(data: Uint8Array, key: Uint8Array): Uint8Array {
   return out
 }
 
+/** Big-endian bignum view of a byte string: [0x1f, 0x4a] ↔ 8010n. */
+export function bytesToBigInt(data: Uint8Array): bigint {
+  let n = 0n
+  for (const b of data) n = (n << 8n) | BigInt(b)
+  return n
+}
+
+/** Minimal-length big-endian encoding (leading zeros dropped); 0n → [0x00]. */
+export function bigIntToBytes(n: bigint): Uint8Array {
+  if (n === 0n) return new Uint8Array([0])
+  const hex = n.toString(16)
+  const padded = hex.length % 2 ? `0${hex}` : hex
+  const out = new Uint8Array(padded.length / 2)
+  for (let i = 0; i < out.length; i++) {
+    out[i] = Number.parseInt(padded.slice(i * 2, i * 2 + 2), 16)
+  }
+  return out
+}
+
 /**
  * WebCrypto wants ArrayBuffer-backed views (BufferSource); our byte type is
  * the wider Uint8Array<ArrayBufferLike>. Pass through when actually backed by
