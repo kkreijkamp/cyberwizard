@@ -124,3 +124,16 @@ describe('flow/select laziness', () => {
     expect((await runOp('flow/select', {}, {}, ctx)).result).toBe('E') // unwired cond → else
   })
 })
+
+describe('flow/list-append', () => {
+  it('adds the element to the end, without mutating the input', async () => {
+    const items = [1, 2]
+    expect((await runOp('flow/list-append', { items, element: 3 })).items).toEqual([1, 2, 3])
+    expect(items).toEqual([1, 2])
+  })
+
+  it('treats an unwired list as empty and appends anything (including lists as elements)', async () => {
+    expect((await runOp('flow/list-append', { element: 'x' })).items).toEqual(['x'])
+    expect((await runOp('flow/list-append', { items: [1], element: [2, 3] })).items).toEqual([1, [2, 3]])
+  })
+})

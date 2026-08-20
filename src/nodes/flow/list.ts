@@ -201,3 +201,13 @@ defineNode({
     return { items }
   },
 })
+
+defineNode({
+  type: 'flow/list-append',
+  title: 'Append',
+  category: 'Flow',
+  description: 'Adds the element to the end of the list.',
+  inputs: [listIn, { name: 'element', type: ANY }] as const,
+  outputs: [listOut],
+  run: (inputs) => ({ items: [...(inputs.items ?? []), inputs.element] }),
+})
