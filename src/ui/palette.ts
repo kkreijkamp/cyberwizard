@@ -22,6 +22,9 @@ import { onSetGraph } from './subgraphs'
 
 const DRAG_MIME = 'application/x-cyberwizard-node'
 
+/** Subgraphs sort first in the palette; every other category alphabetical. */
+const categoryRank = (category: string): string => (category === SUBGRAPH_CATEGORY ? '' : category)
+
 interface PaletteEntry {
   readonly type: string
   readonly title: string
@@ -59,7 +62,8 @@ export function createPalette(host: HTMLElement, canvas: LGraphCanvas, graph: LG
       description: `${d.scope ? 'local · ' : ''}${d.inputs.map((i) => i.name).join(', ') || '∅'} → ${d.outputs.map((o) => o.name).join(', ') || '∅'}`,
     }))
     return [...ops, ...subs].sort(
-      (a, b) => a.category.localeCompare(b.category) || a.title.localeCompare(b.title),
+      // Subgraphs sit above every other category; the rest sort alphabetically.
+      (a, b) => categoryRank(a.category).localeCompare(categoryRank(b.category)) || a.title.localeCompare(b.title),
     )
   }
 
