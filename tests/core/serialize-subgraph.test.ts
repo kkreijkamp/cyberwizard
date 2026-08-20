@@ -195,3 +195,44 @@ describe('serialize v2 — subgraph round-trip', () => {
     expect(restored._nodes.some((n) => n.type === defId)).toBe(true)
   })
 })
+
+describe('panel position round-trip', () => {
+  it('remembers the IO panel positions of custom nodes', () => {
+    const graph = new LGraph()
+    const defId = buildShoutDef(graph)
+    const sub = rawSubgraph(graph, defId)
+    if (!sub) throw new Error('no subgraph')
+    sub.inputNode.pos = [120, 260]
+    sub.outputNode.pos = [640, 140]
+
+    const doc = parseGraphDocument(JSON.parse(JSON.stringify(serializeGraph(graph))))
+    expect(doc.subgraphs?.[0]?.inputNode?.bounding?.[0]).toBe(120)
+    expect(doc.subgraphs?.[0]?.inputNode?.bounding?.[1]).toBe(260)
+    expect(doc.subgraphs?.[0]?.outputNode?.bounding?.[0]).toBe(640)
+    expect(doc.subgraphs?.[0]?.outputNode?.bounding?.[1]).toBe(140)
+
+    const rig = restoredRig(doc)
+    const restored = rawSubgraph(rig.restored, defId)
+    expect(restored?.inputNode.boundingRect[0]).toBe(120)
+    expect(restored?.inputNode.boundingRect[1]).toBe(260)
+    expect(restored?.outputNode.boundingRect[0]).toBe(640)
+    expect(restored?.outputNode.boundingRect[1]).toBe(140)
+    rig.dispose()
+  })
+
+  it('falls back to default panel positions when the saved bounds are malformed', () => {
+    const graph = new LGraph()
+    buildShoutDef(graph)
+    const doc = parseGraphDocument(JSON.parse(JSON.stringify(serializeGraph(graph))))
+    const entry = doc.subgraphs?.[0] as unknown as Record<string, unknown>
+    entry.inputNode = { bounding: 'not-a-bounding' }
+    delete entry.outputNode
+
+    const rig = restoredRig(doc)
+    const defId = doc.subgraphs?.[0]?.id as string
+    const restored = rawSubgraph(rig.restored, defId)
+    expect(restored?.inputNode.boundingRect[0]).toBe(0)
+    expect(restored?.outputNode.boundingRect[0]).toBe(300)
+    rig.dispose()
+  })
+})

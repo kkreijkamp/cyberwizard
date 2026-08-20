@@ -68,6 +68,9 @@ export interface SerializedSubgraph {
   name: string
   inputs: SerializedSubgraphIO[]
   outputs: SerializedSubgraphIO[]
+  /** IO panel node bounds ([x, y, w, h]) — the panels' positions inside the definition. */
+  inputNode?: { bounding: [number, number, number, number]; pinned?: boolean }
+  outputNode?: { bounding: [number, number, number, number]; pinned?: boolean }
   nodes: SerializedNode[]
   /** Interior links; endpoints may be the boundary panel ids (-10 / -20). */
   links: SerializedLink[]
@@ -154,6 +157,14 @@ export function serializeGraph(graph: LGraph, canvas?: LGraphCanvas): GraphDocum
         name: meta.name,
         inputs: meta.inputs.map((slot) => ({ name: slot.name, type: slot.type.kind })),
         outputs: meta.outputs.map((slot) => ({ name: slot.name, type: slot.type.kind })),
+        // Panel positions, in the same shape the library writes (dropped on
+        // restore if malformed — they are cosmetic).
+        inputNode: subgraph
+          ? (subgraph.inputNode.asSerialisable() as { bounding: [number, number, number, number]; pinned?: boolean })
+          : undefined,
+        outputNode: subgraph
+          ? (subgraph.outputNode.asSerialisable() as { bounding: [number, number, number, number]; pinned?: boolean })
+          : undefined,
         nodes: interior.nodes,
         links: interior.links,
       }
@@ -165,6 +176,12 @@ export function serializeGraph(graph: LGraph, canvas?: LGraphCanvas): GraphDocum
     doc.view = { offset: [...canvas.ds.offset], scale: canvas.ds.scale }
   }
   return doc
+}
+
+/** Panel bounds are cosmetic: malformed entries fall back to the default position. */
+function validBounding(b: unknown): [number, number, number, number] | undefined {
+  if (!Array.isArray(b) || b.length !== 4 || !b.every((v) => typeof v === 'number')) return undefined
+  return [b[0], b[1], b[2], b[3]] as [number, number, number, number]
 }
 
 // ─── Deserialise ─────────────────────────────────────────────────────────────
@@ -189,8 +206,16 @@ export function deserializeGraph(doc: GraphDocument, graph: LGraph, canvas?: LGr
     const subgraph = graph.createSubgraph({
       id: saved.id,
       name: saved.name,
-      inputNode: { id: SUBGRAPH_INPUT_NODE_ID, bounding: [0, 0, 75, 100] },
-      outputNode: { id: SUBGRAPH_OUTPUT_NODE_ID, bounding: [300, 0, 75, 100] },
+      inputNode: {
+        id: SUBGRAPH_INPUT_NODE_ID,
+        bounding: validBounding(saved.inputNode?.bounding) ?? [0, 0, 75, 100],
+        pinned: saved.inputNode?.pinned,
+      },
+      outputNode: {
+        id: SUBGRAPH_OUTPUT_NODE_ID,
+        bounding: validBounding(saved.outputNode?.bounding) ?? [300, 0, 75, 100],
+        pinned: saved.outputNode?.pinned,
+      },
       inputs: saved.inputs.map((slot) => ({ id: crypto.randomUUID(), name: slot.name, type: slot.type })),
       outputs: saved.outputs.map((slot) => ({ id: crypto.randomUUID(), name: slot.name, type: slot.type })),
       widgets: [],
