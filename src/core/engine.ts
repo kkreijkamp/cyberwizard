@@ -66,7 +66,7 @@ const COLOR_BLOCKED = '#6b7280'
 const CYCLE_MESSAGE = 'graph contains a cycle through this node'
 
 /** Max call depth for nested instances — the guard on true recursive self-reference. */
-export const MAX_SUBGRAPH_DEPTH = 64
+export const MAX_SUBGRAPH_DEPTH = 512
 /** Max interior evaluations per instance call tree — guards exponential recursion fan-out. */
 export const SUBGRAPH_EVAL_BUDGET = 1000
 

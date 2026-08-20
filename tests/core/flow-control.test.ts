@@ -417,3 +417,60 @@ describe('subgraph-name consumers', () => {
     dispose()
   })
 })
+
+describe('recursion depth', () => {
+  it('countdown(100) — ~200 frames deep, past the old 64 limit — computes exactly', async () => {
+    const { graph, engine, dispose } = rig()
+
+    // "Zero": 0-in, 1-out constant 0.
+    const zero = createSubgraphDef(graph, 'Zero')
+    addDefOutput(graph, zero.id, 'result', NUMBER)
+    wirePanelOut(interiorOf(graph, zero.id), constNum(interiorOf(graph, zero.id), 0), 0, 0)
+
+    // "Countdown": n → If (n ≤ 0) then Zero else Step.
+    const countdown = createSubgraphDef(graph, 'Countdown')
+    addDefInput(graph, countdown.id, 'n', NUMBER)
+    addDefOutput(graph, countdown.id, 'result', NUMBER)
+
+    // "Step": n → 1 + Countdown(n − 1) — the recursive branch.
+    const step = createSubgraphDef(graph, 'Step')
+    addDefInput(graph, step.id, 'n', NUMBER)
+    addDefOutput(graph, step.id, 'result', NUMBER)
+    const stepSub = interiorOf(graph, step.id)
+    const subtr = spawnInterior(stepSub, 'math/subtract')
+    wirePanelIn(stepSub, 0, subtr, 0)
+    constNum(stepSub, 1).connect(0, subtr, 1)
+    const rec = spawnSubgraphNode(countdown.id)
+    if (!rec) throw new Error('no factory')
+    stepSub.add(rec)
+    subtr.connect(0, rec, 0)
+    const add = spawnInterior(stepSub, 'math/add')
+    constNum(stepSub, 1).connect(0, add, 0)
+    rec.connect(0, add, 1)
+    wirePanelOut(stepSub, add, 0, 0)
+
+    const cSub = interiorOf(graph, countdown.id)
+    const lessEq = spawnInterior(cSub, 'math/less-eq')
+    wirePanelIn(cSub, 0, lessEq, 0)
+    constNum(cSub, 0).connect(0, lessEq, 1)
+    const ifNode = spawnInterior(cSub, 'flow/if')
+    setParam(ifNode, 'then', 'Zero')
+    setParam(ifNode, 'else', 'Step')
+    lessEq.connect(0, ifNode, 0)
+    wirePanelIn(cSub, 0, ifNode, 1)
+    wirePanelOut(cSub, ifNode, 0, 0)
+
+    const src = constNum(graph, 100)
+    const instance = spawnSubgraphNode(countdown.id)
+    if (!instance) throw new Error('no factory')
+    graph.add(instance)
+    src.connect(0, instance, 0)
+    const sink = spawn(graph, 'io/preview')
+    instance.connect(0, sink, 0)
+
+    await engine.whenIdle()
+    expect(engine.stateOf(instance).error).toBeUndefined()
+    expect(engine.outputsOf(instance)).toEqual([100])
+    dispose()
+  })
+})
