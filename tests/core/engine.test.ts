@@ -311,6 +311,36 @@ describe('Engine', () => {
     engine.dispose()
   })
 
+  it('compute() pulls one node on demand, exactly as if a sink demanded it', async () => {
+    reset()
+    const graph = new LGraph()
+    const src = spawn(graph, 'test-eng/src')
+    const mid = spawn(graph, 'test-eng/suffix')
+    const boom = spawn(graph, 'test-eng/boom')
+    setParam(mid, 'suffix', '!')
+    src.connect(0, mid, 0)
+    mid.connect(0, boom, 0) // downstream of the computed node — never demanded
+
+    const engine = new Engine(graph)
+    await engine.whenIdle()
+    expect(counters.suffix).toBe(0) // no sink anywhere: everything rests
+
+    await engine.compute(mid)
+    expect(counters.src).toBe(1)
+    expect(counters.suffix).toBe(1)
+    expect(counters.boom).toBe(0)
+    expect(engine.outputsOf(mid)).toEqual(['x!'])
+
+    // A compute on a clean node memo-hits; an edit re-dirties it.
+    await engine.compute(mid)
+    expect(counters.suffix).toBe(1)
+    setParam(src, 'text', 'y')
+    await engine.compute(mid)
+    expect(counters.suffix).toBe(2)
+    expect(engine.outputsOf(mid)).toEqual(['y!'])
+    engine.dispose()
+  })
+
   it('paints live previews: value on success, warning on error', async () => {
     reset()
     const graph = new LGraph()

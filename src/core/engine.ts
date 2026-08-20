@@ -201,12 +201,29 @@ export class Engine {
     return this.state(node).outputs
   }
 
-  /** Resolves when no flush is running or scheduled. Undemanded dirty nodes rest. */
+  /** Resolves when no flush is running or scheduled and no compute() is in flight. */
   async whenIdle(): Promise<void> {
-    while (this.evaluating || this.scheduled) {
+    while (this.evaluating || this.scheduled || this.pendingComputes > 0) {
       await new Promise<void>((resolve) => this.idleWaiters.push(resolve))
     }
   }
+
+  /**
+   * Pulls one node on demand, as if a sink demanded it: the node and any
+   * dirty upstream evaluate, clean cached values memo-hit, and the badge
+   * repaints. The node menu's "Compute" action (ui/compute-menu.ts).
+   */
+  async compute(node: LGraphNode): Promise<void> {
+    this.pendingComputes++
+    try {
+      await this.ensure(node, this.rootScope())
+    } finally {
+      this.pendingComputes--
+      this.drainIdleWaiters()
+    }
+  }
+
+  private pendingComputes = 0
 
   /**
    * Marks a node and everything downstream of it dirty. Fresh values may flow
@@ -294,7 +311,7 @@ export class Engine {
   }
 
   private drainIdleWaiters(): void {
-    if (this.evaluating || this.scheduled) return
+    if (this.evaluating || this.scheduled || this.pendingComputes > 0) return
     const waiters = this.idleWaiters.splice(0)
     for (const resolve of waiters) resolve()
   }

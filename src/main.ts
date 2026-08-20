@@ -6,6 +6,7 @@ import { installConnectionRules } from './core/registry'
 import { deserializeGraph } from './core/serialize'
 import { attachSubgraphSupport } from './core/subgraph'
 import { buildShowcaseGraph } from './showcase'
+import { installComputeMenu } from './ui/compute-menu'
 import { installNodeLayout } from './ui/layout'
 import { createPalette } from './ui/palette'
 import { initialDocument, startAutosave, wirePersistence } from './ui/persistence'
@@ -37,6 +38,7 @@ installNodeLayout(graph)
 // restored below flow through their normal hooks. Then: URL → autosave → showcase.
 const engine = new Engine(graph)
 attachSubgraphSupport(graph, engine)
+installComputeMenu(engine)
 
 const doc = initialDocument()
 if (doc) deserializeGraph(doc, graph)
