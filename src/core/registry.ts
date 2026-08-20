@@ -103,6 +103,13 @@ export interface NodeDef<
    */
   readonly lazyInputs?: readonly string[]
   /**
+   * Variadic inputs (Concat, List Pack): when every input is wired, one
+   * more empty slot is appended automatically; trailing empty slots beyond
+   * the first are pruned. The engine evaluates dynamically added slots like
+   * declared ones; they serialize as a count (see core/serialize).
+   */
+  readonly variadicInputs?: boolean
+  /**
    * Browser-side hook for nodes needing custom widgets (file picker, action
    * buttons). Runs once at construction, after slots and param widgets.
    */
@@ -213,6 +220,50 @@ export function widgetInputParams(node: LGraphNode, declaredInputs: number): str
   return names
 }
 
+// ─── Variadic inputs ─────────────────────────────────────────────────────────
+
+/** Slot names for variadic growth: a…z, aa, ab, … (spreadsheet letters). */
+export function variadicSlotName(index: number): string {
+  let n = index
+  let name = ''
+  do {
+    name = String.fromCharCode(97 + (n % 26)) + name
+    n = Math.floor(n / 26) - 1
+  } while (n >= 0)
+  return name
+}
+
+/**
+ * Keeps exactly one empty trailing slot on a variadic node: appends when
+ * every input is wired, prunes surplus unwired trailing slots. Widget-input
+ * slots (converted params) are ignored — they are not variadic slots.
+ */
+export function maintainVariadicSlots(node: LGraphNode, def: UntypedNodeDef): void {
+  const declaredInputs = def.inputs.length
+  const growthType = toSlotType(def.inputs[0]?.type ?? ANY) as string
+  const linkOf = (i: number): unknown => (node.inputs[i] as { link?: unknown }).link
+  const isVariadicSlot = (i: number): boolean =>
+    i >= declaredInputs && (node.inputs[i] as { widget?: unknown }).widget === undefined
+
+  if (node.inputs.every((_slot, i) => linkOf(i) != null)) {
+    // Every input wired — grow one more (letters continue from the count).
+    node.addInput(variadicSlotName(node.inputs.length), growthType)
+    markNodeDirty(node)
+    return
+  }
+
+  // Prune trailing unwired variadic slots beyond the single empty one.
+  let pruned = false
+  while (node.inputs.length > declaredInputs) {
+    const last = node.inputs.length - 1
+    if (!isVariadicSlot(last) || linkOf(last) != null) break
+    if (linkOf(last - 1) != null) break // keep exactly one empty trailing slot
+    node.removeInput(last)
+    pruned = true
+  }
+  if (pruned) markNodeDirty(node)
+}
+
 const PARAM_WIDGETS = Symbol('cyberwizard.paramWidgets')
 
 /** Name of the auto-added live-preview widget (glyph doubles as its label). */
@@ -298,6 +349,7 @@ export function defineNode<
       inputOrOutput: Parameters<NonNullable<LGraphNode['onConnectionsChange']>>[4],
     ): void {
       super.onConnectionsChange?.(type, index, isConnected, linkInfo, inputOrOutput)
+      if (def.variadicInputs) maintainVariadicSlots(this, def)
       markNodeDirty(this)
     }
   }

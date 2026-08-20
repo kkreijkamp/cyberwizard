@@ -4,7 +4,7 @@ import { runOp } from './run-op'
 
 describe('flow/list ops', () => {
   it('packs only the connected slots, in order', async () => {
-    const node = { inputs: [{ link: 1 }, { link: null }, { link: 3 }] } as never
+    const node = { inputs: [{ name: 'a', link: 1 }, { name: 'b', link: null }, { name: 'c', link: 3 }] } as never
     const out = await runOp('flow/list-pack', { a: 'x', b: 'skipped', c: 42 }, {}, { node })
     expect(out.items).toEqual(['x', 42])
   })

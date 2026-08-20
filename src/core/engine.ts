@@ -39,7 +39,7 @@
 
 import type { LGraph, LGraphNode, NodeId, Subgraph, SubgraphNode } from '@comfyorg/litegraph'
 import type { DataType } from './types'
-import { ANY, inferDataType, repr } from './types'
+import { ANY, dataTypeFromKind, fromSlotType, inferDataType, repr } from './types'
 import { CoercionError, coerce } from './coerce'
 import type { SlotDef, UntypedNodeDef } from './registry'
 import { PREVIEW_WIDGET_NAME, getNodeDef, paramDataType, setDirtyHandler } from './registry'
@@ -449,6 +449,29 @@ export class Engine {
         } catch (err) {
           this.captureError(node, s, err, scope)
           return
+        }
+      }
+
+      // Variadic inputs (Concat, List Pack): dynamically added slots past
+      // the declared ones evaluate like declared slots, keyed by their
+      // letter names (c, d, …) in the inputs record.
+      if (def.variadicInputs) {
+        for (let index = def.inputs.length; index < node.inputs.length; index++) {
+          const slot = node.inputs[index]!
+          if ((slot as { widget?: unknown }).widget !== undefined) continue // converted param, handled above
+          const resolved = await this.pullInput(node, index, scope)
+          if (resolved.status === 'stale') return
+          if (resolved.status === 'blocked') {
+            this.markBlocked(node, s)
+            return
+          }
+          if (resolved.status === 'empty') continue
+          try {
+            inputs[slot.name!] = coerce(resolved.value, resolved.fromType, dataTypeFromKind(fromSlotType(slot.type!)))
+          } catch (err) {
+            this.captureError(node, s, err, scope)
+            return
+          }
         }
       }
 

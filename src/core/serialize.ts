@@ -22,7 +22,7 @@ import type { LGraph, LGraphCanvas, LGraphNode } from '@comfyorg/litegraph'
 import type { ExportedSubgraph } from '@comfyorg/litegraph'
 import { binaryStringToBytes, bytesToBinaryString } from './binary'
 import { canCoerce } from './coerce'
-import { convertParamToInput, getNodeDef, isConvertibleParam, setParam, widgetInputParams } from './registry'
+import { convertParamToInput, getNodeDef, isConvertibleParam, setParam, variadicSlotName, widgetInputParams } from './registry'
 import {
   SUBGRAPH_INPUT_NODE_ID,
   SUBGRAPH_OUTPUT_NODE_ID,
@@ -32,7 +32,7 @@ import {
   registerRestoredDef,
 } from './subgraph'
 import type { DataType } from './types'
-import { ANY, dataTypeFromKind } from './types'
+import { ANY, dataTypeFromKind, toSlotType } from './types'
 
 export const GRAPH_FORMAT_VERSION = 2
 
@@ -48,6 +48,8 @@ export interface SerializedNode {
   params: Record<string, string | number | boolean>
   /** Param names promoted to connection points, in slot order (core/registry widgetInputParams). */
   widgetInputs?: string[]
+  /** Extra slots beyond the declared inputs on a variadic node (Concat, List Pack). */
+  variadicInputs?: number
   /** Base64-encoded file bytes for io/file-input nodes. */
   fileData?: string
   fileName?: string
@@ -129,6 +131,10 @@ function serializeFragment(graph: LGraph): { nodes: SerializedNode[]; links: Ser
 
     const widgetInputs = widgetInputParams(node, def.inputs.length)
     if (widgetInputs.length > 0) out.widgetInputs = widgetInputs
+    if (def.variadicInputs) {
+      const extra = node.inputs.length - def.inputs.length - widgetInputs.length
+      if (extra > 0) out.variadicInputs = extra
+    }
 
     const fileData = node.properties.fileData
     if (fileData instanceof Uint8Array && fileData.length > 0 && fileData.length <= FILE_EMBED_LIMIT) {
@@ -304,6 +310,17 @@ function populateFragment(
           continue
         }
         convertParamToInput(node, param)
+      }
+    }
+    if (saved.variadicInputs !== undefined && saved.variadicInputs > 0) {
+      const def = getNodeDef(node)
+      if (!def?.variadicInputs) {
+        warnings.push(`${saved.type}: document has variadic inputs but the op is not variadic — skipped`)
+      } else {
+        const growthType = toSlotType(def.inputs[0]?.type ?? ANY) as string
+        for (let i = 0; i < saved.variadicInputs; i++) {
+          node.addInput(variadicSlotName(def.inputs.length + i), growthType)
+        }
       }
     }
     if (saved.fileData !== undefined) {

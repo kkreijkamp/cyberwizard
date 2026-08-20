@@ -15,23 +15,30 @@ import { repr, valueKey } from '../../core/types'
 const listIn = { name: 'items', type: listOf(ANY) } as const
 const listOut = { name: 'items', type: listOf(ANY) } as const
 
-/** Packs the *connected* inputs into a list, in slot order. */
+/** Packs the *connected* inputs into a list, in slot order. Variadic: wire every slot and another appears. */
 defineNode({
   type: 'flow/list-pack',
   title: 'List Pack',
   category: 'Flow',
-  description: 'Combines the wired inputs (a, b, c) into a list; unwired slots are skipped.',
+  description: 'Combines the wired inputs into a list, in slot order. Variadic — a new slot appears when all are wired.',
   inputs: [
     { name: 'a', type: ANY },
     { name: 'b', type: ANY },
     { name: 'c', type: ANY },
   ] as const,
   outputs: [listOut],
+  variadicInputs: true,
   run: (inputs, _params, ctx) => {
+    const loose = inputs as unknown as Record<string, unknown>
     const items: unknown[] = []
-    const slots = ['a', 'b', 'c'] as const
-    for (const [i, name] of slots.entries()) {
-      if (ctx.node.inputs[i]?.link != null) items.push(inputs[name])
+    const slots = ctx.node?.inputs
+    if (slots && slots.length > 0) {
+      for (const slot of slots) {
+        if ((slot as { link?: unknown }).link != null) items.push(loose[slot.name!])
+      }
+    } else {
+      // Direct run() without a node context: provided inputs are all wired.
+      for (const value of Object.values(inputs)) items.push(value)
     }
     return { items }
   },
@@ -173,12 +180,29 @@ defineNode({
   type: 'flow/list-concat',
   title: 'Concat',
   category: 'Flow',
+  description: 'Concatenates the wired lists in slot order. Variadic — a new slot appears when all are wired.',
   inputs: [
     { name: 'a', type: listOf(ANY) },
     { name: 'b', type: listOf(ANY) },
   ] as const,
   outputs: [listOut],
-  run: (inputs) => ({ items: [...(inputs.a ?? []), ...(inputs.b ?? [])] }),
+  variadicInputs: true,
+  run: (inputs, _params, ctx) => {
+    const loose = inputs as unknown as Record<string, unknown>
+    const items: unknown[] = []
+    const slots = ctx.node?.inputs
+    const values =
+      slots && slots.length > 0
+        ? slots
+            .filter((slot) => (slot as { link?: unknown }).link != null)
+            .map((slot) => loose[slot.name!])
+        : Object.values(inputs) // direct run() without a node context
+    for (const value of values) {
+      if (Array.isArray(value)) items.push(...value)
+      else if (value !== undefined) items.push(value) // scalars lift, as on declared slots
+    }
+    return { items }
+  },
 })
 
 defineNode({
