@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { coerce } from '../../src/core/coerce'
+import { BYTES, NUMBER } from '../../src/core/types'
 import { bytesOf, runOp, textOf } from './run-op'
 import '../../src/nodes'
 
@@ -69,5 +71,23 @@ describe('boolean combinators', () => {
     expect((await runOp('logic/not', { value: true })).result).toBe(false)
     expect((await runOp('logic/not', { value: false })).result).toBe(true)
     expect((await runOp('logic/not', {})).result).toBe(true)
+  })
+})
+
+describe('to-bytes on numbers (big-endian)', () => {
+  it('encodes integers as minimal big-endian bytes', async () => {
+    expect((await runOp('data/to-bytes', { value: 255 })).data).toEqual(new Uint8Array([0xff]))
+    expect((await runOp('data/to-bytes', { value: 8010 })).data).toEqual(new Uint8Array([0x1f, 0x4a]))
+    expect((await runOp('data/to-bytes', { value: 0 })).data).toEqual(new Uint8Array([0x00]))
+    expect((await runOp('data/to-bytes', { value: 3.9 })).data).toEqual(new Uint8Array([0x03])) // truncates
+  })
+
+  it('round-trips through the bytes→number coercion', async () => {
+    expect(coerce((await runOp('data/to-bytes', { value: 8010 })).data, BYTES, NUMBER)).toBe(8010)
+  })
+
+  it('errors on negative and non-finite numbers', async () => {
+    await expect(runOp('data/to-bytes', { value: -1 })).rejects.toThrow(/negative/)
+    await expect(runOp('data/to-bytes', { value: Number.NaN })).rejects.toThrow(/non-finite/)
   })
 })
