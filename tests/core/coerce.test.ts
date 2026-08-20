@@ -19,6 +19,7 @@ describe('canCoerce', () => {
   it('allows parsing and serialising', () => {
     expect(canCoerce(STRING, NUMBER)).toBe(true)
     expect(canCoerce(STRING, JSON_TYPE)).toBe(true)
+    expect(canCoerce(BYTES, NUMBER)).toBe(true) // unsigned big-endian
     expect(canCoerce(BYTES, JSON_TYPE)).toBe(true)
     expect(canCoerce(JSON_TYPE, STRING)).toBe(true)
     expect(canCoerce(JSON_TYPE, BYTES)).toBe(true)
@@ -27,13 +28,12 @@ describe('canCoerce', () => {
   it('allows list lifting and element-wise list conversion', () => {
     expect(canCoerce(STRING, listOf(NUMBER))).toBe(true)
     expect(canCoerce(listOf(STRING), listOf(NUMBER))).toBe(true)
+    expect(canCoerce(listOf(BYTES), listOf(NUMBER))).toBe(true) // element-wise big-endian
+    expect(canCoerce(BYTES, listOf(NUMBER))).toBe(true) // lift, then big-endian
   })
 
   it('rejects the impossible', () => {
-    expect(canCoerce(BYTES, NUMBER)).toBe(false)
     expect(canCoerce(NUMBER, JSON_TYPE)).toBe(false)
-    expect(canCoerce(listOf(BYTES), listOf(NUMBER))).toBe(false)
-    expect(canCoerce(BYTES, listOf(NUMBER))).toBe(false)
   })
 })
 
@@ -74,6 +74,15 @@ describe('coerce', () => {
     expect(() => coerce('0x', STRING, NUMBER)).toThrow(CoercionError)
   })
 
+  it('reads bytes as unsigned big-endian numbers', () => {
+    expect(coerce(new Uint8Array([0x1f, 0x4a]), BYTES, NUMBER)).toBe(8010)
+    expect(coerce(new Uint8Array([0, 1]), BYTES, NUMBER)).toBe(1)
+    expect(coerce(new Uint8Array(), BYTES, NUMBER)).toBe(0)
+    expect(coerce(new Uint8Array([0xff, 0xff, 0xff, 0xff]), BYTES, NUMBER)).toBe(4294967295)
+    expect(coerce(new Uint8Array([1, 0, 0, 0, 0, 0]), BYTES, NUMBER)).toBe(2 ** 40) // 6 bytes: still exact
+    expect(coerce(new Uint8Array([1, 0, 0, 0, 0, 0, 0, 0]), BYTES, NUMBER)).toBe(2 ** 56) // 8 bytes: magnitude right
+  })
+
   it('parses and serialises json', () => {
     expect(coerce('{"a":1}', STRING, JSON_TYPE)).toEqual({ a: 1 })
     expect(coerce({ a: 1 }, JSON_TYPE, STRING)).toBe('{"a":1}')
@@ -104,7 +113,7 @@ describe('coerce', () => {
   })
 
   it('rejects impossible coercions with CoercionError', () => {
-    expect(() => coerce(new Uint8Array([1]), BYTES, NUMBER)).toThrow(CoercionError)
+    expect(() => coerce(42, NUMBER, JSON_TYPE)).toThrow(CoercionError)
   })
 
   it('passes undefined through untouched', () => {

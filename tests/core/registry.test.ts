@@ -118,10 +118,10 @@ describe('installConnectionRules', () => {
     expect(LiteGraph.isValidConnection('string', 'bytes')).toBe(true)
     expect(LiteGraph.isValidConnection('string', 'number')).toBe(true)
     expect(LiteGraph.isValidConnection('json', 'bytes')).toBe(true)
+    expect(LiteGraph.isValidConnection('bytes', 'number')).toBe(true) // big-endian
   })
 
   it('rejects non-coercible pairs', () => {
-    expect(LiteGraph.isValidConnection('bytes', 'number')).toBe(false)
     expect(LiteGraph.isValidConnection('number', 'json')).toBe(false)
   })
 

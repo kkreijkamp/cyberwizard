@@ -43,6 +43,7 @@ export function canCoerce(from: DataType, to: DataType): boolean {
     case 'boolean→bytes':
     // parsing
     case 'string→number':
+    case 'bytes→number':
     case 'string→boolean':
     case 'string→json':
     case 'bytes→json':
@@ -88,6 +89,8 @@ export function coerce(value: unknown, from: DataType, to: DataType): unknown {
       if (n === undefined) throw new CoercionError(from, to, JSON.stringify(s))
       return n
     }
+    case 'bytes→number':
+      return bytesToNumber(expect(value, 'bytes', from, to))
     case 'string→boolean': {
       const s = expect(value, 'string', from, to).trim().toLowerCase()
       if (s === 'true') return true
@@ -127,6 +130,18 @@ function parseJson(s: string, from: DataType, to: DataType): unknown {
   } catch (err) {
     throw new CoercionError(from, to, err instanceof Error ? err.message : String(err))
   }
+}
+
+/**
+ * Unsigned big-endian interpretation: [0x1f, 0x4a] → 8010, empty → 0.
+ * Multiplication (not <<) avoids 32-bit truncation. Exact up to 6 bytes
+ * (2^48 < 2^53); longer inputs (e.g. a 32-byte digest) lose low-order bits
+ * to f64 precision — magnitudes stay right, residues don't.
+ */
+function bytesToNumber(b: Uint8Array): number {
+  let n = 0
+  for (const byte of b) n = n * 256 + byte
+  return n
 }
 
 /**
