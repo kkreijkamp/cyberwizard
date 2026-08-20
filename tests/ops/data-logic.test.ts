@@ -91,3 +91,37 @@ describe('to-bytes on numbers (big-endian)', () => {
     await expect(runOp('data/to-bytes', { value: Number.NaN })).rejects.toThrow(/non-finite/)
   })
 })
+
+describe('logic gates on bytes (bitwise)', () => {
+  it('and / or are bitwise, left-padding the shorter operand', async () => {
+    expect((await runOp('logic/and', { a: new Uint8Array([0x0f]), b: new Uint8Array([0xf0]) })).result)
+      .toEqual(new Uint8Array([0x00]))
+    expect((await runOp('logic/or', { a: new Uint8Array([0x0f]), b: new Uint8Array([0xf0]) })).result)
+      .toEqual(new Uint8Array([0xff]))
+    expect((await runOp('logic/and', { a: new Uint8Array([0xff, 0x0f]), b: new Uint8Array([0x0f]) })).result)
+      .toEqual(new Uint8Array([0x00, 0x0f])) // b left-padded: [ff 0f] & [00 0f]
+  })
+
+  it('accepts numbers and hex strings as gate operands', async () => {
+    expect((await runOp('logic/and', { a: new Uint8Array([0xff]), b: 15 })).result)
+      .toEqual(new Uint8Array([0x0f]))
+    expect((await runOp('logic/or', { a: new Uint8Array([0x0f]), b: 'f0' })).result)
+      .toEqual(new Uint8Array([0xff]))
+  })
+
+  it('unwired input acts as the identity (the other operand passes through)', async () => {
+    expect((await runOp('logic/and', { a: new Uint8Array([0xab]) })).result).toEqual(new Uint8Array([0xab]))
+    expect((await runOp('logic/or', { a: new Uint8Array([0xab]) })).result).toEqual(new Uint8Array([0xab]))
+  })
+
+  it('not inverts every byte, keeping the length', async () => {
+    expect((await runOp('logic/not', { value: new Uint8Array([0x0f, 0xff, 0x00]) })).result)
+      .toEqual(new Uint8Array([0xf0, 0x00, 0xff]))
+  })
+
+  it('booleans keep their logical behavior', async () => {
+    expect((await runOp('logic/and', { a: true, b: false })).result).toBe(false)
+    expect((await runOp('logic/or', { a: true, b: false })).result).toBe(true)
+    expect((await runOp('logic/not', { value: true })).result).toBe(false)
+  })
+})
