@@ -4,12 +4,13 @@ import { installLinkStyles } from '../../src/ui/links'
 
 const LINK = { origin_id: 1 } as unknown as LLink
 
-function setup(engine: { hasOutputs: boolean; hasFailure: boolean }) {
+function setup(engine: { hasOutputs: boolean; hasFailure: boolean }, highlighted = false) {
   const origin = { id: 1 } as LGraphNode
   const original = vi.fn()
   const canvas = {
     renderLink: original,
     graph: { getNodeById: () => origin },
+    highlighted_links: highlighted ? { 1: true } : {},
   }
   const fakeEngine = {
     hasOutputs: () => engine.hasOutputs,
@@ -40,6 +41,19 @@ describe('link styles', () => {
     render(canvas, ctx)
     expect(ctx.setLineDash).toHaveBeenCalledWith([6, 6])
     expect(ctx.globalAlpha).toBe(1)
+    expect(original.mock.calls[0]?.[6]).toBe('#a83a32')
+  })
+
+  it('paints a selected-node link amber instead of the library white', () => {
+    const { canvas, original, ctx } = setup({ hasOutputs: true, hasFailure: false }, true)
+    render(canvas, ctx)
+    expect(original.mock.calls[0]?.[6]).toBe('#a16207')
+    expect(ctx.setLineDash).not.toHaveBeenCalled()
+  })
+
+  it('lets failure red win over selection amber', () => {
+    const { canvas, original, ctx } = setup({ hasOutputs: false, hasFailure: true }, true)
+    render(canvas, ctx)
     expect(original.mock.calls[0]?.[6]).toBe('#a83a32')
   })
 
