@@ -59,9 +59,12 @@ export interface NodeState {
   inFlight: Promise<void> | undefined
   /** True when this node sits on a detected cycle; its error sticks until an edit re-dirties it. */
   cycle: boolean
+  /** The node's own colors, stashed while an error repaint overrides them. */
+  savedColors: { color: string | undefined; bgcolor: string | undefined } | undefined
 }
 
 const COLOR_ERROR = '#ef4444'
+const COLOR_ERROR_BG = '#3d1515'
 const COLOR_BLOCKED = '#6b7280'
 const CYCLE_MESSAGE = 'graph contains a cycle through this node'
 
@@ -795,6 +798,17 @@ export class Engine {
   }
 
   private paint(node: LGraphNode, s: NodeState): void {
+    if (s.error) {
+      // Repaint the whole node red — the box strip alone is too easy to miss.
+      // Stash the node's own colors once so a later success restores them.
+      s.savedColors ??= { color: node.color, bgcolor: node.bgcolor }
+      node.color = COLOR_ERROR
+      node.bgcolor = COLOR_ERROR_BG
+    } else if (s.savedColors) {
+      node.color = s.savedColors.color
+      node.bgcolor = s.savedColors.bgcolor
+      s.savedColors = undefined
+    }
     node.boxcolor = s.error ? COLOR_ERROR : s.blocked ? COLOR_BLOCKED : undefined
 
     // Live preview widget (present on all registry nodes with outputs, and on
@@ -839,6 +853,7 @@ export class Engine {
         blocked: false,
         inFlight: undefined,
         cycle: false,
+        savedColors: undefined,
       }
       store.set(node.id, s)
     }

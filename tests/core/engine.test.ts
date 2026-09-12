@@ -66,6 +66,20 @@ defineNode({
   },
 })
 
+/** Throws only while its mode param is 'fail', so tests can flip it back to success. */
+defineNode({
+  type: 'test-eng/flaky',
+  title: 'Flaky',
+  category: 'Test',
+  inputs: [] as const,
+  outputs: [{ name: 'out', type: STRING }] as const,
+  params: [{ kind: 'string', name: 'mode', default: 'fail' }] as const,
+  run: (_inputs, params) => {
+    if (params.mode === 'fail') throw new Error('boom')
+    return { out: 'ok' }
+  },
+})
+
 const sinkCaptured: unknown[] = []
 defineNode({
   type: 'test-eng/sink',
@@ -231,6 +245,34 @@ describe('Engine', () => {
     expect(engine.stateOf(boom).error?.message).toBe('boom')
     expect(engine.stateOf(sink).blocked).toBe(true)
     expect(engine.stateOf(sink).error).toBeUndefined()
+    engine.dispose()
+  })
+
+  it('paints an errored node red and restores its colors on recovery', async () => {
+    reset()
+    const graph = new LGraph()
+    const flaky = spawn(graph, 'test-eng/flaky')
+    const sink = spawn(graph, 'test-eng/sink')
+    flaky.connect(0, sink, 0)
+
+    const originalColor = flaky.color
+    const originalBgcolor = flaky.bgcolor
+
+    const engine = new Engine(graph)
+    await engine.whenIdle()
+
+    expect(engine.stateOf(flaky).error?.message).toBe('boom')
+    expect(flaky.color).toBe('#ef4444')
+    expect(flaky.bgcolor).toBe('#3d1515')
+    expect(flaky.boxcolor).toBe('#ef4444')
+
+    setParam(flaky, 'mode', 'ok')
+    await engine.whenIdle()
+
+    expect(engine.stateOf(flaky).error).toBeUndefined()
+    expect(flaky.color).toBe(originalColor)
+    expect(flaky.bgcolor).toBe(originalBgcolor)
+    expect(flaky.boxcolor).toBeUndefined()
     engine.dispose()
   })
 
