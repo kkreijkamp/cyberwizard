@@ -11,7 +11,6 @@ It is the successor to [CryptoFlow](https://github.com/kkreijkamp/CryptoFlow),
 my earlier vanilla-JS take on the same idea. Everything runs client-side; no
 data leaves the browser.
 
-## Subgraphs — build your own nodes
 ## Develop
 
 ```sh
