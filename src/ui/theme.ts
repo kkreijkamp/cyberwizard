@@ -1,5 +1,4 @@
-import { LiteGraph, LGraphNode, RenderShape } from '@comfyorg/litegraph'
-import type { LGraphCanvas } from '@comfyorg/litegraph'
+import { LGraphCanvas, LiteGraph, LGraphNode, RenderShape } from '@comfyorg/litegraph'
 
 /**
  * CyberWizard paper theme, applied once at startup. LiteGraph reads these
@@ -87,6 +86,17 @@ export function applyTheme(canvas: LGraphCanvas): void {
   LiteGraph.LINK_COLOR = '#8a7f6a'
   LiteGraph.EVENT_LINK_COLOR = '#a83a32'
   LiteGraph.CONNECTING_LINK_COLOR = '#c2841a'
+  // Snapshotted by the canvas at construction (same early-copy trap as the
+  // title colour) — set its instance copy too.
+  canvas.default_link_color = '#8a7f6a'
+  // The stock per-type overrides ('number', 'node') are off-palette.
+  LGraphCanvas.link_type_colors = {}
+
+  // Slot dots wear their type colour (connected = full, unconnected = half).
+  canvas.default_connection_color_byType = { ...SLOT_TYPE_COLORS }
+  canvas.default_connection_color_byTypeOff = Object.fromEntries(
+    Object.entries(SLOT_TYPE_COLORS).map(([kind, color]) => [kind, `${color}80`]),
+  )
 
   // Book-heading titles: the library's titleFontStyle getter carries no
   // weight — patch the prototype getter (same slot) to add bold.
@@ -94,4 +104,43 @@ export function applyTheme(canvas: LGraphCanvas): void {
     configurable: true,
     get: () => `bold ${LiteGraph.NODE_TEXT_SIZE}px ${LiteGraph.NODE_FONT}`,
   })
+
+  installSlotShapes()
+}
+
+/** Slot dot colours per value type, in the paper palette's deep tones. */
+const SLOT_TYPE_COLORS: Record<string, string> = {
+  bytes: '#7d5119',
+  string: '#47603f',
+  number: '#3a5580',
+  boolean: '#7d3a52',
+  json: '#5f4a7d',
+  list: '#2f5f68',
+}
+
+let slotShapesInstalled = false
+
+/**
+ * Every slot renders as a hollow circle straddling the node frame's edge.
+ * Shape is per-slot with no library default, so the patch funnels through
+ * addInput/addOutput — which also covers variadic growth, converted params,
+ * and the SubgraphNode slot sync.
+ */
+function installSlotShapes(): void {
+  if (slotShapesInstalled) return
+  slotShapesInstalled = true
+
+  const addInput = LGraphNode.prototype.addInput
+  LGraphNode.prototype.addInput = function (this: LGraphNode, ...args: Parameters<LGraphNode['addInput']>) {
+    const slot = addInput.apply(this, args)
+    if (slot) slot.shape = RenderShape.HollowCircle
+    return slot
+  } as LGraphNode['addInput']
+
+  const addOutput = LGraphNode.prototype.addOutput
+  LGraphNode.prototype.addOutput = function (this: LGraphNode, ...args: Parameters<LGraphNode['addOutput']>) {
+    const slot = addOutput.apply(this, args)
+    if (slot) slot.shape = RenderShape.HollowCircle
+    return slot
+  } as LGraphNode['addOutput']
 }
