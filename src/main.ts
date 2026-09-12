@@ -7,6 +7,7 @@ import { deserializeGraph } from './core/serialize'
 import { attachSubgraphSupport } from './core/subgraph'
 import { buildShowcaseGraph } from './showcase'
 import { installComputeMenu } from './ui/compute-menu'
+import { installHiDPICanvas } from './ui/hidpi'
 import { installNodeLayout } from './ui/layout'
 import { installWidgetInputMenu } from './ui/widget-inputs'
 import { createPalette } from './ui/palette'
@@ -48,6 +49,7 @@ else buildShowcaseGraph(graph)
 
 // LGraphCanvas starts its own render loop on construction (unless skip_render).
 const canvas = new LGraphCanvas(canvasElement, graph, { autoresize: true })
+installHiDPICanvas(canvas)
 applyTheme(canvas)
 if (doc?.view) {
   canvas.ds.offset = [...doc.view.offset]
