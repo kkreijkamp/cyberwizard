@@ -49,6 +49,23 @@ function wellLines(value: unknown): string[] {
     .slice(0, MAX_LINES)
 }
 
+/**
+ * Longest prefix of `line` that fits `maxWidth`, with an ellipsis when cut.
+ * In-node only — the inspect overlay always shows the full, uncut value.
+ */
+export function fitPreviewLine(ctx: CanvasRenderingContext2D, line: string, maxWidth: number): string {
+  if (ctx.measureText(line).width <= maxWidth) return line
+  const ellWidth = ctx.measureText('…').width
+  let lo = 0
+  let hi = line.length
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1
+    if (ctx.measureText(line.slice(0, mid)).width + ellWidth <= maxWidth) lo = mid
+    else hi = mid - 1
+  }
+  return `${line.slice(0, lo)}…`
+}
+
 export function makePreviewWidget(name: string): CustomWidgetParam {
   const widget: PreviewWidgetShape = {
     name,
@@ -79,14 +96,16 @@ export function makePreviewWidget(name: string): CustomWidgetParam {
       ctx.strokeStyle = WELL_BORDER
       ctx.stroke()
 
-      // Value lines, rust on failure (⚠ prefix), ink otherwise.
+      // Value lines, rust on failure (⚠ prefix), ink otherwise — clipped to
+      // the well with an ellipsis (the overlay shows the full text).
       const text = lines.join('\n')
       ctx.fillStyle = text.startsWith('⚠') ? RUST : INK
       ctx.font = `${FONT_SIZE}px ${SERIF}`
       ctx.textAlign = 'left'
       ctx.textBaseline = 'alphabetic'
+      const maxTextWidth = w - PAD_X * 2
       for (const [i, line] of lines.entries()) {
-        ctx.fillText(line, x + PAD_X, y + PAD_Y + i * LINE_HEIGHT + (FONT_SIZE + 1))
+        ctx.fillText(fitPreviewLine(ctx, line, maxTextWidth), x + PAD_X, y + PAD_Y + i * LINE_HEIGHT + (FONT_SIZE + 1))
       }
     },
 
