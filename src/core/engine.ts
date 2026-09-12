@@ -72,7 +72,7 @@ interface FailureCause {
   message: string
 }
 
-const COLOR_ERROR = '#a83a32'
+export const COLOR_ERROR = '#a83a32'
 const COLOR_ERROR_BG = '#f7e3e0'
 const CYCLE_MESSAGE = 'graph contains a cycle through this node'
 

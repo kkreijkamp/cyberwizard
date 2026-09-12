@@ -96,6 +96,8 @@ export function applyTheme(canvas: LGraphCanvas): void {
   // Snapshotted by the canvas at construction (same early-copy trap as the
   // title colour) — set its instance copy too.
   canvas.default_link_color = '#8a7f6a'
+  // Thin wires.
+  canvas.connections_width = 1.5
   // The stock per-type overrides ('number', 'node') are off-palette.
   LGraphCanvas.link_type_colors = {}
 
