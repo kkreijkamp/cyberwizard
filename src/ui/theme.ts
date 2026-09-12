@@ -1,4 +1,4 @@
-import { LiteGraph } from '@comfyorg/litegraph'
+import { LiteGraph, RenderShape } from '@comfyorg/litegraph'
 import type { LGraphCanvas } from '@comfyorg/litegraph'
 
 /**
@@ -24,10 +24,11 @@ export function applyTheme(canvas: LGraphCanvas): void {
   LiteGraph.NODE_FONT = SERIF
   LiteGraph.GROUP_FONT = SERIF
 
+  LiteGraph.NODE_DEFAULT_SHAPE = RenderShape.BOX
   LiteGraph.NODE_DEFAULT_COLOR = '#e8e0cd'
   LiteGraph.NODE_DEFAULT_BGCOLOR = '#fdfbf5'
   LiteGraph.NODE_DEFAULT_BOXCOLOR = '#a16207'
-  LiteGraph.NODE_BOX_OUTLINE_COLOR = '#d8cfbc'
+  LiteGraph.NODE_BOX_OUTLINE_COLOR = '#a16207' // the selection halo
   LiteGraph.NODE_TITLE_COLOR = '#fdf6e9'
   LiteGraph.NODE_SELECTED_TITLE_COLOR = '#ffffff'
   LiteGraph.NODE_TEXT_COLOR = '#2b2620'

@@ -313,6 +313,7 @@ export function defineNode<
       }
       this.color = palette.color
       this.bgcolor = palette.bgcolor
+      applyNodeFrame(this)
       def.setup?.(this)
     }
 
@@ -420,4 +421,18 @@ export function categoryColors(category: string): { color: string; bgcolor: stri
   for (const ch of category) hash = (hash * 31 + ch.charCodeAt(0)) | 0
   const hue = ((hash % 360) + 360) % 360
   return { color: `hsl(${hue} 30% 45%)`, bgcolor: `hsl(${hue} 35% 93%)` }
+}
+
+// ─── Node frame ──────────────────────────────────────────────────────────────
+
+const NODE_FRAME_COLOR = 'rgba(80, 66, 53, 0.4)'
+
+/**
+ * The subtle permanent frame every node gets, hugging its edge (the library's
+ * own strokeStyles channel — alongside its error/selection entries, not in
+ * place of them). Called by the node factories (here and core/subgraph)
+ * because strokeStyles is assigned per instance in the library constructor.
+ */
+export function applyNodeFrame(node: LGraphNode): void {
+  node.strokeStyles.frame = () => ({ color: NODE_FRAME_COLOR, padding: 0.5, lineWidth: 1 })
 }

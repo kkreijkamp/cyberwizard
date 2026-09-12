@@ -18,7 +18,7 @@
 
 import { LiteGraph } from '@comfyorg/litegraph'
 import type { LGraph, LGraphCanvas } from '@comfyorg/litegraph'
-import { allNodeDefs } from '../core/registry'
+import { allNodeDefs, categoryColors } from '../core/registry'
 import { SUBGRAPH_CATEGORY, onSubgraphDefsChange, reScopeDef, scopeChainOf, visibleSubgraphDefs } from '../core/subgraph'
 import { fuzzyMatch } from './fuzzy'
 import { onSetGraph } from './subgraphs'
@@ -141,6 +141,8 @@ export function createPalette(host: HTMLElement, canvas: LGraphCanvas, graph: LG
       item.className = 'palette-item'
       item.textContent = def.title
       item.title = def.description ?? def.type
+      // Entries wear their node's title-bar colour.
+      item.style.color = categoryColors(def.category).color
       item.draggable = true
       item.addEventListener('dblclick', () => spawnAt(def, [canvas.graph_mouse[0] ?? 0, canvas.graph_mouse[1] ?? 0]))
       item.addEventListener('dragstart', (e) => {

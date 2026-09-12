@@ -31,7 +31,7 @@ import type { ExportedSubgraph } from '@comfyorg/litegraph'
 import type { DataType } from './types'
 import { dataTypeFromKind, toSlotType } from './types'
 import type { SlotDef } from './registry'
-import { PREVIEW_WIDGET_NAME, categoryColors, getNodeDef, markNodeDirty, setDirtyHandler } from './registry'
+import { PREVIEW_WIDGET_NAME, applyNodeFrame, categoryColors, getNodeDef, markNodeDirty, setDirtyHandler } from './registry'
 import type { Engine } from './engine'
 
 /** Palette/engine category for subgraph instances. */
@@ -208,6 +208,7 @@ function registerFactory(subgraph: Subgraph): void {
       this.addWidget('text', PREVIEW_WIDGET_NAME, '∅', null, { multiline: true })
       this.color = colors.color
       this.bgcolor = colors.bgcolor
+      applyNodeFrame(this)
       // The library's enter-subgraph title button renders a PrimeIcons glyph
       // (pi-window-maximize), but PrimeIcons isn't loaded in this app — it
       // paints as a tofu square. Repaint it as a vector "enter" arrow.
