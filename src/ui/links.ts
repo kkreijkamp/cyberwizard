@@ -23,7 +23,8 @@ export function installLinkStyles(canvas: LGraphCanvas, engine: Engine): void {
   const original = canvas.renderLink.bind(canvas) as (...args: RenderLinkParams) => void
 
   canvas.renderLink = function renderLink(this: LGraphCanvas, ...args: RenderLinkParams) {
-    const [ctx, , , link] = args
+    const [ctx, a, b, link] = args
+    tameSplineControls(args, a, b)
     const origin = originOf(link)
     if (!origin) return original(...args)
 
@@ -75,4 +76,54 @@ export function installLinkStyles(canvas: LGraphCanvas, engine: Engine): void {
       ctx.restore()
     }
   }
+}
+
+// ─── Spline taming ───────────────────────────────────────────────────────────
+
+/**
+ * The library's bezier control points sit at dist × 0.25 from each end,
+ * uncapped: long links sweep far out, and links whose target is BEHIND the
+ * source hook back on themselves in a big loop. We pass our own control
+ * points (renderLink's startControl/endControl option): a smaller factor, a
+ * hard cap, and a tighter cap when the target is behind — the curve stays a
+ * gentle S that never swings back past itself.
+ */
+const SPLINE_FACTOR = 0.18
+const SPLINE_MIN = 18
+const SPLINE_MAX = 64
+const SPLINE_MAX_BEHIND = 36
+
+/** LinkDirection values in 0.17.2 (UP=1, DOWN=2, LEFT=3, RIGHT=4). */
+function dirVector(direction: number, amount: number): [number, number] {
+  switch (direction) {
+    case 3: return [-amount, 0]
+    case 1: return [0, -amount]
+    case 2: return [0, amount]
+    default: return [amount, 0] // RIGHT (4) and anything else
+  }
+}
+
+type RenderLinkArgs = Parameters<LGraphCanvas['renderLink']>
+
+function tameSplineControls(
+  args: RenderLinkArgs,
+  a: RenderLinkArgs[1],
+  b: RenderLinkArgs[2],
+): void {
+  const options = (args[9] ??= {})
+  if (options.startControl && options.endControl) return // explicit controls win
+
+  const startDir = (args[7] ?? 4) as number // default RIGHT, like renderLink
+  const endDir = (args[8] ?? 3) as number // default LEFT
+  const dx = (b[0] ?? 0) - (a[0] ?? 0)
+  const dy = (b[1] ?? 0) - (a[1] ?? 0)
+  const dist = Math.hypot(dx, dy)
+  let sweep = Math.min(Math.max(dist * SPLINE_FACTOR, SPLINE_MIN), SPLINE_MAX)
+
+  // Target behind the source (against the start direction): clamp the loop.
+  const [ux, uy] = dirVector(startDir, 1)
+  if (dx * ux + dy * uy < 0) sweep = Math.min(sweep, SPLINE_MAX_BEHIND)
+
+  options.startControl ??= dirVector(startDir, sweep)
+  options.endControl ??= dirVector(endDir, sweep)
 }

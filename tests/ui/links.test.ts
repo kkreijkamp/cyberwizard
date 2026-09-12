@@ -80,4 +80,21 @@ describe('link styles', () => {
     canvas.renderLink(ctx as unknown as CanvasRenderingContext2D, [0, 0], [10, 10], null)
     expect(ctx.setLineDash).not.toHaveBeenCalled()
   })
+
+  it('tames spline control points: gentle forward, clamped behind', () => {
+    const { canvas, original, ctx } = setup({ hasOutputs: true, hasFailure: false })
+
+    // Forward: dist ≈ 206 → sweep ≈ 37 (the library's would be ≈ 52).
+    canvas.renderLink(ctx as unknown as CanvasRenderingContext2D, [0, 0], [200, 50], LINK)
+    const fwd = original.mock.calls[0]?.[9] as { startControl: number[]; endControl: number[] }
+    expect(fwd.startControl[0]).toBeCloseTo(206.16 * 0.18, 0)
+    expect(fwd.startControl[1]).toBe(0)
+    expect(fwd.endControl[0]).toBeCloseTo(-206.16 * 0.18, 0)
+
+    // Behind (target left of source): the loop-back clamps to 36.
+    original.mockClear()
+    canvas.renderLink(ctx as unknown as CanvasRenderingContext2D, [0, 0], [-300, 10], LINK)
+    const behind = original.mock.calls[0]?.[9] as { startControl: number[] }
+    expect(behind.startControl[0]).toBe(36)
+  })
 })
