@@ -14,10 +14,10 @@ import type { LGraphCanvas } from '@comfyorg/litegraph'
 const SERIF = "'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', 'Source Serif 4', Georgia, serif"
 
 /**
- * Warm dot grid, vector-drawn per frame as a screen-fixed lattice: the
- * graph-unit cell shrinks as you zoom in (cell = snap size ÷ scale), so on
- * screen the dots always sit at the same 50px pitch with a constant 1.2px
- * radius — the grid pans with the graph but never stretches with zoom.
+ * Warm dot grid on the snap cell, vector-drawn per frame: spacing and radius
+ * are constant in graph units, so the lattice zooms with the graph — dots
+ * grow on zoom in, shrink on zoom out — always crisp, never pixelated.
+ * Fades out when zoomed far out, like the library's old tile.
  */
 function drawDotGrid(
   canvas: LGraphCanvas,
@@ -25,9 +25,10 @@ function drawDotGrid(
   visible: [number, number, number, number],
 ): void {
   const scale = canvas.ds.scale
-  const cell = LiteGraph.CANVAS_GRID_SIZE / scale
+  if (scale < 0.5) return
+  const cell = LiteGraph.CANVAS_GRID_SIZE
   const [x, y, w, h] = visible
-  const radius = 1.2 / scale
+  const radius = 1.2
   ctx.fillStyle = 'rgba(153, 138, 112, 0.55)'
   ctx.beginPath()
   const startX = Math.floor(x / cell) * cell
