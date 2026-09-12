@@ -8,6 +8,7 @@ import { attachSubgraphSupport } from './core/subgraph'
 import { buildShowcaseGraph } from './showcase'
 import { installComputeMenu } from './ui/compute-menu'
 import { installHiDPICanvas } from './ui/hidpi'
+import { installInspect } from './ui/inspect'
 import { installNodeLayout } from './ui/layout'
 import { installLinkStyles } from './ui/links'
 import { installWidgetInputMenu } from './ui/widget-inputs'
@@ -53,6 +54,7 @@ const canvas = new LGraphCanvas(canvasElement, graph, { autoresize: true })
 installHiDPICanvas(canvas)
 applyTheme(canvas)
 installLinkStyles(canvas, engine)
+installInspect(engine, canvas)
 if (doc?.view) {
   canvas.ds.offset = [...doc.view.offset]
   canvas.ds.scale = doc.view.scale

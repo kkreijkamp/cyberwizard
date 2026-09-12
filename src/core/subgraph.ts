@@ -32,6 +32,7 @@ import type { DataType } from './types'
 import { dataTypeFromKind, toSlotType } from './types'
 import type { SlotDef } from './registry'
 import { PREVIEW_WIDGET_NAME, applyNodeFrame, categoryColors, getNodeDef, markNodeDirty, setDirtyHandler } from './registry'
+import { makePreviewWidget } from './preview-widget'
 import type { Engine } from './engine'
 
 /** Palette/engine category for subgraph instances. */
@@ -205,7 +206,7 @@ function registerFactory(subgraph: Subgraph): void {
     constructor() {
       super(null as never, subgraph, {} as never)
       // Same live-preview contract as registry nodes (Engine.paint rewrites it).
-      this.addWidget('text', PREVIEW_WIDGET_NAME, '∅', null, { multiline: true })
+      this.addCustomWidget(makePreviewWidget(PREVIEW_WIDGET_NAME))
       this.color = colors.color
       this.bgcolor = colors.bgcolor
       applyNodeFrame(this)

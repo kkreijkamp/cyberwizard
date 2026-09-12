@@ -1,8 +1,12 @@
 import type { LGraphNode } from '@comfyorg/litegraph'
+import { makePreviewWidget } from '../../core/preview-widget'
 import { defineNode } from '../../core/registry'
 import { ANY, repr } from '../../core/types'
 
 const WIDGET_NAME = 'preview'
+
+/** Raw input from the last run, stashed for the inspect overlay (never serialized). */
+export const LAST_INPUT_PROPERTY = '__lastInput'
 
 /** Sink node: renders whatever arrives at its input, via the repr() of the value. */
 defineNode({
@@ -14,11 +18,11 @@ defineNode({
   outputs: [] as const,
   run: (inputs, _params, ctx) => {
     previewWidget(ctx.node).value = repr(inputs.value)
+    ctx.node.properties[LAST_INPUT_PROPERTY] = inputs.value as never
     return {}
   },
 })
 
-/** Minimal structural view — litegraph's own widget typings are deliberately wide. */
 interface ValueWidget {
   value: unknown
 }
@@ -28,5 +32,5 @@ function previewWidget(node: LGraphNode): ValueWidget {
   const existing = widgets.find((w) => w.name === WIDGET_NAME)
   if (existing) return existing
   // Created lazily on first run — the registry only builds param widgets.
-  return node.addWidget('text', WIDGET_NAME, '', null, { multiline: true }) as unknown as ValueWidget
+  return node.addCustomWidget(makePreviewWidget(WIDGET_NAME)) as unknown as ValueWidget
 }

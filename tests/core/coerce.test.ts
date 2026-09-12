@@ -130,6 +130,20 @@ describe('repr', () => {
     expect(repr([1, 2])).toContain('[2 items]')
   })
 
+  it('full mode never truncates (the inspect overlay contract)', () => {
+    const long = 'x'.repeat(500)
+    expect(repr(long, { full: true })).toBe(long)
+    expect(repr(long)).toHaveLength(121)
+
+    const bytes = new Uint8Array(64).fill(0xab)
+    expect(repr(bytes, { full: true })).toBe(`⟨64B⟩ ${'ab '.repeat(64).trim()}`)
+    expect(repr(bytes)).toContain('…')
+
+    const list = Array.from({ length: 12 }, (_, i) => i)
+    expect(repr(list, { full: true })).toBe('[12 items] 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11')
+    expect(repr(list)).toContain('…')
+  })
+
   it('renders nested lists and bytes inside lists readably', () => {
     expect(repr([['a', 'b'], ['c']])).toBe('[2 items] [2 items] a, b, [1 items] c')
     expect(repr([new Uint8Array([1])])).toBe('[1 items] ⟨1B⟩ 01')

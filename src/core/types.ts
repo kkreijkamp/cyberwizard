@@ -134,22 +134,30 @@ export function valuesEqual(a: unknown, b: unknown): boolean {
   return valueKey(a) === valueKey(b)
 }
 
-/** Human-readable one-line rendering of a value, for previews and debugging. */
-export function repr(value: unknown): string {
+/**
+ * Human-readable rendering of a value, for previews and debugging.
+ * Default mode is compact: 120 chars, 24 bytes, 5 list items, `…` markers.
+ * `full: true` renders everything — the inspect overlay's contract is that
+ * nothing is ever cut off.
+ */
+export function repr(value: unknown, opts?: { full?: boolean }): string {
+  const full = opts?.full === true
+  const maybeTruncate = (s: string): string => (full ? s : truncate(s))
   if (value === undefined) return '∅'
   if (value === null) return 'null'
   if (value instanceof Uint8Array) {
-    const hex = [...value.subarray(0, 24)].map((b) => b.toString(16).padStart(2, '0')).join(' ')
-    return truncate(`⟨${value.length}B⟩ ${hex}${value.length > 24 ? ' …' : ''}`)
+    const shown = full ? value : value.subarray(0, 24)
+    const hex = [...shown].map((b) => b.toString(16).padStart(2, '0')).join(' ')
+    return maybeTruncate(`⟨${value.length}B⟩ ${hex}${!full && value.length > 24 ? ' …' : ''}`)
   }
-  if (typeof value === 'string') return truncate(value)
+  if (typeof value === 'string') return maybeTruncate(value)
   if (typeof value === 'number' || typeof value === 'boolean') return String(value)
   if (Array.isArray(value)) {
     // Recurse: nested lists and bytes inside lists render readably.
-    const items = value.slice(0, 5).map(repr).join(', ')
-    return truncate(`[${value.length} items] ${items}${value.length > 5 ? ', …' : ''}`)
+    const items = (full ? value : value.slice(0, 5)).map((v) => repr(v, opts)).join(', ')
+    return maybeTruncate(`[${value.length} items] ${items}${!full && value.length > 5 ? ', …' : ''}`)
   }
-  return truncate(safeStringify(value) ?? String(value))
+  return maybeTruncate(safeStringify(value) ?? String(value))
 }
 
 function safeStringify(value: unknown): string | undefined {

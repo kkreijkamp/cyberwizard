@@ -15,6 +15,7 @@ import type { ISlotType, IWidget, LGraph, LLink } from '@comfyorg/litegraph'
 import type { DataType, SlotTypeTag, ValueOf } from './types'
 import { ANY, BOOLEAN, BYTES, JSON as JSON_TYPE, NUMBER, STRING, fromSlotType, listOf, toSlotType } from './types'
 import { canCoerce } from './coerce'
+import { makePreviewWidget } from './preview-widget'
 
 // ─── Definition types ────────────────────────────────────────────────────────
 
@@ -309,7 +310,7 @@ export function defineNode<
       // Every node with outputs carries a live preview of its current value;
       // the engine rewrites it after each run (see Engine.paint).
       if (def.outputs.length > 0) {
-        this.addWidget('text', PREVIEW_WIDGET_NAME, '∅', null, { multiline: true })
+        this.addCustomWidget(makePreviewWidget(PREVIEW_WIDGET_NAME))
       }
       this.color = palette.color
       this.bgcolor = palette.bgcolor
