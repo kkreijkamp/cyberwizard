@@ -251,8 +251,10 @@ export class Engine {
 
   /** The failing state for a node, whether it lives at root or in a retained instance interior. */
   private failureState(node: LGraphNode): { s: NodeState; graph: LGraph } | undefined {
-    const root = this.states.get(node.id)
-    if (root && (root.error || root.blocked)) return { s: root, graph: this.graph }
+    if (node.graph === this.graph) {
+      const root = this.states.get(node.id)
+      if (root && (root.error || root.blocked)) return { s: root, graph: this.graph }
+    }
     for (const store of this.interiorStores.values()) {
       const s = store.get(node.id)
       if (s && (s.error || s.blocked) && node.graph) return { s, graph: node.graph as LGraph }
@@ -278,11 +280,14 @@ export class Engine {
    * Current cached outputs of a node, undefined if it never ran cleanly.
    * Falls back to retained instance interiors (any instance that produced
    * outputs for the node) — the inspect overlay depends on this for nodes
-   * viewed inside a definition.
+   * viewed inside a definition. The root store is only consulted for nodes
+   * that live there: interior and root id spaces overlap.
    */
   outputsOf(node: LGraphNode): readonly unknown[] | undefined {
-    const root = this.states.get(node.id)
-    if (root?.outputs !== undefined) return root.outputs
+    if (node.graph === this.graph) {
+      const root = this.states.get(node.id)
+      if (root?.outputs !== undefined) return root.outputs
+    }
     for (const store of this.interiorStores.values()) {
       const s = store.get(node.id)
       if (s?.outputs !== undefined) return s.outputs
