@@ -1,7 +1,7 @@
-import { LGraph, LiteGraph } from '@comfyorg/litegraph'
+import { LGraph, LGraphGroup, LiteGraph } from '@comfyorg/litegraph'
 import type { LGraphNode } from '@comfyorg/litegraph'
 import { describe, expect, it } from 'vitest'
-import { LAYOUT_CELL, LAYOUT_MARGIN, TITLE_HEIGHT, installNodeLayout, snapDim } from '../../src/ui/layout'
+import { GROUP_SNAP_OFFSET, LAYOUT_CELL, LAYOUT_MARGIN, TITLE_HEIGHT, installNodeLayout, snapDim } from '../../src/ui/layout'
 import '../../src/nodes'
 
 function spawn(graph: LGraph, x: number, y: number): LGraphNode {
@@ -128,5 +128,20 @@ describe('cell layout', () => {
     a.setSize([a.size[0], a.size[1] - LAYOUT_CELL]) // b rises, but x is in the way
     expect(b.pos[1]).toBe(bottom(x) + GAP)
     expect(b.pos[1]).toBeGreaterThan(bottom(a) + GAP) // the clamp beat the naive pull
+  })
+
+  it('snaps groups onto the offset lattice, not plain grid multiples', () => {
+    installNodeLayout(new LGraph())
+    const group = new LGraphGroup()
+    group.pos = [47, 63]
+    group.snapToGrid(LAYOUT_CELL)
+    const [ox, oy] = GROUP_SNAP_OFFSET
+    expect(group.pos[0]).toBe(LAYOUT_CELL + ox) // 47 → 40
+    expect(group.pos[1]).toBe(2 * LAYOUT_CELL + oy) // 63 → 80
+    // Lattice membership, for any position:
+    group.pos = [-123, 258]
+    group.snapToGrid(LAYOUT_CELL)
+    expect((group.pos[0] - ox) % LAYOUT_CELL).toBeCloseTo(0) // -100 % 50 is -0 in JS
+    expect((group.pos[1] - oy) % LAYOUT_CELL).toBeCloseTo(0)
   })
 })

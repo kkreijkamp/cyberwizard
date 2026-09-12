@@ -24,7 +24,7 @@
  * an unrelated node above it.
  */
 
-import { LGraphNode, LiteGraph } from '@comfyorg/litegraph'
+import { LGraphGroup, LGraphNode, LiteGraph } from '@comfyorg/litegraph'
 import type { LGraph, Size } from '@comfyorg/litegraph'
 import { onSubgraphDefsChange } from '../core/subgraph'
 
@@ -35,6 +35,12 @@ export const LAYOUT_MARGIN = 20
 /** Title bar height — rendered above pos, outside node.size. */
 export const TITLE_HEIGHT = LiteGraph.NODE_TITLE_HEIGHT
 const MIN_DIM = LAYOUT_CELL - LAYOUT_MARGIN
+
+/**
+ * Group bounds snap to the node grid shifted by this offset: a group's edges
+ * sit 10px left of / 20px above the grid lines nodes sit on.
+ */
+export const GROUP_SNAP_OFFSET: readonly [number, number] = [-10, -20]
 
 /** Snaps one dimension up to the next cell size: 40, 90, 140, 190, … */
 export function snapDim(x: number): number {
@@ -62,11 +68,37 @@ function bottomOf(node: LGraphNode): number {
  */
 export function installNodeLayout(rootGraph: LGraph): void {
   installResizeHook()
+  installGroupSnap()
   hookAdds(rootGraph)
   for (const subgraph of rootGraph.subgraphs.values()) hookAdds(subgraph)
   onSubgraphDefsChange(rootGraph, () => {
     for (const subgraph of rootGraph.subgraphs.values()) hookAdds(subgraph)
   })
+}
+
+// ─── Group snapping ──────────────────────────────────────────────────────────
+
+let groupSnapInstalled = false
+
+/**
+ * Groups share the library's uniform snapPoint (plain grid multiples); patch
+ * the group's snapToGrid to use the offset lattice instead. Drags flow
+ * through here; creation is snapped by the Add Group menu wrapper
+ * (ui/subgraphs). Resize sizes snap to plain multiples, which keeps edges on
+ * the lattice as long as the position is on it.
+ */
+function installGroupSnap(): void {
+  if (groupSnapInstalled) return
+  groupSnapInstalled = true
+  LGraphGroup.prototype.snapToGrid = function (this: LGraphGroup, snapTo?: number): boolean {
+    if (this.pinned) return false
+    const grid = snapTo ?? LiteGraph.CANVAS_GRID_SIZE
+    if (!grid) return false
+    const [ox, oy] = GROUP_SNAP_OFFSET
+    this.pos[0] = Math.round((this.pos[0] - ox) / grid) * grid + ox
+    this.pos[1] = Math.round((this.pos[1] - oy) / grid) * grid + oy
+    return true
+  }
 }
 
 // ─── Size snapping (onResize) ────────────────────────────────────────────────

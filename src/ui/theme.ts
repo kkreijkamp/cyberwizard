@@ -55,6 +55,10 @@ export function applyTheme(canvas: LGraphCanvas): void {
 
   LiteGraph.NODE_FONT = SERIF
   LiteGraph.GROUP_FONT = SERIF
+  // Ships undefined in 0.17.2 — and the group titlebar's hit area is computed
+  // as font_size × 1.4, i.e. NaN, so groups can never be selected (or
+  // deleted). Restoring the classic default repairs both.
+  LiteGraph.DEFAULT_GROUP_FONT_SIZE = 24
 
   // No low-quality cutout: below 0.6 zoom the library stops drawing node
   // titles entirely; our graphs are small enough to render fully always.

@@ -8,7 +8,7 @@
  *    broken standalone (they instantiate via an unregistered factory).
  */
 
-import { LGraphCanvas, LGraphNode, Subgraph } from '@comfyorg/litegraph'
+import { LGraphCanvas, LGraphNode, LiteGraph, Subgraph } from '@comfyorg/litegraph'
 import type { LGraph, LGraphCanvas as LGraphCanvasT } from '@comfyorg/litegraph'
 import { collapseToSubgraph } from '../core/collapse'
 import {
@@ -235,7 +235,16 @@ export function installCollapse(canvas: LGraphCanvasT, rootGraph: LGraph): void 
   canvas.getMenuOptions = () => {
     const options: Array<Record<string, unknown>> = [
       { content: 'Add Node', has_submenu: true, callback: LGraphCanvas.onMenuAdd },
-      { content: 'Add Group', callback: LGraphCanvas.onGroupAdd },
+      {
+        content: 'Add Group',
+        callback: (value: unknown, opts: unknown, event: unknown) => {
+          LGraphCanvas.onGroupAdd(value as never, opts as never, event as never)
+          // Groups are created at the raw mouse position — snap onto the
+          // (offset) lattice right away, like nodes at add time.
+          const groups = canvas.graph?._groups
+          groups?.[groups.length - 1]?.snapToGrid(LiteGraph.CANVAS_GRID_SIZE)
+        },
+      },
     ]
     const selected = selectedNodes(canvas)
     if (selected.length > 0) {
