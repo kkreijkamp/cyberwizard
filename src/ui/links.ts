@@ -33,8 +33,19 @@ export function installLinkStyles(canvas: LGraphCanvas, engine: Engine): void {
       return stroked(ctx, 1, () => original(...args))
     }
     if (isHighlighted(link)) {
+      // renderLink checks highlighted_links BEFORE the colour argument and
+      // forces #FFF — hide the entry for the duration of the (synchronous)
+      // call so the amber actually lands.
+      const highlights = highlightedLinks()
+      const id = (link as LLink).id as number
+      const had = highlights !== undefined && id in highlights
+      if (had) delete highlights[id]
       args[6] = COLOR_SELECTED
-      return original(...args)
+      try {
+        return original(...args)
+      } finally {
+        if (had && highlights) highlights[id] = true
+      }
     }
     if (!engine.hasOutputs(origin)) {
       return stroked(ctx, 0.55, () => original(...args))
@@ -47,11 +58,14 @@ export function installLinkStyles(canvas: LGraphCanvas, engine: Engine): void {
     return canvas.graph?.getNodeById((link as LLink).origin_id) ?? undefined
   }
 
+  function highlightedLinks(): Record<number, unknown> | undefined {
+    return (canvas as unknown as { highlighted_links?: Record<number, unknown> }).highlighted_links
+  }
+
   /** Selected-node link — the library checks this before forcing #FFF. */
   function isHighlighted(link: unknown): boolean {
     if (link === null || typeof link !== 'object' || !('id' in link)) return false
-    const highlights = (canvas as unknown as { highlighted_links?: Record<number, unknown> }).highlighted_links
-    return Boolean(highlights?.[(link as LLink).id as number])
+    return Boolean(highlightedLinks()?.[(link as LLink).id as number])
   }
 
   /** Dashed, alpha-scaled render of one link. */

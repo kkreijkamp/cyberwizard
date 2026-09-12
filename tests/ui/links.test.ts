@@ -49,6 +49,8 @@ describe('link styles', () => {
     render(canvas, ctx)
     expect(original.mock.calls[0]?.[6]).toBe('#a16207')
     expect(ctx.setLineDash).not.toHaveBeenCalled()
+    // The highlight map is hidden only for the call's duration.
+    expect((canvas as unknown as { highlighted_links: Record<number, unknown> }).highlighted_links[1]).toBe(true)
   })
 
   it('lets failure red win over selection amber', () => {
