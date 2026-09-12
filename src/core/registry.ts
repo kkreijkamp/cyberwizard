@@ -428,8 +428,15 @@ export function categoryColors(category: string): { color: string; bgcolor: stri
 
 // ─── Node frame ──────────────────────────────────────────────────────────────
 
-/** The frame stroke's colour — slot rings match it (ui/theme). */
-export const NODE_FRAME_COLOR = 'rgba(80, 66, 53, 0.4)'
+/**
+ * Frame + slot-ring colour, fully opaque (the solid equivalent of the old
+ * 40%-alpha brown over paper). Opaque so a ring crossing the frame can't
+ * "double": the library's strokeShape draws the frame at a hardcoded 0.8
+ * globalAlpha, and 0.8·C over the ring's solid C lands on exactly C — the
+ * crossing is invisible. The frame as a whole renders a touch softer than
+ * the ring, which reads as intentional.
+ */
+export const NODE_FRAME_COLOR = '#b4aba0'
 
 /**
  * How far outside the node bounds the frame stroke's path sits — its centre

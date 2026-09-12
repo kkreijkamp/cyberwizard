@@ -34,7 +34,7 @@ describe('theme slot rings', () => {
     expect(ctx.fill).toHaveBeenCalled()
     expect(ctx.stroke).toHaveBeenCalled()
     expect(ctx.fillStyle).toBe('#f6f1e7')
-    expect(ctx.strokeStyle).toBe('rgba(80, 66, 53, 0.4)') // the node frame colour
+    expect(ctx.strokeStyle).toBe('#b4aba0') // the node frame colour, opaque
   })
 
   it('puts connection points on the frame edge, not 10px inside', () => {
