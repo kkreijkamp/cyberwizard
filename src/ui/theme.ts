@@ -13,16 +13,45 @@ import type { LGraphCanvas } from '@comfyorg/litegraph'
  */
 const SERIF = "'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', 'Source Serif 4', Georgia, serif"
 
-/** 50px dot-grid tile (the snap cell), warm gray dots on transparent. */
-const DOT_GRID_TILE =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50'%3E%3Ccircle cx='1.2' cy='1.2' r='1.2' fill='%23998a70' fill-opacity='0.55'/%3E%3C/svg%3E"
+/**
+ * Warm dot grid on the snap cell, vector-drawn per frame: dots hold a
+ * constant screen radius at any canvas zoom (radius in graph units =
+ * pixels ÷ ds.scale), so they never pixelate. Matches the library's tile
+ * behaviour of fading out when zoomed far out.
+ */
+function drawDotGrid(
+  canvas: LGraphCanvas,
+  ctx: CanvasRenderingContext2D,
+  visible: [number, number, number, number],
+): void {
+  const scale = canvas.ds.scale
+  if (scale < 0.5) return
+  const cell = LiteGraph.CANVAS_GRID_SIZE
+  const [x, y, w, h] = visible
+  const radius = 1.2 / scale
+  ctx.fillStyle = 'rgba(153, 138, 112, 0.55)'
+  ctx.beginPath()
+  const startX = Math.floor(x / cell) * cell
+  const startY = Math.floor(y / cell) * cell
+  for (let gx = startX; gx <= x + w; gx += cell) {
+    for (let gy = startY; gy <= y + h; gy += cell) {
+      ctx.moveTo(gx + radius, gy)
+      ctx.arc(gx, gy, radius, 0, Math.PI * 2)
+    }
+  }
+  ctx.fill()
+  ctx.fillStyle = 'transparent'
+}
 
 export function applyTheme(canvas: LGraphCanvas): void {
   canvas.clear_background_color = '#f6f1e7'
-  canvas.background_image = DOT_GRID_TILE
   // The library's default viewport frame (#235) — invisible on the old dark
   // theme, an unwanted rectangle on paper.
   canvas.render_canvas_border = false
+  // No background_image tile: a bitmap tile upscales blurry under canvas
+  // zoom. The dot grid is drawn as vectors below, crisp at every scale.
+  canvas.background_image = ''
+  canvas.onDrawBackground = (ctx, visible) => drawDotGrid(canvas, ctx, visible)
 
   LiteGraph.NODE_FONT = SERIF
   LiteGraph.GROUP_FONT = SERIF
