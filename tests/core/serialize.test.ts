@@ -1,4 +1,4 @@
-import { LGraph, LiteGraph } from '@comfyorg/litegraph'
+import { LGraph, LGraphGroup, LiteGraph } from '@comfyorg/litegraph'
 import type { LGraphNode } from '@comfyorg/litegraph'
 import { describe, expect, it } from 'vitest'
 import { Engine } from '../../src/core/engine'
@@ -105,6 +105,39 @@ describe('serialize round-trip', () => {
     const { warnings } = deserializeGraph(doc, restored)
     expect(warnings).toEqual([])
     expect(restored._links.size).toBe(2)
+  })
+
+  it('preserves groups: title, bounds, color, font size, pinned', () => {
+    const { graph } = buildSample()
+    const group = new LGraphGroup('My Group')
+    group.pos = [-10, -20]
+    group.size = [340, 190]
+    group.color = 'rgba(160, 60, 60, 0.3)'
+    group.font_size = 30
+    group.pin()
+    graph.add(group)
+
+    const doc = parseGraphDocument(JSON.parse(JSON.stringify(serializeGraph(graph))))
+    const restored = new LGraph()
+    const { warnings } = deserializeGraph(doc, restored)
+    expect(warnings).toEqual([])
+
+    expect(restored._groups).toHaveLength(1)
+    const g = restored._groups[0]!
+    expect(g.title).toBe('My Group')
+    expect([g.pos[0], g.pos[1], g.size[0], g.size[1]]).toEqual([-10, -20, 340, 190])
+    expect(g.color).toBe('rgba(160, 60, 60, 0.3)')
+    expect(g.font_size).toBe(30)
+    expect(g.pinned).toBe(true)
+  })
+
+  it('rejects malformed group entries', () => {
+    const base = { version: 2, nodes: [], links: [] }
+    expect(() => parseGraphDocument({ ...base, groups: [{}] })).toThrow(/group #0 is malformed/)
+    expect(() => parseGraphDocument({ ...base, groups: 'nope' })).toThrow(/groups is not an array/)
+    expect(() =>
+      parseGraphDocument({ ...base, groups: [{ title: 'g', bounding: [0, 0, 10, 10], pinned: 'yes' }] }),
+    ).toThrow(/pinned is malformed/)
   })
 })
 

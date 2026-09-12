@@ -17,7 +17,7 @@
  * populate every interior, (3) populate the root graph.
  */
 
-import { LiteGraph, Subgraph } from '@comfyorg/litegraph'
+import { LGraphGroup, LiteGraph, Subgraph } from '@comfyorg/litegraph'
 import type { LGraph, LGraphCanvas, LGraphNode } from '@comfyorg/litegraph'
 import type { ExportedSubgraph } from '@comfyorg/litegraph'
 import { binaryStringToBytes, bytesToBinaryString } from './binary'
@@ -60,6 +60,15 @@ export interface SerializedLink {
   to: { node: number; slot: number }
 }
 
+export interface SerializedGroup {
+  title: string
+  /** [x, y, w, h] — the group's bounds. */
+  bounding: [number, number, number, number]
+  color?: string
+  font_size?: number
+  pinned?: boolean
+}
+
 export interface SerializedSubgraphIO {
   name: string
   /** DataType kind ('bytes' | 'string' | … | 'any'; list element types erased). */
@@ -80,6 +89,8 @@ export interface SerializedSubgraph {
   nodes: SerializedNode[]
   /** Interior links; endpoints may be the boundary panel ids (-10 / -20). */
   links: SerializedLink[]
+  /** Interior groups, if any. */
+  groups?: SerializedGroup[]
 }
 
 export interface GraphDocument {
@@ -87,6 +98,7 @@ export interface GraphDocument {
   version: number
   nodes: SerializedNode[]
   links: SerializedLink[]
+  groups?: SerializedGroup[]
   subgraphs?: SerializedSubgraph[]
   view?: { offset: [number, number]; scale: number }
 }
@@ -94,7 +106,11 @@ export interface GraphDocument {
 // ─── Serialise ───────────────────────────────────────────────────────────────
 
 /** Shared walker for the root graph and each definition interior. */
-function serializeFragment(graph: LGraph): { nodes: SerializedNode[]; links: SerializedLink[] } {
+function serializeFragment(graph: LGraph): {
+  nodes: SerializedNode[]
+  links: SerializedLink[]
+  groups?: SerializedGroup[]
+} {
   const nodes: SerializedNode[] = []
   for (const node of graph._nodes) {
     if (node.isSubgraphNode()) {
@@ -152,13 +168,25 @@ function serializeFragment(graph: LGraph): { nodes: SerializedNode[]; links: Ser
       to: { node: link.target_id as number, slot: link.target_slot },
     })
   }
-  return { nodes, links }
+
+  const groups: SerializedGroup[] = graph._groups.map((group) => {
+    const g: SerializedGroup = {
+      title: group.title,
+      bounding: [group.pos[0] ?? 0, group.pos[1] ?? 0, group.size[0] ?? 0, group.size[1] ?? 0],
+    }
+    if (typeof group.color === 'string' && group.color !== '') g.color = group.color
+    if (typeof group.font_size === 'number') g.font_size = group.font_size
+    if (group.pinned) g.pinned = true
+    return g
+  })
+  return groups.length > 0 ? { nodes, links, groups } : { nodes, links }
 }
 
 export function serializeGraph(graph: LGraph, canvas?: LGraphCanvas): GraphDocument {
-  const { nodes, links } = serializeFragment(graph)
+  const { nodes, links, groups } = serializeFragment(graph)
 
   const doc: GraphDocument = { app: 'cyberwizard', version: GRAPH_FORMAT_VERSION, nodes, links }
+  if (groups) doc.groups = groups
 
   const defs = allSubgraphDefs(graph)
   if (defs.length > 0) {
@@ -181,6 +209,7 @@ export function serializeGraph(graph: LGraph, canvas?: LGraphCanvas): GraphDocum
           : undefined,
         nodes: interior.nodes,
         links: interior.links,
+        ...(interior.groups ? { groups: interior.groups } : {}),
       }
     })
   }
@@ -284,9 +313,19 @@ export function deserializeGraph(doc: GraphDocument, graph: LGraph, canvas?: LGr
 /** Shared populate for the root graph and each definition interior. */
 function populateFragment(
   target: LGraph,
-  frag: { nodes: SerializedNode[]; links: SerializedLink[] },
+  frag: { nodes: SerializedNode[]; links: SerializedLink[]; groups?: SerializedGroup[] },
   warnings: string[],
 ): void {
+  for (const saved of frag.groups ?? []) {
+    const group = new LGraphGroup(saved.title)
+    group.pos = [saved.bounding[0], saved.bounding[1]]
+    group.size = [saved.bounding[2], saved.bounding[3]]
+    if (saved.color !== undefined) group.color = saved.color
+    if (saved.font_size !== undefined) group.font_size = saved.font_size
+    if (saved.pinned) group.pin()
+    target.add(group)
+  }
+
   const byId = new Map<number, LGraphNode>()
   for (const saved of frag.nodes) {
     const node = LiteGraph.createNode(saved.type)
@@ -425,14 +464,31 @@ export function parseGraphDocument(data: unknown): GraphDocument {
       validateIO(s.inputs, `subgraph #${i} inputs`)
       validateIO(s.outputs, `subgraph #${i} outputs`)
       validateFragment(s, `subgraph #${i}`)
+      validateGroups(s.groups, `subgraph #${i}`)
     }
   }
+
+  validateGroups(doc.groups, 'document')
 
   // v1 → v2 migration: v1 predates subgraphs, so it already *is* a valid v2
   // document without a `subgraphs` key — accepting it is the whole migration.
   // (The version field is left untouched so codec round-trips stay identical;
   // the next serializeGraph() writes the document back out as v2.)
   return doc as unknown as GraphDocument
+}
+
+function validateGroups(groups: unknown, label: string): void {
+  if (groups === undefined) return
+  if (!Array.isArray(groups)) throw new Error(`${label} groups is not an array`)
+  for (const [i, entry] of groups.entries()) {
+    const g = entry as Record<string, unknown>
+    if (typeof g?.title !== 'string' || !Array.isArray(g.bounding) || g.bounding.length !== 4 || !g.bounding.every((v) => typeof v === 'number')) {
+      throw new Error(`${label} group #${i} is malformed`)
+    }
+    if (g.color !== undefined && typeof g.color !== 'string') throw new Error(`${label} group #${i} color is malformed`)
+    if (g.font_size !== undefined && typeof g.font_size !== 'number') throw new Error(`${label} group #${i} font_size is malformed`)
+    if (g.pinned !== undefined && typeof g.pinned !== 'boolean') throw new Error(`${label} group #${i} pinned is malformed`)
+  }
 }
 
 function validateFragment(doc: Record<string, unknown>, label: string): void {
