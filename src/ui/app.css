@@ -111,8 +111,52 @@ body {
   border-color: #22d3ee;
 }
 
+.palette-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+/* Vertical category rail — sideways text keeps the rail a few pixels wide. */
+.palette-tabs {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px 0;
+  border-right: 1px solid rgba(34, 211, 238, 0.15);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.palette-tab {
+  background: none;
+  border: none;
+  border-left: 2px solid transparent;
+  color: #8b98ab;
+  font: inherit;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 8px 4px;
+  cursor: pointer;
+  writing-mode: vertical-rl;
+  white-space: nowrap;
+}
+
+.palette-tab:hover {
+  color: #ffffff;
+}
+
+.palette-tab.active {
+  color: #22d3ee;
+  border-left-color: #22d3ee;
+  background: rgba(34, 211, 238, 0.08);
+}
+
 .palette-list {
   flex: 1;
+  min-width: 0;
   overflow-y: auto;
   padding: 0 4px 8px;
 }

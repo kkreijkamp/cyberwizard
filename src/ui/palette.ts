@@ -1,14 +1,17 @@
 /**
- * The node palette: a sidebar listing every registered operation, grouped by
- * category, with fuzzy search. Double-click spawns at the mouse position;
- * drag onto the canvas spawns at the drop point.
+ * The node palette: a sidebar of registered operations behind a vertical
+ * category tab rail — one category visible at a time instead of one long
+ * list. Typing in the search box ignores the tabs and shows grouped results
+ * across every category; clicking a tab clears the search. Double-click
+ * spawns at the mouse position; drag onto the canvas spawns at the drop
+ * point; Enter spawns the first visible item.
  *
  * (Dragging a link out of a slot and releasing on empty canvas opens
  * LiteGraph's own search box, which our coercion-driven isValidConnection
  * already type-filters — the two complement each other.)
  *
- * Subgraph definitions appear under a "Subgraphs" category and refresh live
- * as definitions are created/renamed/edited. Spawning adds to the canvas's
+ * Subgraph definitions appear under a "Subgraphs" tab and refresh live as
+ * definitions are created/renamed/edited. Spawning adds to the canvas's
  * *current* graph — while editing inside a definition, that is its interior
  * (which is also how recursive self-instances are placed).
  */
@@ -40,10 +43,20 @@ export function createPalette(host: HTMLElement, canvas: LGraphCanvas, graph: LG
   search.type = 'search'
   search.placeholder = 'Search nodes…  ( / )'
 
+  const body = document.createElement('div')
+  body.className = 'palette-body'
+  const tabs = document.createElement('nav')
+  tabs.className = 'palette-tabs'
   const list = document.createElement('div')
   list.className = 'palette-list'
+  body.append(tabs, list)
 
-  host.append(search, list)
+  // Land ahead of the IO panel, which already lives inside #palette.
+  host.prepend(search)
+  search.after(body)
+
+  /** The tab on screen. Undefined until the first render picks a default. */
+  let activeCategory: string | undefined
 
   function currentEntries(): PaletteEntry[] {
     const ops: PaletteEntry[] = allNodeDefs().map((d) => ({
@@ -67,6 +80,12 @@ export function createPalette(host: HTMLElement, canvas: LGraphCanvas, graph: LG
     )
   }
 
+  /** Entries matching the search, narrowed to the active tab when not searching. */
+  function visibleEntries(entries: PaletteEntry[], filter: string): PaletteEntry[] {
+    const matched = entries.filter((d) => fuzzyMatch(filter, `${d.category}/${d.type} ${d.title}`))
+    return filter === '' ? matched.filter((d) => d.category === activeCategory) : matched
+  }
+
   function spawnAt(entry: PaletteEntry, [x, y]: [number, number]): void {
     const node = LiteGraph.createNode(entry.type)
     const target = canvas.graph
@@ -77,16 +96,41 @@ export function createPalette(host: HTMLElement, canvas: LGraphCanvas, graph: LG
     canvas.selectNode(node)
   }
 
+  function renderTabs(categories: string[], searching: boolean): void {
+    tabs.innerHTML = ''
+    for (const category of categories) {
+      const tab = document.createElement('button')
+      tab.className = 'palette-tab'
+      if (category === activeCategory && !searching) tab.classList.add('active')
+      tab.textContent = category
+      tab.addEventListener('click', () => {
+        activeCategory = category
+        search.value = ''
+        render('')
+      })
+      tabs.append(tab)
+    }
+  }
+
   function render(filter: string): void {
+    const entries = currentEntries()
+    // Categories in entry order (Subgraphs first when definitions exist).
+    const categories = [...new Set(entries.map((e) => e.category))]
+    if (activeCategory === undefined || !categories.includes(activeCategory)) {
+      // IO holds the nodes you reach for first (Text Input, Preview).
+      activeCategory = categories.includes('IO') ? 'IO' : categories[0]
+    }
+    renderTabs(categories, filter !== '')
+
     list.innerHTML = ''
-    const matched = currentEntries().filter((d) =>
-      fuzzyMatch(filter, `${d.category}/${d.type} ${d.title}`),
-    )
+    const searching = filter !== ''
+    const shown = visibleEntries(entries, filter)
 
     let firstItem: HTMLElement | undefined
     let category = ''
-    for (const def of matched) {
-      if (def.category !== category) {
+    for (const def of shown) {
+      // Group headers only while searching — the tab already names the category.
+      if (searching && def.category !== category) {
         category = def.category
         const header = document.createElement('div')
         header.className = 'palette-category'
@@ -112,16 +156,12 @@ export function createPalette(host: HTMLElement, canvas: LGraphCanvas, graph: LG
       firstItem ??= item
       list.append(item)
     }
-
-    list.dataset.firstMatch = firstItem?.textContent ?? ''
   }
 
   search.addEventListener('input', () => render(search.value.trim()))
   search.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
-      const first = currentEntries().find((d) =>
-        fuzzyMatch(search.value.trim(), `${d.category}/${d.type} ${d.title}`),
-      )
+      const first = visibleEntries(currentEntries(), search.value.trim())[0]
       if (first) spawnAt(first, centerOfView())
     } else if (e.key === 'Escape') {
       search.value = ''
