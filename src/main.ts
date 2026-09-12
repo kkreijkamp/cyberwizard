@@ -54,7 +54,7 @@ const canvas = new LGraphCanvas(canvasElement, graph, { autoresize: true })
 installHiDPICanvas(canvas)
 applyTheme(canvas)
 installLinkStyles(canvas, engine)
-installInspect(engine, canvas)
+installInspect(engine)
 if (doc?.view) {
   canvas.ds.offset = [...doc.view.offset]
   canvas.ds.scale = doc.view.scale

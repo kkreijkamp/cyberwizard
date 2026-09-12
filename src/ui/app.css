@@ -407,8 +407,12 @@ body {
 .inspect-card {
   position: absolute;
   z-index: 20;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   width: 460px;
   max-width: calc(100% - 24px);
+  max-height: calc(100% - 24px);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 6px;

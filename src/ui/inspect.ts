@@ -6,7 +6,7 @@
  * One card at a time; Esc / outside click / the × closes it.
  */
 
-import type { LGraphCanvas, LGraphNode } from '@comfyorg/litegraph'
+import type { LGraphNode } from '@comfyorg/litegraph'
 import type { Engine } from '../core/engine'
 import { setPreviewClickHandler } from '../core/preview-widget'
 import { PREVIEW_WIDGET_NAME, getNodeDef } from '../core/registry'
@@ -14,9 +14,7 @@ import { getSubgraphDef } from '../core/subgraph'
 import { repr } from '../core/types'
 import { LAST_INPUT_PROPERTY } from '../nodes/io/preview'
 
-const CARD_WIDTH = 460
-
-export function installInspect(engine: Engine, canvas: LGraphCanvas): void {
+export function installInspect(engine: Engine): void {
   let openCard: { element: HTMLElement; onKey: (e: KeyboardEvent) => void; onPointerDown: (e: PointerEvent) => void } | undefined
 
   function close(): void {
@@ -53,15 +51,7 @@ export function installInspect(engine: Engine, canvas: LGraphCanvas): void {
 
     card.append(header, pre)
     host.append(card)
-
-    // Near the node, clamped into the host: right of it if there's room, else left.
-    const scale = canvas.ds.scale
-    const [nx = 0, ny = 0] = canvas.convertCanvasToOffset([node.pos[0] ?? 0, (node.pos[1] ?? 0) - 30])
-    const nodeW = (node.size[0] ?? 0) * scale
-    const hostW = host.clientWidth
-    const left = nx + nodeW + 12 + CARD_WIDTH <= hostW ? nx + nodeW + 12 : Math.max(8, nx - CARD_WIDTH - 12)
-    card.style.left = `${Math.round(left)}px`
-    card.style.top = `${Math.round(Math.max(8, ny))}px`
+    // Centred in the host via CSS (.inspect-card).
 
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') {
