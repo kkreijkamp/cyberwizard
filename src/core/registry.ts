@@ -431,11 +431,18 @@ export function categoryColors(category: string): { color: string; bgcolor: stri
 const NODE_FRAME_COLOR = 'rgba(80, 66, 53, 0.4)'
 
 /**
+ * How far outside the node bounds the frame stroke's path sits — its centre
+ * line is therefore this many px outside the node edge. Slot connection
+ * points centre on that line (ui/theme).
+ */
+export const NODE_FRAME_PADDING = 0.5
+
+/**
  * The subtle permanent frame every node gets, hugging its edge (the library's
  * own strokeStyles channel — alongside its error/selection entries, not in
  * place of them). Called by the node factories (here and core/subgraph)
  * because strokeStyles is assigned per instance in the library constructor.
  */
 export function applyNodeFrame(node: LGraphNode): void {
-  node.strokeStyles.frame = () => ({ color: NODE_FRAME_COLOR, padding: 0.5, lineWidth: 1 })
+  node.strokeStyles.frame = () => ({ color: NODE_FRAME_COLOR, padding: NODE_FRAME_PADDING, lineWidth: 1 })
 }

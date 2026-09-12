@@ -46,7 +46,7 @@ describe('theme slot rings', () => {
 
     applyTheme({} as LGraphCanvas)
 
-    expect(node.getInputPos(0)[0]).toBe(100)
-    expect(node.getOutputPos(0)[0]).toBe(100 + node.size[0])
+    expect(node.getInputPos(0)[0]).toBe(99.5) // frame centre sits 0.5px outside the edge
+    expect(node.getOutputPos(0)[0]).toBe(100 + node.size[0] + 0.5)
   })
 })

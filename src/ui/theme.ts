@@ -1,5 +1,6 @@
 import { LGraphCanvas, LiteGraph, LGraphNode, RenderShape } from '@comfyorg/litegraph'
 import type { INodeInputSlot } from '@comfyorg/litegraph'
+import { NODE_FRAME_PADDING } from '../core/registry'
 
 /**
  * CyberWizard paper theme, applied once at startup. LiteGraph reads these
@@ -145,14 +146,14 @@ function installSlotShapes(): void {
   LGraphNode.prototype.getInputSlotPos = function (this: LGraphNode, input: INodeInputSlot) {
     if (input?.pos || this.flags.collapsed) return originalInputPos.call(this, input)
     const [, y] = originalInputPos.call(this, input)
-    return [this.pos[0] ?? 0, y ?? 0] as [number, number]
+    return [(this.pos[0] ?? 0) - NODE_FRAME_PADDING, y ?? 0] as [number, number]
   } as LGraphNode['getInputSlotPos']
 
   const originalOutputPos = LGraphNode.prototype.getOutputPos
   LGraphNode.prototype.getOutputPos = function (this: LGraphNode, slot: number) {
     if (this.outputs?.[slot]?.pos || this.flags.collapsed) return originalOutputPos.call(this, slot)
     const [, y] = originalOutputPos.call(this, slot)
-    return [(this.pos[0] ?? 0) + (this.size[0] ?? 0), y ?? 0] as [number, number]
+    return [(this.pos[0] ?? 0) + (this.size[0] ?? 0) + NODE_FRAME_PADDING, y ?? 0] as [number, number]
   } as LGraphNode['getOutputPos']
 
   const original = LGraphNode.prototype.drawSlots
@@ -163,7 +164,7 @@ function installSlotShapes(): void {
 }
 
 const SLOT_RING_RADIUS = 5.5
-const SLOT_RING_WIDTH = 1.6
+const SLOT_RING_WIDTH = 1.2
 
 /** Structural view of the concrete NodeSlot members (absent from the public slot interfaces). */
 interface ConcreteSlot {
