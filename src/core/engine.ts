@@ -224,11 +224,7 @@ export class Engine {
    * connections that carry no value (ui/links).
    */
   hasOutputs(node: LGraphNode): boolean {
-    if (this.states.get(node.id)?.outputs !== undefined) return true
-    for (const store of this.interiorStores.values()) {
-      if (store.get(node.id)?.outputs !== undefined) return true
-    }
-    return false
+    return this.outputsOf(node) !== undefined
   }
 
   /**
@@ -278,9 +274,20 @@ export class Engine {
     return undefined
   }
 
-  /** Current cached outputs of a node, undefined if it never ran cleanly. */
+  /**
+   * Current cached outputs of a node, undefined if it never ran cleanly.
+   * Falls back to retained instance interiors (any instance that produced
+   * outputs for the node) — the inspect overlay depends on this for nodes
+   * viewed inside a definition.
+   */
   outputsOf(node: LGraphNode): readonly unknown[] | undefined {
-    return this.state(node).outputs
+    const root = this.states.get(node.id)
+    if (root?.outputs !== undefined) return root.outputs
+    for (const store of this.interiorStores.values()) {
+      const s = store.get(node.id)
+      if (s?.outputs !== undefined) return s.outputs
+    }
+    return undefined
   }
 
   /** Resolves when no flush is running or scheduled and no compute() is in flight. */

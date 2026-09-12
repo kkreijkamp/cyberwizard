@@ -260,6 +260,26 @@ describe('Subgraph evaluation', () => {
     dispose()
   })
 
+  it('outputsOf falls back to the instance interior store', async () => {
+    reset()
+    const { graph, engine, dispose } = rig()
+    const defId = buildWrapDef(graph)
+    const src = spawn(graph, 'test-sub/src')
+    setParam(src, 'text', 'hello')
+    const instance = spawnInstance(graph, defId)
+    const sink = spawn(graph, 'test-sub/sink')
+    src.connect(0, instance, 0)
+    instance.connect(0, sink, 0)
+    const interiorSuffix = interior(graph, defId)._nodes.find((n) => n.type === 'test-sub/suffix')
+    if (!interiorSuffix) throw new Error('missing interior node')
+
+    await engine.whenIdle()
+    // Interior node states live in the per-instance store, not the root one.
+    expect(engine.outputsOf(interiorSuffix)).toEqual(['hello!'])
+    expect(engine.hasOutputs(interiorSuffix)).toBe(true)
+    dispose()
+  })
+
   it('coerces values across the boundary', async () => {
     reset()
     const { graph, engine, dispose } = rig()
