@@ -33,6 +33,8 @@ export type ParamDef =
       readonly multiline?: boolean
       /** Param holds a subgraph definition's name (map/filter/fold's fn, If's then/else) — edits to that definition must dirty this node. */
       readonly subgraphRef?: boolean
+      /** No widget row in the node body — the param is edited through the node's own UI (the Note's click-to-write body). Still serializes. */
+      readonly hidden?: boolean
     }
   | {
       readonly kind: 'number'
@@ -45,9 +47,10 @@ export type ParamDef =
       readonly step?: number
       /** Decimal places shown in the widget (litegraph default: 3). */
       readonly precision?: number
+      readonly hidden?: boolean
     }
-  | { readonly kind: 'boolean'; readonly name: string; readonly label?: string; readonly default: boolean }
-  | { readonly kind: 'enum'; readonly name: string; readonly label?: string; readonly default: string; readonly options: readonly string[] }
+  | { readonly kind: 'boolean'; readonly name: string; readonly label?: string; readonly default: boolean; readonly hidden?: boolean }
+  | { readonly kind: 'enum'; readonly name: string; readonly label?: string; readonly default: string; readonly options: readonly string[]; readonly hidden?: boolean }
 
 type ValueOfParam<P extends ParamDef> = P extends { kind: 'number' } ? number : P extends { kind: 'boolean' } ? boolean : string
 
@@ -173,9 +176,11 @@ export function setParam(node: LGraphNode, name: string, value: string | number 
 
 /**
  * Params that may be promoted from widget to wired input slot. Subgraph
- * pickers are excluded — they resolve definition names, not values.
+ * pickers are excluded — they resolve definition names, not values — and so
+ * are hidden params, which have no widget to promote (the Note's text/tint).
  */
 export function isConvertibleParam(param: ParamDef): boolean {
+  if (param.hidden === true) return false
   return !(param.kind === 'string' && param.subgraphRef === true)
 }
 
@@ -341,6 +346,10 @@ export function defineNode<
           break
       }
       paramWidgets(this).set(param.name, widget)
+      // Hidden params keep their properties/default (and serialize) but take
+      // no row in the node body — litegraph skips hidden widgets in layout,
+      // draw, and hit-tests alike (isWidgetVisible).
+      if (param.hidden === true) (widget as { hidden?: boolean }).hidden = true
     }
 
     override onConnectionsChange(
@@ -415,7 +424,16 @@ const CATEGORY_COLORS: Record<string, { color: string; bgcolor: string }> = {
   Flow: { color: '#555b66', bgcolor: '#eff0f2' },
   Math: { color: '#3d6b5f', bgcolor: '#e8f2ef' },
   Subgraphs: { color: '#6f5630', bgcolor: '#f5efe0' },
+  // Sticky-note amber — the theme's brass accent as a title bar.
+  Notes: { color: '#a16207', bgcolor: '#faf3df' },
 }
+
+/**
+ * Every named category color, in palette order — the color set offered for
+ * notes ("comes in the same colors as nodes"). A note carries its choice in
+ * the hidden `tint` param; the note widget applies it (core/note-widget).
+ */
+export const NOTE_TINTS: readonly string[] = Object.keys(CATEGORY_COLORS)
 
 export function categoryColors(category: string): { color: string; bgcolor: string } {
   const known = CATEGORY_COLORS[category]
