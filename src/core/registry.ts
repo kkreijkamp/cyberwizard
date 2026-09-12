@@ -428,7 +428,8 @@ export function categoryColors(category: string): { color: string; bgcolor: stri
 
 // ─── Node frame ──────────────────────────────────────────────────────────────
 
-const NODE_FRAME_COLOR = 'rgba(80, 66, 53, 0.4)'
+/** The frame stroke's colour — slot rings match it (ui/theme). */
+export const NODE_FRAME_COLOR = 'rgba(80, 66, 53, 0.4)'
 
 /**
  * How far outside the node bounds the frame stroke's path sits — its centre

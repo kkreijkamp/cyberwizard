@@ -1,6 +1,6 @@
 import { LGraphCanvas, LiteGraph, LGraphNode, RenderShape } from '@comfyorg/litegraph'
 import type { INodeInputSlot } from '@comfyorg/litegraph'
-import { NODE_FRAME_PADDING } from '../core/registry'
+import { NODE_FRAME_COLOR, NODE_FRAME_PADDING } from '../core/registry'
 
 /**
  * CyberWizard paper theme, applied once at startup. LiteGraph reads these
@@ -59,6 +59,8 @@ export function applyTheme(canvas: LGraphCanvas): void {
 
   LiteGraph.NODE_FONT = SERIF
   LiteGraph.GROUP_FONT = SERIF
+  // Baseline 2px up: the stock 20 sits low in the 30px bar for the serif.
+  LiteGraph.NODE_TITLE_TEXT_Y = 18
   // Ships undefined in 0.17.2 — and the group titlebar's hit area is computed
   // as font_size × 1.4, i.e. NaN, so groups can never be selected (or
   // deleted). Restoring the classic default repairs both.
@@ -164,7 +166,8 @@ function installSlotShapes(): void {
 }
 
 const SLOT_RING_RADIUS = 5.5
-const SLOT_RING_WIDTH = 1.2
+/** Ring spec = the node frame's: 1px in NODE_FRAME_COLOR. */
+const SLOT_RING_WIDTH = 1
 
 /** Structural view of the concrete NodeSlot members (absent from the public slot interfaces). */
 interface ConcreteSlot {
@@ -172,7 +175,6 @@ interface ConcreteSlot {
   isWidgetInputSlot: boolean
   isConnected: boolean
   isValidTarget(fromSlot: unknown): boolean
-  renderingColor(colorContext: unknown): string
 }
 
 function drawHollowSlots(
@@ -180,7 +182,7 @@ function drawHollowSlots(
   ctx: CanvasRenderingContext2D,
   options: Parameters<LGraphNode['drawSlots']>[1],
 ): void {
-  const { fromSlot, colorContext, editorAlpha } = options
+  const { fromSlot, editorAlpha } = options
   for (const slot of [...(node.inputs ?? []), ...(node.outputs ?? [])] as unknown as ConcreteSlot[]) {
     // Mirrors the library's own visibility rule (sans hover): widget-input
     // dots show only when connected or a valid drop target.
@@ -198,7 +200,7 @@ function drawHollowSlots(
     ctx.fillStyle = PAPER
     ctx.fill()
     ctx.lineWidth = SLOT_RING_WIDTH
-    ctx.strokeStyle = slot.renderingColor(colorContext)
+    ctx.strokeStyle = NODE_FRAME_COLOR
     ctx.stroke()
   }
 }
