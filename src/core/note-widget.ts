@@ -155,11 +155,23 @@ export function makeNoteWidget(node: LGraphNode): CustomWidgetParam {
 
     mouse(event, offset, hitNode) {
       const type = event.type ?? ''
-      if (type !== 'pointerdown' && type !== 'mousedown' && type !== 'click') return false
+      // Act on RELEASE, not press: litegraph focuses the canvas element at
+      // the top of its pointerdown handler, and the browser's default
+      // mousedown focus shift lands after it — a textarea focused here on
+      // pointerdown loses focus in the same click (the editor flashed and
+      // died). On pointerup nothing is queued to steal focus back.
+      if (type === 'pointerdown' || type === 'mousedown') return true
+      if (type !== 'pointerup' && type !== 'mouseup' && type !== 'click') return false
+
+      // Released outside the body (press started here, ended elsewhere) — ignore.
+      const [nx, ny] = offset
+      const top = widget.y ?? 0
+      const height = widget.computeSize(hitNode.size[0])[1]
+      if (nx < 0 || nx > hitNode.size[0] || ny < top || ny > top + height) return true
 
       // Links win over edit: hit-test in layout space (node-local → widget-local).
-      const localX = offset[0] - PAD_X
-      const localY = offset[1] - (widget.y ?? 0) - PAD_Y
+      const localX = nx - PAD_X
+      const localY = ny - top - PAD_Y
       const { links } = widget.layoutFor(hitNode.size[0])
       for (const { rect, url } of links) {
         if (localX >= rect.x && localX <= rect.x + rect.w && localY >= rect.y && localY <= rect.y + rect.h) {

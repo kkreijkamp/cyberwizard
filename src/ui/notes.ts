@@ -3,10 +3,12 @@
  *
  * Editor — clicking a note's body overlays a textarea exactly on the body
  * (graph coords → fixed CSS px via the canvas's DragAndScale), re-anchored
- * every animation frame so pan/zoom/drag keep it glued. Text commits live on
- * every keystroke (setParam → properties → markdown re-renders underneath
- * and the node re-fits its height), so closing (blur / Esc / Cmd+Enter)
- * never loses anything.
+ * every animation frame so pan/zoom/drag keep it glued. The overlay opens on
+ * pointerUP: litegraph focuses the canvas element inside its pointerdown
+ * handling, so anything focused on pointerdown loses it again in the same
+ * click. Text commits live on every keystroke (setParam → properties →
+ * markdown re-renders underneath and the node re-fits its height); closing
+ * (outside click / Esc / Cmd+Enter) therefore never loses anything.
  *
  * Color — a chained getExtraMenuOptions hook (same pattern as
  * ui/compute-menu and ui/widget-inputs), shown on note nodes only. The
@@ -41,12 +43,21 @@ export function installNotes(canvas: LGraphCanvas): void {
     document.body.append(textarea)
 
     let open = true
+    // Outside click closes — the inspect overlay's pattern: capture phase,
+    // deferred past the opening click (and no blur listener: litegraph
+    // focuses the canvas inside its own pointerdown handling, so blur is
+    // not a reliable "the user left" signal here).
+    const onPointerDown = (e: PointerEvent): void => {
+      if (!textarea.contains(e.target as Node)) close()
+    }
     const close = (): void => {
       if (!open) return
       open = false
+      document.removeEventListener('pointerdown', onPointerDown, true)
       textarea.remove()
       if (activeClose === close) activeClose = undefined
     }
+    setTimeout(() => document.addEventListener('pointerdown', onPointerDown, true), 0)
 
     const anchor = (): void => {
       const rect = canvas.canvas.getBoundingClientRect()
@@ -83,7 +94,6 @@ export function installNotes(canvas: LGraphCanvas): void {
         close()
       }
     })
-    textarea.addEventListener('blur', close)
 
     activeClose = close
     anchor()
