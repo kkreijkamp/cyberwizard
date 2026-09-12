@@ -12,6 +12,9 @@ import { LGraphCanvas, LiteGraph, LGraphNode, RenderShape } from '@comfyorg/lite
  */
 const SERIF = "'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', 'Source Serif 4', Georgia, serif"
 
+/** The cream canvas ground — also the slot-ring punch colour. */
+const PAPER = '#f6f1e7'
+
 /**
  * Warm dot grid on the snap cell, vector-drawn per frame: spacing and radius
  * are constant in graph units, so the lattice zooms with the graph — dots
@@ -43,7 +46,7 @@ function drawDotGrid(
 }
 
 export function applyTheme(canvas: LGraphCanvas): void {
-  canvas.clear_background_color = '#f6f1e7'
+  canvas.clear_background_color = PAPER
   // The library's default viewport frame (#235) — invisible on the old dark
   // theme, an unwanted rectangle on paper.
   canvas.render_canvas_border = false
@@ -121,12 +124,12 @@ const SLOT_TYPE_COLORS: Record<string, string> = {
 let slotShapesInstalled = false
 
 /**
- * Every slot renders as a hollow circle straddling the node frame's edge.
- * Shape is per-slot with no library default, and slots are created long
- * before this module runs (the initial graph predates applyTheme) — so the
- * stamp goes through drawSlots, the per-frame choke point that sees every
- * slot: existing nodes, future adds, variadic growth, converted params, and
- * subgraph instance syncs. `??=` preserves any deliberately-set shape.
+ * Slot dots as open rings straddling the node frame, like the reference
+ * design. The library's own HollowCircle shape is radius 3 with a 3px
+ * stroke — a nearly-filled disk, no visible difference — so after the
+ * library draws its (filled) dots, we punch a paper-coloured disc over each
+ * and stroke a ring in the slot's type colour. Runs in the drawSlots choke
+ * point, so every slot is covered regardless of when it was created.
  */
 function installSlotShapes(): void {
   if (slotShapesInstalled) return
@@ -134,8 +137,47 @@ function installSlotShapes(): void {
 
   const original = LGraphNode.prototype.drawSlots
   LGraphNode.prototype.drawSlots = function (this: LGraphNode, ...args: Parameters<LGraphNode['drawSlots']>) {
-    for (const slot of this.inputs ?? []) slot.shape ??= RenderShape.HollowCircle
-    for (const slot of this.outputs ?? []) slot.shape ??= RenderShape.HollowCircle
-    return original.apply(this, args)
+    original.apply(this, args)
+    drawHollowSlots(this, args[0], args[1])
   } as LGraphNode['drawSlots']
+}
+
+const SLOT_RING_RADIUS = 5.5
+const SLOT_RING_WIDTH = 1.6
+
+/** Structural view of the concrete NodeSlot members (absent from the public slot interfaces). */
+interface ConcreteSlot {
+  boundingRect: ArrayLike<number>
+  isWidgetInputSlot: boolean
+  isConnected: boolean
+  isValidTarget(fromSlot: unknown): boolean
+  renderingColor(colorContext: unknown): string
+}
+
+function drawHollowSlots(
+  node: LGraphNode,
+  ctx: CanvasRenderingContext2D,
+  options: Parameters<LGraphNode['drawSlots']>[1],
+): void {
+  const { fromSlot, colorContext, editorAlpha } = options
+  for (const slot of [...(node.inputs ?? []), ...(node.outputs ?? [])] as unknown as ConcreteSlot[]) {
+    // Mirrors the library's own visibility rule (sans hover): widget-input
+    // dots show only when connected or a valid drop target.
+    if (slot.isWidgetInputSlot && !slot.isConnected && !(fromSlot && slot.isValidTarget(fromSlot))) {
+      continue
+    }
+    const valid = !fromSlot || slot.isValidTarget(fromSlot)
+    // Slot centre in node-local space, replicating NodeSlot.#centreOffset.
+    const rect = slot.boundingRect
+    const cx = (rect[0] ?? 0) - (node.pos[0] ?? 0) + (rect[3] ?? 0) / 2
+    const cy = (rect[1] ?? 0) - (node.pos[1] ?? 0) + (rect[3] ?? 0) / 2
+    ctx.globalAlpha = (valid ? 1 : 0.4) * (editorAlpha ?? 1)
+    ctx.beginPath()
+    ctx.arc(cx, cy, SLOT_RING_RADIUS, 0, Math.PI * 2)
+    ctx.fillStyle = PAPER
+    ctx.fill()
+    ctx.lineWidth = SLOT_RING_WIDTH
+    ctx.strokeStyle = slot.renderingColor(colorContext)
+    ctx.stroke()
+  }
 }

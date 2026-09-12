@@ -1,29 +1,39 @@
-import { LGraph, LiteGraph, RenderShape } from '@comfyorg/litegraph'
+import { LGraph, LiteGraph } from '@comfyorg/litegraph'
 import type { LGraphCanvas } from '@comfyorg/litegraph'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { applyTheme } from '../../src/ui/theme'
 import '../../src/nodes'
 
-function fakeCanvas(): LGraphCanvas {
-  return {} as LGraphCanvas
-}
-
-describe('theme slot shapes', () => {
-  it('stamps hollow-circle shape on slots — including nodes created before applyTheme', () => {
+describe('theme slot rings', () => {
+  it('overdraws a paper-filled ring in the slot colour at each slot', () => {
     const graph = new LGraph()
     const node = LiteGraph.createNode('text/to-upper-case')
     if (!node) throw new Error('unregistered')
     graph.add(node)
-    // Node and slots exist BEFORE the theme install (the bug this regressed).
-    expect(node.inputs[0]?.shape).toBeUndefined()
+    node._setConcreteSlots()
 
-    applyTheme(fakeCanvas())
-    try {
-      node.drawSlots({} as never, {} as never)
-    } catch {
-      // The library's slot drawing needs a real ctx; the stamp runs first.
+    applyTheme({} as LGraphCanvas)
+
+    const ctx = {
+      globalAlpha: 1,
+      fillStyle: '',
+      strokeStyle: '',
+      lineWidth: 1,
+      beginPath: vi.fn(),
+      arc: vi.fn(),
+      rect: vi.fn(),
+      fill: vi.fn(),
+      stroke: vi.fn(),
     }
-    expect(node.inputs[0]?.shape).toBe(RenderShape.HollowCircle)
-    expect(node.outputs[0]?.shape).toBe(RenderShape.HollowCircle)
+    const colorContext = { getConnectedColor: () => '#123456', getDisconnectedColor: () => '#654321' }
+    node.drawSlots(ctx as never, { colorContext, editorAlpha: 1, lowQuality: true } as never)
+
+    // One ring per slot (1 input + 1 output): paper punch + coloured stroke.
+    expect(ctx.arc).toHaveBeenCalledTimes(2)
+    expect(ctx.arc).toHaveBeenCalledWith(expect.any(Number), expect.any(Number), 5.5, 0, Math.PI * 2)
+    expect(ctx.fill).toHaveBeenCalled()
+    expect(ctx.stroke).toHaveBeenCalled()
+    expect(ctx.fillStyle).toBe('#f6f1e7')
+    expect(ctx.strokeStyle).toBe('#654321')
   })
 })
