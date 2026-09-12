@@ -44,13 +44,21 @@ describe('link styles', () => {
     expect(original.mock.calls[0]?.[6]).toBe('#a83a32')
   })
 
-  it('paints a selected-node link amber instead of the library white', () => {
+  it('paints a selected-node link indigo instead of the library white', () => {
     const { canvas, original, ctx } = setup({ hasOutputs: true, hasFailure: false }, true)
     render(canvas, ctx)
-    expect(original.mock.calls[0]?.[6]).toBe('#a16207')
+    expect(original.mock.calls[0]?.[6]).toBe('#3a5580')
     expect(ctx.setLineDash).not.toHaveBeenCalled()
     // The highlight map is hidden only for the call's duration.
     expect((canvas as unknown as { highlighted_links: Record<number, unknown> }).highlighted_links[1]).toBe(true)
+  })
+
+  it('keeps a selected dormant link dotted, tinted indigo', () => {
+    const { canvas, original, ctx } = setup({ hasOutputs: false, hasFailure: false }, true)
+    render(canvas, ctx)
+    expect(original.mock.calls[0]?.[6]).toBe('#3a5580')
+    expect(ctx.setLineDash).toHaveBeenCalledWith([6, 6])
+    expect(ctx.globalAlpha).toBe(0.55)
   })
 
   it('lets failure red win over selection amber', () => {

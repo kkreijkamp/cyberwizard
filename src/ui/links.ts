@@ -15,8 +15,8 @@ import type { LGraphCanvas, LLink } from '@comfyorg/litegraph'
 import { COLOR_ERROR } from '../core/engine'
 import type { Engine } from '../core/engine'
 
-/** Selection accent — matches the selection halo (NODE_BOX_OUTLINE_COLOR). */
-const COLOR_SELECTED = '#a16207'
+/** Selection indigo — distinct from the amber UI accents and the rust errors. */
+const COLOR_SELECTED = '#3a5580'
 
 export function installLinkStyles(canvas: LGraphCanvas, engine: Engine): void {
   type RenderLinkParams = Parameters<LGraphCanvas['renderLink']>
@@ -27,30 +27,27 @@ export function installLinkStyles(canvas: LGraphCanvas, engine: Engine): void {
     const origin = originOf(link)
     if (!origin) return original(...args)
 
-    if (engine.hasFailure(origin)) {
-      // Red overrides the colour argument (index 6) — renderLink prefers it.
-      args[6] = COLOR_ERROR
-      return stroked(ctx, 1, () => original(...args))
-    }
-    if (isHighlighted(link)) {
-      // renderLink checks highlighted_links BEFORE the colour argument and
-      // forces #FFF — hide the entry for the duration of the (synchronous)
-      // call so the amber actually lands.
-      const highlights = highlightedLinks()
-      const id = (link as LLink).id as number
-      const had = highlights !== undefined && id in highlights
-      if (had) delete highlights[id]
-      args[6] = COLOR_SELECTED
-      try {
-        return original(...args)
-      } finally {
-        if (had && highlights) highlights[id] = true
+    // renderLink checks highlighted_links BEFORE the colour argument and
+    // forces #FFF — hide the entry for the duration of the (synchronous)
+    // call so our colour actually lands. State (dash/dim) composes on top:
+    // selection tints, it never erases the dotted "no value" signal.
+    const highlights = highlightedLinks()
+    const id = linkIdOf(link)
+    const highlighted = id !== undefined && highlights !== undefined && id in highlights
+    if (highlighted) delete highlights[id]
+    try {
+      if (engine.hasFailure(origin)) {
+        args[6] = COLOR_ERROR
+        return stroked(ctx, 1, () => original(...args))
       }
+      if (highlighted) args[6] = COLOR_SELECTED
+      if (!engine.hasOutputs(origin)) {
+        return stroked(ctx, 0.55, () => original(...args))
+      }
+      return original(...args)
+    } finally {
+      if (highlighted && highlights) highlights[id] = true
     }
-    if (!engine.hasOutputs(origin)) {
-      return stroked(ctx, 0.55, () => original(...args))
-    }
-    return original(...args)
   } as LGraphCanvas['renderLink']
 
   function originOf(link: unknown): Parameters<Engine['hasOutputs']>[0] | undefined {
@@ -62,10 +59,9 @@ export function installLinkStyles(canvas: LGraphCanvas, engine: Engine): void {
     return (canvas as unknown as { highlighted_links?: Record<number, unknown> }).highlighted_links
   }
 
-  /** Selected-node link — the library checks this before forcing #FFF. */
-  function isHighlighted(link: unknown): boolean {
-    if (link === null || typeof link !== 'object' || !('id' in link)) return false
-    return Boolean(highlightedLinks()?.[(link as LLink).id as number])
+  function linkIdOf(link: unknown): number | undefined {
+    if (link === null || typeof link !== 'object' || !('id' in link)) return undefined
+    return (link as LLink).id as number
   }
 
   /** Dashed, alpha-scaled render of one link. */
