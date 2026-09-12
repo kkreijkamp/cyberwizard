@@ -401,7 +401,7 @@ function tagToDataType(tag: SlotTypeTag): DataType {
 
 /**
  * Muted deep-tone title bars + cream-tinted bodies, for the paper theme.
- * Bars stay at ≥4.5:1 against the cream title text (NODE_TITLE_COLOR).
+ * Bars stay at ≥4.5:1 against the white title text (NODE_TITLE_COLOR).
  */
 const CATEGORY_COLORS: Record<string, { color: string; bgcolor: string }> = {
   IO: { color: '#47603f', bgcolor: '#eef2e6' },

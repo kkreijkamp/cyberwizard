@@ -56,12 +56,16 @@ export function applyTheme(canvas: LGraphCanvas): void {
   LiteGraph.NODE_FONT = SERIF
   LiteGraph.GROUP_FONT = SERIF
 
+  // No low-quality cutout: below 0.6 zoom the library stops drawing node
+  // titles entirely; our graphs are small enough to render fully always.
+  canvas.low_quality_zoom_threshold = 0
+
   LiteGraph.NODE_DEFAULT_SHAPE = RenderShape.BOX
   LiteGraph.NODE_DEFAULT_COLOR = '#8a7f6a'
   LiteGraph.NODE_DEFAULT_BGCOLOR = '#fdfbf5'
   LiteGraph.NODE_DEFAULT_BOXCOLOR = '#a16207'
   LiteGraph.NODE_BOX_OUTLINE_COLOR = '#a16207' // the selection halo
-  LiteGraph.NODE_TITLE_COLOR = '#fdf6e9'
+  LiteGraph.NODE_TITLE_COLOR = '#ffffff'
   LiteGraph.NODE_SELECTED_TITLE_COLOR = '#ffffff'
   LiteGraph.NODE_TEXT_COLOR = '#2b2620'
   LiteGraph.NODE_TEXT_HIGHLIGHT_COLOR = '#a16207'
