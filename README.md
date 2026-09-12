@@ -1,91 +1,95 @@
-# CyberWizard 🧙
+# CyberWizard
 
-A node-based data manipulation workbench — like [CyberChef](https://gchq.github.io/CyberChef/),
-but operations are wired into a **graph** (via LiteGraph.js) instead of a linear recipe.
+A node-based data manipulation workbench for the browser. It covers the same
+ground as [CyberChef](https://gchq.github.io/CyberChef/), but operations are
+wired into a graph (LiteGraph) instead of a linear recipe: one input can fan
+out into parallel transforms, keys and parameters are connections rather than
+retyped text fields, every intermediate value is inspectable, and any group of
+nodes can be collapsed into a reusable subgraph.
 
-Fan out one input into parallel transforms, wire keys into crypto nodes as connections,
-preview every intermediate value live, and collapse subgraphs into reusable custom nodes.
-
-Fully client-side: your data never leaves the browser.
+It is the successor to [CryptoFlow](https://github.com/kkreijkamp/CryptoFlow),
+my earlier vanilla-JS take on the same idea. Everything runs client-side; no
+data leaves the browser.
 
 ## Subgraphs — build your own nodes
-
-Any graph fragment can become a reusable node with its own typed inputs and
-outputs — a function, basically:
-
-- **Create**: `+ Subgraph` in the header opens an empty definition; add typed
-  inputs/outputs in the sidebar panel and build the interior. The breadcrumb
-  bar (or `Esc`) takes you back up.
-- **Collapse**: select nodes on the canvas, then right-click → *Collapse to
-  Subgraph* (or `Ctrl/Cmd+G`). The cut edges become the new node's slots.
-- **Reuse**: definitions appear in the palette under *Subgraphs* and can nest
-  inside other subgraphs — including themselves (recursion is depth-limited
-  and budget-capped, so a runaway definition shows a node error instead of
-  freezing the page).
-- **Scope**: definitions created inside another definition (via `+ Subgraph`
-  or collapse) are **local to it** — visible in the palette and fn pickers
-  only inside that parent's subtree, and free to share names with helpers in
-  other scopes. Right-click a definition in the palette to move it between
-  scopes (up to Global, down into a parent); deleting a definition deletes
-  its scoped helpers with it.
-- **Share**: definitions embed in save files and share URLs — documents stay
-  fully self-contained.
-
-## Lists — functional pipelines
-
-Lists are first-class values. The **Flow** category has the usual building
-blocks (Pack, Get, Take/Drop, Reverse, Unique, Sort, Flatten, Zip, Concat,
-Range), and three higher-order ops that apply a **subgraph** per element:
-
-- **Map** — transform each element with a 1-in-1-out subgraph
-- **Filter** — keep elements where a 1-in-1-out subgraph returns truthy
-- **Fold** — reduce with a 2-in-1-out subgraph (`[acc, element] → acc`)
-
-Pick the subgraph in the node's `fn` dropdown (create it first with
-`+ Subgraph`). Nested lists work throughout: coercion recurses, previews
-render nested structure, and Flatten peels one level at a time.
-
-## Demand-driven evaluation
-
-Nothing runs unless a sink (Preview, Download) demands it, and nothing
-re-runs unless its inputs changed. A half-wired branch, an unused
-definition, or the untaken side of a conditional simply rests — wire a
-Preview onto a path and it lights up.
-
-## Math, logic & conditionals — functional graphs
-
-**Math** covers arithmetic (Add … Power, Min/Max, Floor/Ceil/Round),
-bitwise shifts (`<<`, `>>`, `>>>`), and structural comparisons; **Logic**
-has the boolean combinators (And/Or/Not) for composing conditions. Number
-inputs accept hex strings (`1f`, `0x1f`, `deadbeef` — decimal/scientific
-notation wins where both parse) and bytes (unsigned big-endian:
-`[1f 4a]` → 8010). **Flow** has two lazy conditionals — the untaken
-branch never evaluates, which is what recursion terminates through:
-
-- **Select** — the ternary `cond ? then : else` on plain wired values.
-  Only the taken branch is pulled, so `Fact(n) = Select(n ≤ 1, 1, n ×
-  Fact(n−1))` bottoms out at the base case instead of demanding itself
-  forever.
-- **If** — branches are reusable subgraph definitions (picked in the
-  `then`/`else` dropdowns); only the taken one is applied. Use it when the
-  branches are worth naming and sharing.
-
-Recursion stays guarded: depth-limited and budget-capped, so a runaway
-definition shows a node error instead of freezing the page.
-
-## Status
-
-Early development — see [PLAN.md](PLAN.md) for architecture and roadmap.
-
-## Dev
+## Develop
 
 ```sh
 npm install
 npm run dev
 ```
 
-## Test
+`npm test` (Vitest), `npm run typecheck`, `npm run build` (static bundle in
+`dist/`).
 
-```sh
-npm test
-```
+## Using the canvas
+
+Add nodes from the palette: double-click or drag one onto the canvas, or press
+`/` to search and Enter to spawn the first match. Dragging out from a slot
+filters the palette to type-compatible nodes.
+
+Values are typed (`bytes`, `string`, `number`, `boolean`, `json`, `list<T>`).
+Mismatched connections coerce automatically where that is unambiguous:
+string↔bytes as UTF-8, anything→string as a display representation, bytes→number
+as unsigned big-endian (so math works directly on hashes and ciphertext), and
+hex strings→number.
+
+Evaluation is demand-driven. Nothing runs unless a sink (Preview, Download)
+pulls it, and nothing re-runs until its inputs change, so a half-wired branch
+costs nothing. To evaluate any node on demand, right-click → *Compute*.
+Node parameters can be promoted to input slots from the same context menu,
+which is how you wire a regex or a key in from another node.
+
+The header buttons: **Save** / **Load** (graph as a JSON file), **Share**
+(copies a URL with the deflated graph in the hash), **New**. The canvas
+autosaves to localStorage; on load, a shared URL wins over the autosave,
+which wins over the built-in showcase graph.
+
+## Subgraphs
+
+Subgraphs are reusable nodes defined as graphs, with typed inputs and outputs.
+
+- **Create**: `+ Subgraph` in the header opens an empty definition. Declare
+  inputs/outputs in the sidebar, build the interior, then `Esc` or the
+  breadcrumb bar takes you back up.
+- **Collapse**: select nodes, right-click → *Collapse to Subgraph*
+  (`Ctrl/Cmd+G`). The cut edges become the new node's slots.
+- **Reuse**: definitions live in the palette under *Subgraphs* and nest
+  freely, including inside themselves. Recursion is depth-limited and
+  budget-capped, so a runaway definition shows a node error instead of
+  freezing the page.
+- **Scope**: a definition created inside another definition is local to it —
+  visible only within that subtree and free to share names with helpers in
+  other scopes. Right-click a definition in the palette to move it between
+  scopes. Deleting a definition deletes its local helpers with it.
+- **Share**: definitions embed in save files and share URLs; documents are
+  self-contained.
+
+## Lists and conditionals
+
+Lists are first-class values. Alongside the structural ops (Pack, Get,
+Take/Drop, Append, Reverse, Unique, Sort, Flatten, Zip, Concat, Range) there
+are three higher-order nodes that apply a subgraph to each element: **Map**,
+**Filter**, and **Fold** (a 2-in-1-out reduce, `[acc, element] → acc`).
+
+Two lazy conditionals: **Select** (a ternary on wired values) and **If**
+(branches are subgraph definitions). Only the taken branch evaluates, which is
+what recursion bottoms out through: `Fact(n) = Select(n ≤ 1, 1, n × Fact(n−1))`
+terminates instead of demanding itself forever.
+
+## Node library
+
+| Category | Nodes |
+|---|---|
+| IO | Text / Number / Integer / File Input, Preview, Download |
+| Encoding | Base64, Base32, Base58, Hex, Binary, URL, HTML entities |
+| Hashing | MD5, SHA-1, SHA-256, SHA-512, HMAC (key is an input slot) |
+| Text | Find & Replace, Regex Match / Extract / Count, case ops, Trim, Split, Join, Length |
+| Logic | XOR (key slot), ROT13, Reverse, And / Or / Not |
+| Data | JSON Parse / Stringify / Pick, To / From Bytes |
+| Math | arithmetic, bitwise shifts, comparisons, Min / Max, Floor / Ceil / Round |
+| Flow | list ops (above), Select, If, Pass |
+
+## Status
+
+Early development. See [PLAN.md](PLAN.md) for architecture and roadmap.
