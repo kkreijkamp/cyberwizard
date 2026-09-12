@@ -476,3 +476,21 @@ body {
   background: var(--border);
   border-radius: 4px;
 }
+
+/* The note's in-place editor: a textarea pinned over the note body by
+   ui/notes (fixed positioning, re-anchored every frame). */
+.note-editor {
+  position: fixed;
+  z-index: 30;
+  margin: 0;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--amber);
+  border-radius: 4px;
+  box-shadow: 0 4px 14px rgba(80, 66, 53, 0.22);
+  font-family: var(--serif);
+  line-height: 1.4;
+  resize: none;
+  outline: none;
+  overflow: hidden;
+}

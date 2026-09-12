@@ -11,6 +11,7 @@ import { installHiDPICanvas } from './ui/hidpi'
 import { installInspect } from './ui/inspect'
 import { installNodeLayout } from './ui/layout'
 import { installLinkStyles } from './ui/links'
+import { installNotes } from './ui/notes'
 import { installWidgetInputMenu } from './ui/widget-inputs'
 import { createPalette } from './ui/palette'
 import { initialDocument, startAutosave, wirePersistence } from './ui/persistence'
@@ -54,6 +55,7 @@ const canvas = new LGraphCanvas(canvasElement, graph, { autoresize: true })
 installHiDPICanvas(canvas)
 applyTheme(canvas)
 installLinkStyles(canvas, engine)
+installNotes(canvas)
 installInspect(engine)
 if (doc?.view) {
   canvas.ds.offset = [...doc.view.offset]
