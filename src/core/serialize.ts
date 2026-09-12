@@ -366,6 +366,10 @@ function populateFragment(
       node.properties.fileData = binaryStringToBytes(atob(saved.fileData))
       if (saved.fileName !== undefined) node.properties.fileName = saved.fileName
     }
+    // Content-sized nodes (the Note) computed their add-time size before any
+    // params were restored — re-fit now everything is in place. A no-op for
+    // nodes whose size doesn't depend on param values.
+    node.setSize(node.computeSize())
     byId.set(saved.id, node)
   }
 
