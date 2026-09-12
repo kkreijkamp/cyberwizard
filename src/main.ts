@@ -9,6 +9,7 @@ import { buildShowcaseGraph } from './showcase'
 import { installComputeMenu } from './ui/compute-menu'
 import { installHiDPICanvas } from './ui/hidpi'
 import { installNodeLayout } from './ui/layout'
+import { installLinkStyles } from './ui/links'
 import { installWidgetInputMenu } from './ui/widget-inputs'
 import { createPalette } from './ui/palette'
 import { initialDocument, startAutosave, wirePersistence } from './ui/persistence'
@@ -51,6 +52,7 @@ else buildShowcaseGraph(graph)
 const canvas = new LGraphCanvas(canvasElement, graph, { autoresize: true })
 installHiDPICanvas(canvas)
 applyTheme(canvas)
+installLinkStyles(canvas, engine)
 if (doc?.view) {
   canvas.ds.offset = [...doc.view.offset]
   canvas.ds.scale = doc.view.scale

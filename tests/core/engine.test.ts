@@ -276,6 +276,20 @@ describe('Engine', () => {
     engine.dispose()
   })
 
+  it('hasOutputs reflects whether a node has cached values', async () => {
+    reset()
+    const graph = new LGraph()
+    const src = spawn(graph, 'test-eng/src')
+    const sink = spawn(graph, 'test-eng/sink')
+    src.connect(0, sink, 0)
+
+    const engine = new Engine(graph)
+    expect(engine.hasOutputs(src)).toBe(false)
+    await engine.whenIdle()
+    expect(engine.hasOutputs(src)).toBe(true)
+    engine.dispose()
+  })
+
   it('propagates failure downstream as a red blocked state naming the cause', async () => {
     reset()
     const graph = new LGraph()

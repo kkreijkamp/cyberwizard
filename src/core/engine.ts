@@ -219,6 +219,19 @@ export class Engine {
   }
 
   /**
+   * True when the node has cached outputs (ran cleanly) in any store — root,
+   * or a retained instance interior. Drives the dashed-link rendering for
+   * connections that carry no value (ui/links).
+   */
+  hasOutputs(node: LGraphNode): boolean {
+    if (this.states.get(node.id)?.outputs !== undefined) return true
+    for (const store of this.interiorStores.values()) {
+      if (store.get(node.id)?.outputs !== undefined) return true
+    }
+    return false
+  }
+
+  /**
    * The node to blame for this one's failure: the recorded upstream cause
    * when blocked, or the interior node whose error a subgraph instance
    * wrapped (descend one level per call). Undefined when the node itself is
@@ -875,6 +888,10 @@ export class Engine {
   }
 
   private paint(node: LGraphNode, s: NodeState): void {
+    // State changed — repaint the canvas (colors, widgets, and link styles all
+    // read engine state at draw time).
+    for (const c of this.graph.list_of_graphcanvas ?? []) c.setDirty(true, false)
+
     // Any failure — the node's own error, or an upstream one propagated to it
     // (blocked) — repaints the whole node red; the box strip alone is too easy
     // to miss. The node's own colors are stashed once so a later success
