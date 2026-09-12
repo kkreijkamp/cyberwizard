@@ -122,25 +122,20 @@ let slotShapesInstalled = false
 
 /**
  * Every slot renders as a hollow circle straddling the node frame's edge.
- * Shape is per-slot with no library default, so the patch funnels through
- * addInput/addOutput — which also covers variadic growth, converted params,
- * and the SubgraphNode slot sync.
+ * Shape is per-slot with no library default, and slots are created long
+ * before this module runs (the initial graph predates applyTheme) — so the
+ * stamp goes through drawSlots, the per-frame choke point that sees every
+ * slot: existing nodes, future adds, variadic growth, converted params, and
+ * subgraph instance syncs. `??=` preserves any deliberately-set shape.
  */
 function installSlotShapes(): void {
   if (slotShapesInstalled) return
   slotShapesInstalled = true
 
-  const addInput = LGraphNode.prototype.addInput
-  LGraphNode.prototype.addInput = function (this: LGraphNode, ...args: Parameters<LGraphNode['addInput']>) {
-    const slot = addInput.apply(this, args)
-    if (slot) slot.shape = RenderShape.HollowCircle
-    return slot
-  } as LGraphNode['addInput']
-
-  const addOutput = LGraphNode.prototype.addOutput
-  LGraphNode.prototype.addOutput = function (this: LGraphNode, ...args: Parameters<LGraphNode['addOutput']>) {
-    const slot = addOutput.apply(this, args)
-    if (slot) slot.shape = RenderShape.HollowCircle
-    return slot
-  } as LGraphNode['addOutput']
+  const original = LGraphNode.prototype.drawSlots
+  LGraphNode.prototype.drawSlots = function (this: LGraphNode, ...args: Parameters<LGraphNode['drawSlots']>) {
+    for (const slot of this.inputs ?? []) slot.shape ??= RenderShape.HollowCircle
+    for (const slot of this.outputs ?? []) slot.shape ??= RenderShape.HollowCircle
+    return original.apply(this, args)
+  } as LGraphNode['drawSlots']
 }
