@@ -36,4 +36,17 @@ describe('theme slot rings', () => {
     expect(ctx.fillStyle).toBe('#f6f1e7')
     expect(ctx.strokeStyle).toBe('#654321')
   })
+
+  it('puts connection points on the frame edge, not 10px inside', () => {
+    const graph = new LGraph()
+    const node = LiteGraph.createNode('text/to-upper-case')
+    if (!node) throw new Error('unregistered')
+    node.pos = [100, 200]
+    graph.add(node)
+
+    applyTheme({} as LGraphCanvas)
+
+    expect(node.getInputPos(0)[0]).toBe(100)
+    expect(node.getOutputPos(0)[0]).toBe(100 + node.size[0])
+  })
 })

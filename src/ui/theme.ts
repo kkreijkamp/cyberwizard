@@ -1,4 +1,5 @@
 import { LGraphCanvas, LiteGraph, LGraphNode, RenderShape } from '@comfyorg/litegraph'
+import type { INodeInputSlot } from '@comfyorg/litegraph'
 
 /**
  * CyberWizard paper theme, applied once at startup. LiteGraph reads these
@@ -125,15 +126,34 @@ let slotShapesInstalled = false
 
 /**
  * Slot dots as open rings straddling the node frame, like the reference
- * design. The library's own HollowCircle shape is radius 3 with a 3px
- * stroke — a nearly-filled disk, no visible difference — so after the
- * library draws its (filled) dots, we punch a paper-coloured disc over each
- * and stroke a ring in the slot's type colour. Runs in the drawSlots choke
- * point, so every slot is covered regardless of when it was created.
+ * design. Two patches combine:
+ *
+ * 1. Connection points move from 10px inside the node onto the frame edge
+ *    (getInputSlotPos/getOutputPos) — the ring, the link endpoints, and the
+ *    hover boxes all derive from that one point, so they stay coherent.
+ *    Widget-input slots keep their inline dot, collapsed nodes untouched.
+ * 2. The library's own HollowCircle is radius 3 with a 3px stroke — a
+ *    nearly-filled disk — so after the library draws its dots we punch a
+ *    paper-coloured disc over each and stroke a ring in the slot's type
+ *    colour (the centre follows #measureSlot → the patched positions).
  */
 function installSlotShapes(): void {
   if (slotShapesInstalled) return
   slotShapesInstalled = true
+
+  const originalInputPos = LGraphNode.prototype.getInputSlotPos
+  LGraphNode.prototype.getInputSlotPos = function (this: LGraphNode, input: INodeInputSlot) {
+    if (input?.pos || this.flags.collapsed) return originalInputPos.call(this, input)
+    const [, y] = originalInputPos.call(this, input)
+    return [this.pos[0] ?? 0, y ?? 0] as [number, number]
+  } as LGraphNode['getInputSlotPos']
+
+  const originalOutputPos = LGraphNode.prototype.getOutputPos
+  LGraphNode.prototype.getOutputPos = function (this: LGraphNode, slot: number) {
+    if (this.outputs?.[slot]?.pos || this.flags.collapsed) return originalOutputPos.call(this, slot)
+    const [, y] = originalOutputPos.call(this, slot)
+    return [(this.pos[0] ?? 0) + (this.size[0] ?? 0), y ?? 0] as [number, number]
+  } as LGraphNode['getOutputPos']
 
   const original = LGraphNode.prototype.drawSlots
   LGraphNode.prototype.drawSlots = function (this: LGraphNode, ...args: Parameters<LGraphNode['drawSlots']>) {
