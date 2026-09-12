@@ -69,6 +69,7 @@ function bottomOf(node: LGraphNode): number {
 export function installNodeLayout(rootGraph: LGraph): void {
   installResizeHook()
   installGroupSnap()
+  installGroupMenu()
   hookAdds(rootGraph)
   for (const subgraph of rootGraph.subgraphs.values()) hookAdds(subgraph)
   onSubgraphDefsChange(rootGraph, () => {
@@ -98,6 +99,26 @@ function installGroupSnap(): void {
     this.pos[0] = Math.round((this.pos[0] - ox) / grid) * grid + ox
     this.pos[1] = Math.round((this.pos[1] - oy) / grid) * grid + oy
     return true
+  }
+}
+
+/**
+ * The library's group menu (Pin / Title / Color / Font size) has no delete —
+ * removing a group required selecting it and pressing Delete. Append a
+ * direct "Delete Group" entry.
+ */
+function installGroupMenu(): void {
+  const previous = LGraphGroup.prototype.getMenuOptions
+  LGraphGroup.prototype.getMenuOptions = function (this: LGraphGroup) {
+    const options = previous.call(this) as unknown[]
+    options.push(null, {
+      content: 'Delete Group',
+      callback: () => {
+        this.graph?.remove(this)
+        this.setDirtyCanvas(true, true)
+      },
+    })
+    return options as never
   }
 }
 

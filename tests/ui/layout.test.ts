@@ -144,4 +144,17 @@ describe('cell layout', () => {
     expect((group.pos[0] - ox) % LAYOUT_CELL).toBeCloseTo(0) // -100 % 50 is -0 in JS
     expect((group.pos[1] - oy) % LAYOUT_CELL).toBeCloseTo(0)
   })
+
+  it('offers Delete Group in the group menu, removing the group without selection', () => {
+    const graph = new LGraph()
+    installNodeLayout(graph)
+    const group = new LGraphGroup('G')
+    graph.add(group)
+
+    const entries = group.getMenuOptions() as Array<{ content?: string; callback?: () => void } | null>
+    const entry = entries.find((e) => e?.content === 'Delete Group')
+    expect(entry).toBeDefined()
+    entry?.callback?.()
+    expect(graph._groups).toHaveLength(0)
+  })
 })
