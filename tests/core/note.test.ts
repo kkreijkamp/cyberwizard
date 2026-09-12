@@ -1,7 +1,6 @@
 import { LGraph, LiteGraph } from '@comfyorg/litegraph'
 import { describe, expect, it } from 'vitest'
 import {
-  PREVIEW_WIDGET_NAME,
   getNodeDef,
   installConnectionRules,
   isConvertibleParam,
@@ -21,18 +20,20 @@ function mkNote(graph: LGraph) {
 }
 
 describe('notes/note', () => {
-  it('constructs with hidden param widgets, a note body widget, and no preview well', () => {
+  it('constructs with no param widgets (only the body widget), and no preview well', () => {
     const node = mkNote(new LGraph())
     const def = getNodeDef(node)
     expect(def?.type).toBe('notes/note')
     expect(node.inputs.length).toBe(0)
     expect(node.outputs.length).toBe(0)
 
-    const byName = new Map((node.widgets ?? []).map((w) => [w.name, w]))
-    expect(byName.has(PREVIEW_WIDGET_NAME)).toBe(false)
-    expect((paramWidgets(node).get('text') as { hidden?: boolean } | undefined)?.hidden).toBe(true)
-    expect((paramWidgets(node).get('tint') as { hidden?: boolean } | undefined)?.hidden).toBe(true)
-    expect(byName.has('note')).toBe(true)
+    // Hidden params are pure properties: no widget rows, nothing for
+    // litegraph's widget layout to leave gaps with.
+    expect((node.widgets ?? []).map((w) => w.name)).toEqual(['note'])
+    expect(paramWidgets(node).has('text')).toBe(false)
+    expect(paramWidgets(node).has('tint')).toBe(false)
+    expect(node.properties.text).toBe('')
+    expect(node.properties.tint).toBe('Notes')
   })
 
   it('never offers its params as connection points', () => {

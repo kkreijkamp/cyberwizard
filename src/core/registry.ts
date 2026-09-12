@@ -325,6 +325,11 @@ export function defineNode<
 
     private addParamWidget(param: ParamDef): void {
       this.properties[param.name] = param.default
+      // Hidden params get NO widget: litegraph's #arrangeWidgets assigns every
+      // widgets[] entry a row — even widget.hidden ones — leaving dead space
+      // in the body. A hidden param is a pure property: it serializes, flows
+      // through setParam, and is edited by the node's own UI (the Note).
+      if (param.hidden === true) return
       const onChange = (value: string | number | boolean): void => {
         this.properties[param.name] = value
         markNodeDirty(this)
@@ -346,10 +351,6 @@ export function defineNode<
           break
       }
       paramWidgets(this).set(param.name, widget)
-      // Hidden params keep their properties/default (and serialize) but take
-      // no row in the node body — litegraph skips hidden widgets in layout,
-      // draw, and hit-tests alike (isWidgetVisible).
-      if (param.hidden === true) (widget as { hidden?: boolean }).hidden = true
     }
 
     override onConnectionsChange(

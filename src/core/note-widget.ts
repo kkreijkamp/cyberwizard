@@ -73,7 +73,8 @@ interface NoteWidgetShape {
   appliedTint?: string
   /** The laid-out markdown for the current text at the given node width (cached). */
   layoutFor(width: number): MarkdownLayout
-  computeSize(width: number): [number, number]
+  /** litegraph calls this with a width (node.computeSize) and without (#arrangeWidgets). */
+  computeSize(width?: number): [number, number]
   draw(ctx: CanvasRenderingContext2D, node: LGraphNode, width: number, y: number, height: number): void
   mouse(event: { type?: string }, offset: [number, number], node: LGraphNode): boolean
 }
@@ -95,7 +96,10 @@ export function makeNoteWidget(node: LGraphNode): CustomWidgetParam {
     },
 
     computeSize(width) {
-      return [width, PAD_Y * 2 + widget.layoutFor(width).height]
+      // litegraph calls this both with the width (node.computeSize) and
+      // without any argument (#arrangeWidgets) — fall back to the live width.
+      const w = typeof width === 'number' && Number.isFinite(width) ? width : (node.size[0] ?? 210)
+      return [w, PAD_Y * 2 + widget.layoutFor(w).height]
     },
 
     draw(ctx, drawNode, width, y) {
