@@ -2,7 +2,7 @@ import type { LGraphCanvas, LGraphNode, LLink } from '@comfyorg/litegraph'
 import { describe, expect, it, vi } from 'vitest'
 import { installLinkStyles } from '../../src/ui/links'
 
-const LINK = { origin_id: 1 } as unknown as LLink
+const LINK = { origin_id: 1, id: 1 } as unknown as LLink
 
 function setup(engine: { hasOutputs: boolean; hasFailure: boolean }, highlighted = false) {
   const origin = { id: 1 } as LGraphNode
