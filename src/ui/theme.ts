@@ -90,12 +90,12 @@ export function applyTheme(canvas: LGraphCanvas): void {
   LiteGraph.WIDGET_TEXT_COLOR = '#2b2620'
   LiteGraph.WIDGET_SECONDARY_TEXT_COLOR = '#8a7f6a'
 
-  LiteGraph.LINK_COLOR = '#8a7f6a'
+  LiteGraph.LINK_COLOR = NODE_FRAME_COLOR
   LiteGraph.EVENT_LINK_COLOR = '#a83a32'
   LiteGraph.CONNECTING_LINK_COLOR = '#c2841a'
   // Snapshotted by the canvas at construction (same early-copy trap as the
   // title colour) — set its instance copy too.
-  canvas.default_link_color = '#8a7f6a'
+  canvas.default_link_color = NODE_FRAME_COLOR
   // Thin wires.
   canvas.connections_width = 1.5
   // No midpoint dot, no border/outline behind links.
