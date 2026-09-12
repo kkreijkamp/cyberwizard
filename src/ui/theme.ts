@@ -20,6 +20,9 @@ const DOT_GRID_TILE =
 export function applyTheme(canvas: LGraphCanvas): void {
   canvas.clear_background_color = '#f6f1e7'
   canvas.background_image = DOT_GRID_TILE
+  // The library's default viewport frame (#235) — invisible on the old dark
+  // theme, an unwanted rectangle on paper.
+  canvas.render_canvas_border = false
 
   LiteGraph.NODE_FONT = SERIF
   LiteGraph.GROUP_FONT = SERIF
