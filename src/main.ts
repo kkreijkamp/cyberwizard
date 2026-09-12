@@ -39,7 +39,7 @@ installNodeLayout(graph)
 // restored below flow through their normal hooks. Then: URL → autosave → showcase.
 const engine = new Engine(graph)
 attachSubgraphSupport(graph, engine)
-installComputeMenu(engine)
+installComputeMenu(engine, () => canvas)
 installWidgetInputMenu()
 
 const doc = initialDocument()

@@ -276,6 +276,41 @@ describe('Engine', () => {
     engine.dispose()
   })
 
+  it('propagates failure downstream as a red blocked state naming the cause', async () => {
+    reset()
+    const graph = new LGraph()
+    const flaky = spawn(graph, 'test-eng/flaky')
+    const mid = spawn(graph, 'test-eng/suffix')
+    const sink = spawn(graph, 'test-eng/sink')
+    flaky.connect(0, mid, 0)
+    mid.connect(0, sink, 0)
+
+    const midColor = mid.color
+    const engine = new Engine(graph)
+    await engine.whenIdle()
+
+    // mid never ran, yet it shows a failure too — red, blaming Flaky.
+    expect(counters.suffix).toBe(0)
+    expect(engine.stateOf(mid).blocked).toBe(true)
+    expect(mid.color).toBe('#ef4444')
+    expect(mid.bgcolor).toBe('#3d1515')
+    expect(engine.stateOf(mid).cause).toMatchObject({ nodeId: flaky.id, title: 'Flaky', message: 'boom' })
+    expect(engine.hasFailure(mid)).toBe(true)
+    expect(engine.failureSource(mid)?.node).toBe(flaky)
+    expect(engine.failureSource(flaky)).toBeUndefined() // Flaky is itself the source
+    const badge = mid.widgets?.find((w) => w.name === PREVIEW_WIDGET_NAME) as
+      | { value?: unknown }
+      | undefined
+    expect(badge?.value).toBe('⚠ Flaky: boom')
+
+    // Recovery re-runs mid and restores its colors.
+    setParam(flaky, 'mode', 'ok')
+    await engine.whenIdle()
+    expect(engine.stateOf(mid).blocked).toBe(false)
+    expect(mid.color).toBe(midColor)
+    engine.dispose()
+  })
+
   it('leaves an undemanded cycle inert, and errors once a sink demands it', async () => {
     reset()
     const graph = new LGraph()

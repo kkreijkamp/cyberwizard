@@ -55,6 +55,8 @@ export interface NodeState {
   error: Error | undefined
   /** True when an upstream node errored and this node was skipped. */
   blocked: boolean
+  /** While blocked: the node whose error propagated here (the root cause). */
+  cause: FailureCause | undefined
   /** In-flight ensure() promise — dedups concurrent pulls of the same node. */
   inFlight: Promise<void> | undefined
   /** True when this node sits on a detected cycle; its error sticks until an edit re-dirties it. */
@@ -63,9 +65,15 @@ export interface NodeState {
   savedColors: { color: string | undefined; bgcolor: string | undefined } | undefined
 }
 
+/** The node to blame for a propagated failure, with its error text. */
+interface FailureCause {
+  nodeId: NodeId
+  title: string
+  message: string
+}
+
 const COLOR_ERROR = '#ef4444'
 const COLOR_ERROR_BG = '#3d1515'
-const COLOR_BLOCKED = '#6b7280'
 const CYCLE_MESSAGE = 'graph contains a cycle through this node'
 
 /** Max call depth for nested instances — the guard on true recursive self-reference. */
@@ -79,10 +87,16 @@ interface ResolvedInput {
   status: InputStatus
   value: unknown
   fromType: DataType
+  /** Present on 'blocked': the root-cause node upstream. */
+  cause?: FailureCause
 }
 
 /** Thrown out of RunContext.pull when the pulled slot's upstream errored/is blocked. */
-class UpstreamBlocked extends Error {}
+class UpstreamBlocked extends Error {
+  constructor(override readonly cause?: FailureCause) {
+    super()
+  }
+}
 /** Thrown out of RunContext.pull when the pulled slot's upstream was superseded mid-pull. */
 class UpstreamStale extends Error {}
 
@@ -197,6 +211,58 @@ export class Engine {
 
   stateOf(node: LGraphNode): Readonly<NodeState> {
     return this.state(node)
+  }
+
+  /** True when the node currently shows a failure — its own error, or blocked by one upstream. */
+  hasFailure(node: LGraphNode): boolean {
+    return this.failureState(node) !== undefined
+  }
+
+  /**
+   * The node to blame for this one's failure: the recorded upstream cause
+   * when blocked, or the interior node whose error a subgraph instance
+   * wrapped (descend one level per call). Undefined when the node itself is
+   * the root cause — or when it isn't failing. Backs the node menu's
+   * "Go to failure source" action (ui/compute-menu.ts).
+   */
+  failureSource(node: LGraphNode): { node: LGraphNode; message: string } | undefined {
+    const found = this.failureState(node)
+    if (!found) return undefined
+    const { s, graph } = found
+    if (s.error) {
+      if (node.isSubgraphNode()) return this.interiorFailure(node)
+      return undefined
+    }
+    if (s.cause) {
+      const origin = graph.getNodeById(s.cause.nodeId)
+      if (origin) return { node: origin, message: s.cause.message }
+    }
+    return undefined
+  }
+
+  /** The failing state for a node, whether it lives at root or in a retained instance interior. */
+  private failureState(node: LGraphNode): { s: NodeState; graph: LGraph } | undefined {
+    const root = this.states.get(node.id)
+    if (root && (root.error || root.blocked)) return { s: root, graph: this.graph }
+    for (const store of this.interiorStores.values()) {
+      const s = store.get(node.id)
+      if (s && (s.error || s.blocked) && node.graph) return { s, graph: node.graph as LGraph }
+    }
+    return undefined
+  }
+
+  /** The first errored node inside a failed instance's interior, if its store was retained. */
+  private interiorFailure(instance: LGraphNode): { node: LGraphNode; message: string } | undefined {
+    const store = this.interiorStores.get(String(instance.id))
+    const sub = (instance as SubgraphNode).subgraph
+    if (!store || !sub) return undefined
+    for (const [id, s] of store) {
+      if (s.error) {
+        const inner = sub.getNodeById(id)
+        if (inner) return { node: inner, message: s.error.message }
+      }
+    }
+    return undefined
   }
 
   /** Current cached outputs of a node, undefined if it never ran cleanly. */
@@ -417,7 +483,7 @@ export class Engine {
         const resolved = await this.pullInput(node, index, scope)
         if (resolved.status === 'stale') return
         if (resolved.status === 'blocked') {
-          this.markBlocked(node, s)
+          this.markBlocked(node, s, resolved.cause)
           return
         }
         try {
@@ -443,7 +509,7 @@ export class Engine {
         const resolved = await this.pullInput(node, index, scope)
         if (resolved.status === 'stale') return
         if (resolved.status === 'blocked') {
-          this.markBlocked(node, s)
+          this.markBlocked(node, s, resolved.cause)
           return
         }
         if (resolved.status === 'empty') continue
@@ -465,7 +531,7 @@ export class Engine {
           const resolved = await this.pullInput(node, index, scope)
           if (resolved.status === 'stale') return
           if (resolved.status === 'blocked') {
-            this.markBlocked(node, s)
+            this.markBlocked(node, s, resolved.cause)
             return
           }
           if (resolved.status === 'empty') continue
@@ -496,13 +562,14 @@ export class Engine {
         s.outputs = def.outputs.map((o) => result[o.name])
         s.error = undefined
         s.blocked = false
+        s.cause = undefined
         s.dirty = false
         s.cycle = false
         this.paint(node, s)
       } catch (err) {
         if (generation !== s.generation) return
         if (err instanceof UpstreamBlocked) {
-          this.markBlocked(node, s)
+          this.markBlocked(node, s, err.cause)
           return
         }
         if (err instanceof UpstreamStale) return // stay dirty; a later flush retries
@@ -536,7 +603,14 @@ export class Engine {
 
     await this.ensure(origin, scope)
     const originState = this.stateIn(scope.store, origin)
-    if (originState.error || originState.blocked) return { status: 'blocked', value: undefined, fromType: ANY }
+    if (originState.error || originState.blocked) {
+      // Propagate the root cause down the chain, so every blocked dependent
+      // can name — and navigate to — the node actually at fault.
+      const cause: FailureCause | undefined = originState.error
+        ? { nodeId: origin.id, title: origin.title, message: originState.error.message }
+        : originState.cause
+      return { status: 'blocked', value: undefined, fromType: ANY, cause }
+    }
     if (originState.dirty || originState.running) return { status: 'stale', value: undefined, fromType: ANY }
     return { status: 'ok', value: originState.outputs?.[link.origin_slot], fromType: this.outputTypeOf(origin, link.origin_slot) }
   }
@@ -546,7 +620,7 @@ export class Engine {
     const index = def.inputs.findIndex((slot) => slot.name === slotName)
     if (index === -1) throw new Error(`unknown input slot "${slotName}"`)
     const resolved = await this.pullInput(node, index, scope)
-    if (resolved.status === 'blocked') throw new UpstreamBlocked()
+    if (resolved.status === 'blocked') throw new UpstreamBlocked(resolved.cause)
     if (resolved.status === 'stale') throw new UpstreamStale()
     return coerce(resolved.value, resolved.fromType, def.inputs[index]!.type)
   }
@@ -569,7 +643,7 @@ export class Engine {
       const resolved = await this.pullInput(node, index, scope)
       if (resolved.status === 'stale') return
       if (resolved.status === 'blocked') {
-        this.markBlocked(node, s)
+        this.markBlocked(node, s, resolved.cause)
         return
       }
       try {
@@ -613,6 +687,7 @@ export class Engine {
       s.outputs = outputs
       s.error = undefined
       s.blocked = false
+      s.cause = undefined
       s.dirty = false
       s.cycle = false
       this.paint(node, s)
@@ -769,10 +844,11 @@ export class Engine {
     return coerce(st.outputs?.[link.origin_slot], this.outputTypeOf(origin, link.origin_slot), slot.type)
   }
 
-  private markBlocked(node: LGraphNode, s: NodeState): void {
+  private markBlocked(node: LGraphNode, s: NodeState, cause?: FailureCause): void {
     if (s.cycle) return // the cycle error is the more precise diagnosis — keep it
     s.blocked = true
     s.error = undefined
+    s.cause = cause
     s.outputs = undefined
     s.dirty = false
     this.paint(node, s)
@@ -784,6 +860,7 @@ export class Engine {
       err instanceof CoercionError || err instanceof Error ? err : new Error(String(err))
     s.outputs = undefined
     s.blocked = false
+    s.cause = undefined
     s.dirty = false
     if (!scope.firstError) scope.firstError = { title: node.title, message: s.error.message }
     this.paint(node, s)
@@ -798,9 +875,12 @@ export class Engine {
   }
 
   private paint(node: LGraphNode, s: NodeState): void {
-    if (s.error) {
-      // Repaint the whole node red — the box strip alone is too easy to miss.
-      // Stash the node's own colors once so a later success restores them.
+    // Any failure — the node's own error, or an upstream one propagated to it
+    // (blocked) — repaints the whole node red; the box strip alone is too easy
+    // to miss. The node's own colors are stashed once so a later success
+    // restores them.
+    const failing = s.error !== undefined || s.blocked
+    if (failing) {
       s.savedColors ??= { color: node.color, bgcolor: node.bgcolor }
       node.color = COLOR_ERROR
       node.bgcolor = COLOR_ERROR_BG
@@ -809,7 +889,7 @@ export class Engine {
       node.bgcolor = s.savedColors.bgcolor
       s.savedColors = undefined
     }
-    node.boxcolor = s.error ? COLOR_ERROR : s.blocked ? COLOR_BLOCKED : undefined
+    node.boxcolor = failing ? COLOR_ERROR : undefined
 
     // Live preview widget (present on all registry nodes with outputs, and on
     // subgraph instances via the factory class in core/subgraph.ts).
@@ -820,7 +900,7 @@ export class Engine {
     if (s.error) {
       widget.value = `⚠ ${s.error.message}`
     } else if (s.blocked) {
-      widget.value = '⏸ blocked upstream'
+      widget.value = s.cause ? `⚠ ${s.cause.title}: ${s.cause.message}` : '⚠ blocked upstream'
     } else if (s.outputs) {
       const outputs = node.isSubgraphNode()
         ? getSubgraphDef(this.graph, node.type)?.outputs
@@ -851,6 +931,7 @@ export class Engine {
         outputs: undefined,
         error: undefined,
         blocked: false,
+        cause: undefined,
         inFlight: undefined,
         cycle: false,
         savedColors: undefined,
