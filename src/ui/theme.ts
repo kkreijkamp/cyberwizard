@@ -1,4 +1,4 @@
-import { LGraphCanvas, LiteGraph, LGraphNode, RenderShape } from '@comfyorg/litegraph'
+import { LGraphCanvas, LinkMarkerShape, LiteGraph, LGraphNode, RenderShape } from '@comfyorg/litegraph'
 import type { INodeInputSlot } from '@comfyorg/litegraph'
 import { NODE_FRAME_COLOR, NODE_FRAME_PADDING } from '../core/registry'
 
@@ -98,6 +98,9 @@ export function applyTheme(canvas: LGraphCanvas): void {
   canvas.default_link_color = '#8a7f6a'
   // Thin wires.
   canvas.connections_width = 1.5
+  // No midpoint dot, no border/outline behind links.
+  canvas.linkMarkerShape = LinkMarkerShape.None
+  canvas.render_connections_border = false
   // The stock per-type overrides ('number', 'node') are off-palette.
   LGraphCanvas.link_type_colors = {}
 
