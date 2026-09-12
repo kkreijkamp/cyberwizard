@@ -1,5 +1,19 @@
 :root {
-  color-scheme: dark;
+  color-scheme: light;
+
+  --paper: #f6f1e7;
+  --paper-deep: #f1ead9;
+  --surface: #fdfbf5;
+  --ink: #2b2620;
+  --ink-soft: #8a7f6a;
+  --border: #d8cfbc;
+  --amber: #a16207;
+  --amber-bright: #c2841a;
+  --amber-tint: rgba(161, 98, 7, 0.09);
+  --rust: #a83a32;
+
+  --serif: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', 'Source Serif 4', Georgia, serif;
+  --mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
 }
 
 * {
@@ -16,13 +30,12 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: #0b0e14;
-  color: #e6edf3;
-  font: 14px/1.4 ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+  background: var(--paper);
+  color: var(--ink);
+  font: 15px/1.45 var(--serif);
 }
 
-/* Floating action chip — out of flow, pinned to the top-right of the canvas.
-   The tagline is gone; the logo stays for identity. */
+/* Floating action chip — out of flow, pinned to the top-right of the canvas. */
 #app-header {
   position: fixed;
   top: 12px;
@@ -31,20 +44,20 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 10px;
-  background: rgba(15, 19, 27, 0.85);
+  padding: 6px 12px;
+  background: rgba(253, 251, 245, 0.88);
   backdrop-filter: blur(6px);
-  border: 1px solid rgba(34, 211, 238, 0.2);
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 3px 12px rgba(80, 66, 53, 0.18);
   user-select: none;
 }
 
 .logo {
   font-weight: 700;
-  font-size: 13px;
-  color: #22d3ee;
-  letter-spacing: 0.04em;
+  font-size: 15px;
+  color: var(--amber);
+  letter-spacing: 0.02em;
 }
 
 .header-actions {
@@ -53,19 +66,19 @@ body {
 }
 
 .header-actions button {
-  background: #0f1420;
-  color: #c9d4e3;
-  border: 1px solid #2a3142;
-  border-radius: 4px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 5px;
   padding: 3px 10px;
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   cursor: pointer;
 }
 
 .header-actions button:hover {
-  border-color: #22d3ee;
-  color: #ffffff;
+  border-color: var(--amber);
+  color: var(--amber);
 }
 
 #graph-host {
@@ -91,24 +104,25 @@ body {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  background: #0f131b;
-  border-right: 1px solid rgba(34, 211, 238, 0.15);
+  background: var(--paper-deep);
+  border-right: 1px solid var(--border);
 }
 
 .palette-search {
   margin: 8px;
   padding: 6px 8px;
-  background: #0b0e14;
-  border: 1px solid #2a3142;
-  border-radius: 4px;
-  color: #e6edf3;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--ink);
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .palette-search:focus {
   outline: none;
-  border-color: #22d3ee;
+  border-color: var(--amber);
+  box-shadow: 0 0 0 2px var(--amber-tint);
 }
 
 .palette-body {
@@ -124,7 +138,7 @@ body {
   flex-direction: column;
   gap: 1px;
   padding: 4px 0;
-  border-right: 1px solid rgba(34, 211, 238, 0.15);
+  border-right: 1px solid var(--border);
   overflow-y: auto;
   scrollbar-width: none;
 }
@@ -133,11 +147,10 @@ body {
   background: none;
   border: none;
   border-left: 2px solid transparent;
-  color: #8b98ab;
+  color: var(--ink-soft);
   font: inherit;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-size: 11px;
+  letter-spacing: 0.06em;
   padding: 8px 4px;
   cursor: pointer;
   writing-mode: vertical-rl;
@@ -145,13 +158,13 @@ body {
 }
 
 .palette-tab:hover {
-  color: #ffffff;
+  color: var(--ink);
 }
 
 .palette-tab.active {
-  color: #22d3ee;
-  border-left-color: #22d3ee;
-  background: rgba(34, 211, 238, 0.08);
+  color: var(--amber);
+  border-left-color: var(--amber);
+  background: var(--amber-tint);
 }
 
 .palette-list {
@@ -162,26 +175,25 @@ body {
 }
 
 .palette-category {
-  color: #8b98ab;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  font-size: 12px;
+  letter-spacing: 0.06em;
   padding: 10px 6px 4px;
 }
 
 .palette-item {
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: 5px;
   cursor: grab;
-  color: #c9d4e3;
+  color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .palette-item:hover {
-  background: rgba(34, 211, 238, 0.12);
-  color: #ffffff;
+  background: var(--amber-tint);
+  color: var(--amber);
 }
 
 /* ─── Subgraph UI ─────────────────────────────────────────────────────────── */
@@ -192,15 +204,18 @@ body {
   left: 0;
   z-index: 5;
   padding: 6px 10px;
-  background: rgba(15, 19, 27, 0.85);
+  background: rgba(253, 251, 245, 0.88);
+  backdrop-filter: blur(6px);
   border-bottom-right-radius: 6px;
-  font-size: 12px;
-  color: #8b98ab;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--ink-soft);
   user-select: none;
 }
 
 #breadcrumb a {
-  color: #22d3ee;
+  color: var(--amber);
   text-decoration: none;
 }
 
@@ -209,15 +224,15 @@ body {
 }
 
 #breadcrumb .crumb-current {
-  color: #e6edf3;
-  font-weight: 600;
+  color: var(--ink);
+  font-weight: 700;
 }
 
 #io-panel {
   flex-shrink: 0;
   max-height: 45%;
   overflow-y: auto;
-  border-top: 1px solid rgba(34, 211, 238, 0.15);
+  border-top: 1px solid var(--border);
   padding-bottom: 8px;
 }
 
@@ -228,8 +243,8 @@ body {
 }
 
 .io-section {
-  color: #8b98ab;
-  font-size: 11px;
+  color: var(--ink-soft);
+  font-size: 12px;
   letter-spacing: 0.06em;
   padding: 8px 8px 2px;
 }
@@ -239,37 +254,37 @@ body {
   align-items: center;
   gap: 6px;
   padding: 2px 8px;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .io-row .io-name {
   flex: 1;
-  color: #c9d4e3;
+  color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .io-row .io-type {
-  color: #6b7280;
-  font-size: 10px;
-  border: 1px solid #2a3142;
+  color: var(--ink-soft);
+  font: 10px var(--mono);
+  border: 1px solid var(--border);
   border-radius: 3px;
-  padding: 0 4px;
+  padding: 1px 4px;
 }
 
 .io-icon {
   background: none;
   border: none;
-  color: #8b98ab;
+  color: var(--ink-soft);
   cursor: pointer;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   padding: 0 2px;
 }
 
 .io-icon:hover {
-  color: #22d3ee;
+  color: var(--amber);
 }
 
 .io-add {
@@ -281,28 +296,108 @@ body {
 .io-add input {
   flex: 1;
   min-width: 0;
-  background: #0b0e14;
-  border: 1px solid #2a3142;
-  border-radius: 4px;
-  color: #e6edf3;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--ink);
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   padding: 3px 6px;
+}
+
+.io-add input:focus {
+  outline: none;
+  border-color: var(--amber);
+  box-shadow: 0 0 0 2px var(--amber-tint);
 }
 
 .io-add select,
 .io-add button {
-  background: #0f1420;
-  border: 1px solid #2a3142;
-  border-radius: 4px;
-  color: #c9d4e3;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--ink);
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   padding: 2px 6px;
   cursor: pointer;
 }
 
 .io-add button:hover {
-  border-color: #22d3ee;
+  border-color: var(--amber);
+  color: var(--amber);
 }
 
+/* ─── LiteGraph DOM surfaces (context menus, search box, dialogs) ─────────── */
+/* Specificity matches the library's own two-class rules; its !important
+   backgrounds/shadows are overridden in kind. */
+
+.litegraph.litecontextmenu,
+.litegraph.litecontextmenu.dark {
+  background: var(--surface) !important;
+  color: var(--ink);
+  font-family: var(--serif);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(80, 66, 53, 0.22) !important;
+}
+
+.litegraph.litecontextmenu .litemenu-title {
+  color: var(--ink-soft);
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border);
+  padding: 6px 10px 4px;
+}
+
+.litegraph.litecontextmenu .litemenu-entry {
+  color: var(--ink);
+  border-radius: 4px;
+}
+
+.litegraph.litecontextmenu .litemenu-entry:hover,
+.litegraph.litecontextmenu .litemenu-entry.submenu,
+.litegraph.litecontextmenu.dark .litemenu-entry.submenu {
+  background: var(--amber-tint) !important;
+  color: var(--amber);
+}
+
+.litegraph.litecontextmenu .litemenu-entry.disabled {
+  color: var(--ink-soft);
+  opacity: 0.6;
+}
+
+.litegraph.litesearchbox,
+.litegraph .graphdialog {
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--serif);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(80, 66, 53, 0.22);
+}
+
+.litegraph.litesearchbox input,
+.litegraph .graphdialog input,
+.litegraph .graphdialog select,
+.litegraph .graphdialog textarea {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--ink);
+  font-family: var(--serif);
+}
+
+.litegraph.lite-search-item {
+  color: var(--ink);
+}
+
+.litegraph.lite-search-item.selected,
+.litegraph.lite-search-item:hover {
+  background: var(--amber-tint);
+  color: var(--amber);
+}
+
+.litegraph.lite-search-item-type {
+  color: var(--ink-soft);
+}

@@ -398,16 +398,18 @@ function tagToDataType(tag: SlotTypeTag): DataType {
 
 // ─── Category colours ────────────────────────────────────────────────────────
 
+/** Muted mid-tone title bars + cream-tinted bodies, for the paper theme. */
 const CATEGORY_COLORS: Record<string, { color: string; bgcolor: string }> = {
-  IO: { color: '#1f6f4a', bgcolor: '#12291d' },
-  Encoding: { color: '#0e7490', bgcolor: '#0b2831' },
-  Hashing: { color: '#b45309', bgcolor: '#2c1c07' },
-  Text: { color: '#5b3a8c', bgcolor: '#1f1530' },
-  Logic: { color: '#1d4ed8', bgcolor: '#0e1a35' },
-  Data: { color: '#be185d', bgcolor: '#30091b' },
-  Crypto: { color: '#b91c1c', bgcolor: '#2d0f0f' },
-  Flow: { color: '#4b5563', bgcolor: '#1a1d23' },
-  Math: { color: '#0f766e', bgcolor: '#062e2b' },
+  IO: { color: '#5f7f5a', bgcolor: '#eef2e6' },
+  Encoding: { color: '#3f7f8c', bgcolor: '#e8f0f1' },
+  Hashing: { color: '#b07830', bgcolor: '#f7efdd' },
+  Text: { color: '#7a5f9e', bgcolor: '#f0eaf6' },
+  Logic: { color: '#4a6fa5', bgcolor: '#e9eef7' },
+  Data: { color: '#a04a68', bgcolor: '#f6e9ee' },
+  Crypto: { color: '#a83a32', bgcolor: '#f7e8e6' },
+  Flow: { color: '#6b7280', bgcolor: '#eff0f2' },
+  Math: { color: '#4f8577', bgcolor: '#e8f2ef' },
+  Subgraphs: { color: '#8a6d3b', bgcolor: '#f5efe0' },
 }
 
 export function categoryColors(category: string): { color: string; bgcolor: string } {
@@ -417,5 +419,5 @@ export function categoryColors(category: string): { color: string; bgcolor: stri
   let hash = 0
   for (const ch of category) hash = (hash * 31 + ch.charCodeAt(0)) | 0
   const hue = ((hash % 360) + 360) % 360
-  return { color: `hsl(${hue} 45% 32%)`, bgcolor: `hsl(${hue} 45% 12%)` }
+  return { color: `hsl(${hue} 30% 45%)`, bgcolor: `hsl(${hue} 35% 93%)` }
 }

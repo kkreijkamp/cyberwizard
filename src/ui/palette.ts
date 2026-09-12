@@ -224,7 +224,7 @@ export function createPalette(host: HTMLElement, canvas: LGraphCanvas, graph: LG
         content: `${t.value === current ? '✓ ' : ''}${t.label}`,
         callback: () => reScopeDef(graph, def.type, t.value),
       })),
-      { event: e, className: 'dark', title: `Scope of “${def.title}”` },
+      { event: e, title: `Scope of “${def.title}”` },
     )
   }
 

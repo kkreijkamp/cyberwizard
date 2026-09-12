@@ -262,9 +262,9 @@ describe('Engine', () => {
     await engine.whenIdle()
 
     expect(engine.stateOf(flaky).error?.message).toBe('boom')
-    expect(flaky.color).toBe('#ef4444')
-    expect(flaky.bgcolor).toBe('#3d1515')
-    expect(flaky.boxcolor).toBe('#ef4444')
+    expect(flaky.color).toBe('#a83a32')
+    expect(flaky.bgcolor).toBe('#f7e3e0')
+    expect(flaky.boxcolor).toBe('#a83a32')
 
     setParam(flaky, 'mode', 'ok')
     await engine.whenIdle()
@@ -292,8 +292,8 @@ describe('Engine', () => {
     // mid never ran, yet it shows a failure too — red, blaming Flaky.
     expect(counters.suffix).toBe(0)
     expect(engine.stateOf(mid).blocked).toBe(true)
-    expect(mid.color).toBe('#ef4444')
-    expect(mid.bgcolor).toBe('#3d1515')
+    expect(mid.color).toBe('#a83a32')
+    expect(mid.bgcolor).toBe('#f7e3e0')
     expect(engine.stateOf(mid).cause).toMatchObject({ nodeId: flaky.id, title: 'Flaky', message: 'boom' })
     expect(engine.hasFailure(mid)).toBe(true)
     expect(engine.failureSource(mid)?.node).toBe(flaky)
