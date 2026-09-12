@@ -167,11 +167,18 @@ function installSlotShapes(): void {
   // The slot hotspot rect extends past the node edge with the ring, but slot
   // hit tests only run for points inside the node's bounding rect — the
   // ring's outer half was culled as empty canvas, making the effective
-  // hotspot the (offset) inner half. Inflate the bounds horizontally by the
-  // ring's grab margin (updateArea calls this hook every frame).
-  LGraphNode.prototype.onBounding = function (this: LGraphNode, bounds: { [index: number]: number }): void {
-    bounds[0] = (bounds[0] ?? 0) - SLOT_GRAB_MARGIN
-    bounds[2] = (bounds[2] ?? 0) + SLOT_GRAB_MARGIN * 2
+  // hotspot the (offset) inner half. Relax the hit test itself by the ring's
+  // grab margin; the bounding rect is left alone because the node body is
+  // rendered from it (inflating it widened the node — see the revert).
+  const originalIsPointInside = LGraphNode.prototype.isPointInside
+  LGraphNode.prototype.isPointInside = function (this: LGraphNode, x: number, y: number): boolean {
+    if (originalIsPointInside.call(this, x, y)) return true
+    const r = this.boundingRect
+    const left = (r[0] ?? 0) - SLOT_GRAB_MARGIN
+    const right = (r[0] ?? 0) + (r[2] ?? 0) + SLOT_GRAB_MARGIN
+    const top = r[1] ?? 0
+    const bottom = top + (r[3] ?? 0)
+    return x >= left && x <= right && y >= top && y <= bottom
   }
 }
 
