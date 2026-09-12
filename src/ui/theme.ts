@@ -1,4 +1,4 @@
-import { LiteGraph, RenderShape } from '@comfyorg/litegraph'
+import { LiteGraph, LGraphNode, RenderShape } from '@comfyorg/litegraph'
 import type { LGraphCanvas } from '@comfyorg/litegraph'
 
 /**
@@ -57,7 +57,7 @@ export function applyTheme(canvas: LGraphCanvas): void {
   LiteGraph.GROUP_FONT = SERIF
 
   LiteGraph.NODE_DEFAULT_SHAPE = RenderShape.BOX
-  LiteGraph.NODE_DEFAULT_COLOR = '#e8e0cd'
+  LiteGraph.NODE_DEFAULT_COLOR = '#8a7f6a'
   LiteGraph.NODE_DEFAULT_BGCOLOR = '#fdfbf5'
   LiteGraph.NODE_DEFAULT_BOXCOLOR = '#a16207'
   LiteGraph.NODE_BOX_OUTLINE_COLOR = '#a16207' // the selection halo
@@ -75,4 +75,11 @@ export function applyTheme(canvas: LGraphCanvas): void {
   LiteGraph.LINK_COLOR = '#8a7f6a'
   LiteGraph.EVENT_LINK_COLOR = '#a83a32'
   LiteGraph.CONNECTING_LINK_COLOR = '#c2841a'
+
+  // Book-heading titles: the library's titleFontStyle getter carries no
+  // weight — patch the prototype getter (same slot) to add bold.
+  Object.defineProperty(LGraphNode.prototype, 'titleFontStyle', {
+    configurable: true,
+    get: () => `bold ${LiteGraph.NODE_TEXT_SIZE}px ${LiteGraph.NODE_FONT}`,
+  })
 }
