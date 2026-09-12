@@ -60,6 +60,10 @@ export function applyTheme(canvas: LGraphCanvas): void {
   // titles entirely; our graphs are small enough to render fully always.
   canvas.low_quality_zoom_threshold = 0
 
+  // The canvas copies NODE_TITLE_COLOR at construction, before this runs —
+  // set its instance copy too or unselected titles stay the stock #999.
+  canvas.node_title_color = '#ffffff'
+
   LiteGraph.NODE_DEFAULT_SHAPE = RenderShape.BOX
   LiteGraph.NODE_DEFAULT_COLOR = '#8a7f6a'
   LiteGraph.NODE_DEFAULT_BGCOLOR = '#fdfbf5'
