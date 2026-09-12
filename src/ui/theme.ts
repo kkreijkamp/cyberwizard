@@ -163,11 +163,23 @@ function installSlotShapes(): void {
     original.apply(this, args)
     drawHollowSlots(this, args[0], args[1])
   } as LGraphNode['drawSlots']
+
+  // The slot hotspot rect extends past the node edge with the ring, but slot
+  // hit tests only run for points inside the node's bounding rect — the
+  // ring's outer half was culled as empty canvas, making the effective
+  // hotspot the (offset) inner half. Inflate the bounds horizontally by the
+  // ring's grab margin (updateArea calls this hook every frame).
+  LGraphNode.prototype.onBounding = function (this: LGraphNode, bounds: { [index: number]: number }): void {
+    bounds[0] = (bounds[0] ?? 0) - SLOT_GRAB_MARGIN
+    bounds[2] = (bounds[2] ?? 0) + SLOT_GRAB_MARGIN * 2
+  }
 }
 
 const SLOT_RING_RADIUS = 5.5
 /** Ring spec = the node frame's: 1px in NODE_FRAME_COLOR. */
 const SLOT_RING_WIDTH = 1
+/** Horizontal hit-test margin past the node edge, covering the ring's grab zone. */
+const SLOT_GRAB_MARGIN = 10
 
 /** Structural view of the concrete NodeSlot members (absent from the public slot interfaces). */
 interface ConcreteSlot {

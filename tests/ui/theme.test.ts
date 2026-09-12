@@ -49,4 +49,20 @@ describe('theme slot rings', () => {
     expect(node.getInputPos(0)[0]).toBe(99.5) // frame centre sits 0.5px outside the edge
     expect(node.getOutputPos(0)[0]).toBe(100 + node.size[0] + 0.5)
   })
+
+  it('extends the node hit bounds past the edge so the ring is grabbable', () => {
+    const graph = new LGraph()
+    const node = LiteGraph.createNode('text/to-upper-case')
+    if (!node) throw new Error('unregistered')
+    node.pos = [100, 200]
+    graph.add(node)
+
+    applyTheme({} as LGraphCanvas)
+    node.updateArea({ measureText: () => ({ width: 40 }) } as never)
+
+    // The input ring's outer half sits past the frame — a click just outside
+    // the node edge must still register as inside (was culled: dead half).
+    expect(node.isPointInside(93, 214)).toBe(true)
+    expect(node.isPointInside(89, 214)).toBe(false) // margin is exactly 10px
+  })
 })
