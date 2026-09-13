@@ -145,9 +145,9 @@ The registry drives the node palette, search, and slot-type compatibility checks
 - Data: JSON Parse/Stringify, JSONPath Pick, To/From Bytes
 
 **Phase 2 — crypto & formats**
-- AES-GCM/CBC, RSA (WebCrypto), key-generate nodes
+- ~~**Crypto (WebCrypto)**~~ **(done)** — AES-GCM/CBC encrypt/decrypt, RSA key-generate + OAEP encrypt/decrypt + PSS sign/verify, EC generate + ECDSA sign/verify + ECDH derive, Ed25519, PBKDF2/HKDF, random-bytes, JWT decode (with signedData for composed verification)
 - gzip/deflate (pako), CRC32, checksums
-- Number base convert, timestamps (unix ↔ ISO), JWT decode, UUID gen
+- Number base convert, timestamps (unix ↔ ISO), UUID gen
 - CSV ↔ JSON, YAML, XML pretty/minify
 
 **Phase 3 — flow & power features**
