@@ -5,7 +5,7 @@ import { Engine } from './core/engine'
 import { installConnectionRules } from './core/registry'
 import { deserializeGraph } from './core/serialize'
 import { attachSubgraphSupport } from './core/subgraph'
-import { buildShowcaseGraph } from './showcase'
+import { welcomeTour } from './scenes/welcome-tour'
 import { installCallLens } from './ui/call-lens'
 import { installComputeMenu } from './ui/compute-menu'
 import { installHiDPICanvas } from './ui/hidpi'
@@ -51,7 +51,7 @@ installWidgetInputMenu()
 
 const doc = initialDocument()
 if (doc) deserializeGraph(doc, graph)
-else buildShowcaseGraph(graph)
+else deserializeGraph(welcomeTour(), graph) // first boot: the annotated tour, not a bare demo
 
 // LGraphCanvas starts its own render loop on construction (unless skip_render).
 const canvas = new LGraphCanvas(canvasElement, graph, { autoresize: true })

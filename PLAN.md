@@ -158,9 +158,9 @@ The registry drives the node palette, search, and slot-type compatibility checks
 - Diff/Compare node, frequency analysis, entropy meter
 
 **Phase 4 — extended**
+- ~~**Example scenes gallery**~~ **(done)** — 11 annotated scenes (crypto teaching + platform features) with markdown notes, in the header's Examples picker; first boot lands on the Welcome Tour
 - HTTP Request node (CORS-permitting), sandboxed JS Function node
 - Worker-based execution, large-file streaming
-- Graph templates gallery (e.g. "analyze a JWT", "peel a multi-layer obfuscated string")
 
 ## Repo layout
 
