@@ -14,7 +14,7 @@
 
 import { LiteGraph } from '@comfyorg/litegraph'
 import { NOTE_TINTS, defineNode } from '../../core/registry'
-import { NOTE_TEXT_PARAM, NOTE_TINT_PARAM, makeNoteWidget } from '../../core/note-widget'
+import { NOTE_TEXT_PARAM, NOTE_TINT_PARAM, drawNoteFold, makeNoteWidget } from '../../core/note-widget'
 
 defineNode({
   type: 'notes/note',
@@ -39,6 +39,8 @@ defineNode({
       return size
     }
     node.addCustomWidget(makeNoteWidget(node))
+    // The sticky-note affordance: a folded corner, tinted from the bgcolor.
+    node.onDrawForeground = (ctx) => drawNoteFold(ctx, node)
     node.onNodeTitleDblClick = (e, _pos, canvas) => {
       canvas.prompt('Title', node.title, (value: string) => {
         if (value !== '') {

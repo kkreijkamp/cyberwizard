@@ -48,6 +48,47 @@ export function fontFor(style: TextStyle): string {
   return `${italic}${bold}${style.size}px ${style.code ? MONO : SERIF}`
 }
 
+// ─── Dog-ear fold ────────────────────────────────────────────────────────────
+
+/**
+ * Notes wear a folded top-right corner so they read as sticky notes, not
+ * operations. Drawn from onDrawForeground (nodes/notes/note) in body-local
+ * coords; small enough to live inside the body's text padding. The shades
+ * derive from the node's current bgcolor, so recoloring (the tint param)
+ * recolors the fold too.
+ */
+const FOLD = 10
+
+function shade(hex: string, factor: number): string {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex)
+  const n = m ? parseInt(m[1]!, 16) : 0xfaf3df
+  const r = Math.round(((n >> 16) & 255) * factor)
+  const g = Math.round(((n >> 8) & 255) * factor)
+  const b = Math.round((n & 255) * factor)
+  return `rgb(${r} ${g} ${b})`
+}
+
+export function drawNoteFold(ctx: CanvasRenderingContext2D, node: LGraphNode): void {
+  if (node.flags.collapsed) return
+  const w = node.size[0]
+  const bg = typeof node.bgcolor === 'string' ? node.bgcolor : '#faf3df'
+  // The corner triangle: the folded flap's shadow side.
+  ctx.beginPath()
+  ctx.moveTo(w - FOLD, 0)
+  ctx.lineTo(w, 0)
+  ctx.lineTo(w, FOLD)
+  ctx.closePath()
+  ctx.fillStyle = shade(bg, 0.8)
+  ctx.fill()
+  // The crease.
+  ctx.beginPath()
+  ctx.moveTo(w - FOLD, 0)
+  ctx.lineTo(w, FOLD)
+  ctx.lineWidth = 1
+  ctx.strokeStyle = shade(bg, 0.6)
+  ctx.stroke()
+}
+
 /** Character-width approximation for headless runs (tests) — never used in the browser. */
 function approximateMeasure(text: string, style: TextStyle): number {
   return text.length * style.size * (style.code ? 0.62 : 0.5)
