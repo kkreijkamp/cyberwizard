@@ -61,8 +61,6 @@ export interface NodeState {
   inFlight: Promise<void> | undefined
   /** True when this node sits on a detected cycle; its error sticks until an edit re-dirties it. */
   cycle: boolean
-  /** The node's own colors, stashed while an error repaint overrides them. */
-  savedColors: { color: string | undefined; bgcolor: string | undefined } | undefined
 }
 
 /** The node to blame for a propagated failure, with its error text. */
@@ -144,6 +142,13 @@ interface EvalScope {
 export class Engine {
   private readonly states = new Map<NodeId, NodeState>()
   private readonly abortControllers = new Map<NodeId, AbortController>()
+  /**
+   * Nodes' own colors, stashed while an error repaint overrides them. Keyed by
+   * NODE, not by state: interior nodes are shared objects painted by many
+   * calls' states, and a per-state stash could capture already-red colors (or
+   * die inside a discarded transient state), leaving the node stuck red.
+   */
+  private readonly originalColors = new WeakMap<LGraphNode, { color: string | undefined; bgcolor: string | undefined }>()
   /** Interior node states, keyed by instance path ("12", "12/7", …). */
   private readonly interiorStores = new Map<string, Map<NodeId, NodeState>>()
   /**
@@ -906,17 +911,22 @@ export class Engine {
 
     // Any failure — the node's own error, or an upstream one propagated to it
     // (blocked) — repaints the whole node red; the box strip alone is too easy
-    // to miss. The node's own colors are stashed once so a later success
-    // restores them.
+    // to miss. The node's own colors are stashed once per node so a later
+    // success restores them, no matter which call's state paints first.
     const failing = s.error !== undefined || s.blocked
     if (failing) {
-      s.savedColors ??= { color: node.color, bgcolor: node.bgcolor }
+      if (!this.originalColors.has(node)) {
+        this.originalColors.set(node, { color: node.color, bgcolor: node.bgcolor })
+      }
       node.color = COLOR_ERROR
       node.bgcolor = COLOR_ERROR_BG
-    } else if (s.savedColors) {
-      node.color = s.savedColors.color
-      node.bgcolor = s.savedColors.bgcolor
-      s.savedColors = undefined
+    } else {
+      const saved = this.originalColors.get(node)
+      if (saved) {
+        node.color = saved.color
+        node.bgcolor = saved.bgcolor
+        this.originalColors.delete(node)
+      }
     }
     node.boxcolor = failing ? COLOR_ERROR : undefined
 
@@ -963,7 +973,6 @@ export class Engine {
         cause: undefined,
         inFlight: undefined,
         cycle: false,
-        savedColors: undefined,
       }
       store.set(node.id, s)
     }
