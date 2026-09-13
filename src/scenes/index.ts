@@ -8,7 +8,11 @@ import type { GraphDocument } from '../core/serialize'
 import { aesGcm } from './aes-gcm'
 import { ecdhAgreement } from './ecdh-agreement'
 import { hashesAvalanche } from './hashes-avalanche'
+import { jwtAnatomy } from './jwt-anatomy'
+import { listPipelines } from './list-pipelines'
 import { pbkdf2Passwords } from './pbkdf2-passwords'
+import { peelingLayers } from './peeling-layers'
+import { recursionLens } from './recursion-lens'
 import { rsaHybrid } from './rsa-hybrid'
 import { signatures } from './signatures'
 import { welcomeTour } from './welcome-tour'
@@ -63,5 +67,29 @@ export const SCENES: readonly Scene[] = [
     title: 'ECDH: Secrets From Thin Air',
     description: 'Two parties derive the same secret without sending it, then HKDF makes it an AES key.',
     build: ecdhAgreement,
+  },
+  {
+    id: 'jwt-anatomy',
+    title: 'Anatomy of a JWT',
+    description: 'Decode the parts, pick the claims, and verify HS256 by composition (HMAC → Equals).',
+    build: jwtAnatomy,
+  },
+  {
+    id: 'recursion-lens',
+    title: 'Recursion & the Call Lens',
+    description: 'A subgraph that calls itself — double-click into it and step through every recursion layer.',
+    build: recursionLens,
+  },
+  {
+    id: 'list-pipelines',
+    title: 'List Pipelines (Map/Filter)',
+    description: 'Split → Map → Filter → Join, with subgraphs picked by name as the per-element functions.',
+    build: listPipelines,
+  },
+  {
+    id: 'peeling-layers',
+    title: 'Peeling Layers of Encoding',
+    description: 'Read an obfuscation by its shape and unwind Base64 → hex → XOR, watching every stage.',
+    build: peelingLayers,
   },
 ]

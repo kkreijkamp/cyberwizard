@@ -51,11 +51,13 @@ export function pbkdf2Passwords(): GraphDocument {
   b.link(saltB64, 'text', saltWatch, 'value')
 
   const dec = b.node('crypto/aes-gcm-decrypt', [1400, 1300])
-  const plainWatch = b.watch([1750, 1300], 'Decrypted ✓')
+  const backToText = b.node('data/from-bytes', [1700, 1400], 'As text')
+  const plainWatch = b.watch([2050, 1300], 'Decrypted ✓')
   b.link(enc, 'ciphertext', dec, 'ciphertext')
   b.link(kdf, 'key', dec, 'key')
   b.link(enc, 'iv', dec, 'iv')
-  b.link(dec, 'plaintext', plainWatch, 'value')
+  b.link(dec, 'plaintext', backToText, 'data')
+  b.link(backToText, 'text', plainWatch, 'value')
 
   b.note(
     [1000, 1600],

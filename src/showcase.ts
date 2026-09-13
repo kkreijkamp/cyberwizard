@@ -23,8 +23,11 @@ export interface Showcase {
 export function buildShowcaseGraph(graph: LGraph = new LGraph()): Showcase {
 
   const spawn = (type: string, pos: [number, number], title?: string): LGraphNode => {
-    const node = LiteGraph.createNode(type, title)
+    // createNode's title argument is dropped by registry-generated classes
+    // (their constructor passes def.title to super) — set it explicitly.
+    const node = LiteGraph.createNode(type)
     if (!node) throw new Error(`node type not registered: ${type}`)
+    if (title !== undefined) node.title = title
     node.pos = pos
     graph.add(node)
     return node

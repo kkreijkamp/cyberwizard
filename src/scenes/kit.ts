@@ -40,8 +40,12 @@ export class SceneBuilder {
   readonly graph = new LGraph()
 
   node(type: string, pos: Pos, title?: string): LGraphNode {
-    const node = LiteGraph.createNode(type, title)
+    // Note: LiteGraph.createNode(type, title) does NOT apply the title for
+    // registry-generated classes (their constructor passes def.title to
+    // super, so node.title is already truthy) — set it explicitly.
+    const node = LiteGraph.createNode(type)
     if (!node) throw new Error(`scene: unregistered node type "${type}"`)
+    if (title !== undefined) node.title = title
     node.pos = pos
     this.graph.add(node)
     return node
@@ -121,8 +125,12 @@ export class SubgraphBuilder {
   }
 
   node(type: string, pos: Pos, title?: string): LGraphNode {
-    const node = LiteGraph.createNode(type, title)
+    // Note: LiteGraph.createNode(type, title) does NOT apply the title for
+    // registry-generated classes (their constructor passes def.title to
+    // super, so node.title is already truthy) — set it explicitly.
+    const node = LiteGraph.createNode(type)
     if (!node) throw new Error(`scene: unregistered node type "${type}"`)
+    if (title !== undefined) node.title = title
     node.pos = pos
     this.graph.add(node)
     return node

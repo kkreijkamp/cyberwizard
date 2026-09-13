@@ -57,11 +57,13 @@ export function aesGcm(): GraphDocument {
   b.link(enc, 'iv', ivWatch, 'value')
 
   const dec = b.node('crypto/aes-gcm-decrypt', [950, 1350])
-  const plainWatch = b.watch([1350, 1350], 'Decrypted ✓')
+  const backToText = b.node('data/from-bytes', [1300, 1450], 'As text')
+  const plainWatch = b.watch([1650, 1350], 'Decrypted ✓')
   b.link(enc, 'ciphertext', dec, 'ciphertext')
   b.link(key, 'bytes', dec, 'key')
   b.link(enc, 'iv', dec, 'iv')
-  b.link(dec, 'plaintext', plainWatch, 'value')
+  b.link(dec, 'plaintext', backToText, 'data')
+  b.link(backToText, 'text', plainWatch, 'value')
 
   b.note(
     [1350, 500],

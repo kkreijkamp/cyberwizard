@@ -65,13 +65,15 @@ export function rsaHybrid(): GraphDocument {
 
   const unwrap = b.node('crypto/rsa-decrypt', [1000, 1750], 'RSA unwrap')
   const dec = b.node('crypto/aes-gcm-decrypt', [1450, 1750])
-  const plainWatch = b.watch([1850, 1750], 'Decrypted ✓')
+  const backToText = b.node('data/from-bytes', [1800, 1850], 'As text')
+  const plainWatch = b.watch([2150, 1750], 'Decrypted ✓')
   b.link(wrap, 'ciphertext', unwrap, 'ciphertext')
   b.link(pair, 'privateKey', unwrap, 'privateKey')
   b.link(enc, 'ciphertext', dec, 'ciphertext')
   b.link(unwrap, 'plaintext', dec, 'key')
   b.link(enc, 'iv', dec, 'iv')
-  b.link(dec, 'plaintext', plainWatch, 'value')
+  b.link(dec, 'plaintext', backToText, 'data')
+  b.link(backToText, 'text', plainWatch, 'value')
 
   b.note(
     [1450, 1300],
