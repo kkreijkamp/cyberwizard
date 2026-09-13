@@ -110,6 +110,12 @@ The registry drives the node palette, search, and slot-type compatibility checks
   Evaluation is guarded by a depth limit (64) and a per-call-tree evaluation
   budget (1000), surfacing as ordinary node errors — never a stack overflow
   or page freeze.
+- **Call trace + lens**: every instance call from a root-level run downward is
+  recorded (transient recursive calls included, capped at the eval budget;
+  apply() subtrees excluded) with its boundary inputs. While a definition is
+  open, the *call lens* picks which recorded call drives badges/inspect:
+  double-click an instance to descend into its call, Esc pops back out, and a
+  dropdown next to the breadcrumb jumps to any recorded call directly.
 - Authoring: create empty + edit inside (typed IO panel, breadcrumb
   navigation), or select nodes → collapse (cut edges become the new node's
   slots, grouped per outside endpoint with names/types preserved).
