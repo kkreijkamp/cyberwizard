@@ -557,6 +557,10 @@ export function clearSubgraphDefs(rootGraph: LGraph): void {
   }
   metasOf(rootGraph).clear()
   rootGraph.subgraphs.clear()
+  // graph.clear() never fires node-removed hooks — engine caches (which key on
+  // reused low node ids) must be dropped explicitly or they alias into the
+  // next document.
+  attachment?.engine.reset()
   emitDefsChange(rootGraph)
 }
 

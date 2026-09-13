@@ -52,6 +52,13 @@ export interface NodeState {
   /** Bumped on every dirty-mark; runs capture it to detect supersession. */
   generation: number
   outputs: readonly unknown[] | undefined
+  /**
+   * Coerced eager inputs of the last successful run (variadic slots included;
+   * lazy slots never appear — RunContext.pull bypasses the record). Lets a
+   * lens show per-call values for sinks, whose own display state is shared
+   * and overwritten by every call.
+   */
+  inputs: Record<string, unknown> | undefined
   error: Error | undefined
   /** True when an upstream node errored and this node was skipped. */
   blocked: boolean
@@ -78,8 +85,28 @@ const CYCLE_MESSAGE = 'graph contains a cycle through this node'
 export const MAX_SUBGRAPH_DEPTH = 512
 /** Max interior evaluations per instance call tree — guards exponential recursion fan-out. */
 export const SUBGRAPH_EVAL_BUDGET = 1000
+/**
+ * Max transient call stores kept by the recursion trace. A run that hit the
+ * evaluation budget already paid this peak, so retaining that many is the
+ * same order of memory; past the cap, deeper calls simply aren't inspectable.
+ */
+export const TRACE_STORE_CAP = SUBGRAPH_EVAL_BUDGET
 
 type InputStatus = 'ok' | 'empty' | 'blocked' | 'stale'
+
+/**
+ * Pre-order comparison of instance paths (parents before children, siblings by
+ * numeric id). Recorded paths never contain 'applyN' segments (apply subtrees
+ * are excluded from the trace), so numeric compare is safe.
+ */
+function comparePaths(a: string, b: string): number {
+  const as = a.split('/')
+  const bs = b.split('/')
+  for (let i = 0; i < Math.min(as.length, bs.length); i++) {
+    if (as[i] !== bs[i]) return Number(as[i]) - Number(bs[i])
+  }
+  return as.length - bs.length
+}
 
 interface ResolvedInput {
   status: InputStatus
@@ -137,6 +164,28 @@ interface EvalScope {
    * than an uninformative "blocked upstream".
    */
   firstError: { title: string; message: string } | null
+  /**
+   * True inside an apply() call tree. Apply paths use a never-reused counter,
+   * so recording their interiors would leak — the call trace (below) skips
+   * these scopes entirely.
+   */
+  underApply: boolean
+  /**
+   * True when this scope's call belongs in the recursion trace: starts at a
+   * root-level instance run and propagates down its call tree (never into
+   * apply subtrees). Observational only — recorded stores are never used for
+   * memoization.
+   */
+  recording: boolean
+}
+
+/** One recorded subgraph call: which definition ran, with what boundary inputs. */
+export interface CallInfo {
+  defId: string
+  /** Coerced inputs bound at the input panel for this call. */
+  inputs: readonly unknown[]
+  /** Path segments — 1 for a root-level call, +1 per nesting level. */
+  depth: number
 }
 
 export class Engine {
@@ -161,6 +210,15 @@ export class Engine {
    */
   private readonly pendingSeeds = new Map<string, Set<NodeId>>()
   private readonly invalidatedSeeds = new Set<string>()
+  /**
+   * The recursion trace: interior stores of TRANSIENT (recursive re-entry)
+   * calls, keyed by the same instance paths as interiorStores — retained
+   * calls' stores live there, so a path appears in exactly one of the two.
+   * Purely observational: these stores are never read for memoization.
+   */
+  private readonly traceStores = new Map<string, Map<NodeId, NodeState>>()
+  /** Every recorded call (retained or traced), keyed by instance path. */
+  private readonly callIndex = new Map<string, CallInfo>()
   private scheduled = false
   private evaluating = false
   private rerunRequested = false
@@ -212,6 +270,29 @@ export class Engine {
     for (const key of [...this.invalidatedSeeds]) {
       if (key === path || key.startsWith(prefix)) this.invalidatedSeeds.delete(key)
     }
+    for (const key of [...this.traceStores.keys()]) {
+      if (key === path || key.startsWith(prefix)) this.traceStores.delete(key)
+    }
+    for (const key of [...this.callIndex.keys()]) {
+      if (key === path || key.startsWith(prefix)) this.callIndex.delete(key)
+    }
+  }
+
+  /**
+   * Document replaced (deserialize / clear): drop every cached state.
+   * LGraph.clear() never fires graph.onNodeRemoved, and the new document
+   * reuses low node ids — stale stores would alias into it. Called by
+   * clearSubgraphDefs (core/subgraph), which covers both load paths.
+   */
+  reset(): void {
+    for (const controller of this.abortControllers.values()) controller.abort()
+    this.abortControllers.clear()
+    this.states.clear()
+    this.interiorStores.clear()
+    this.pendingSeeds.clear()
+    this.invalidatedSeeds.clear()
+    this.traceStores.clear()
+    this.callIndex.clear()
   }
 
   stateOf(node: LGraphNode): Readonly<NodeState> {
@@ -305,6 +386,25 @@ export class Engine {
     while (this.evaluating || this.scheduled || this.pendingComputes > 0) {
       await new Promise<void>((resolve) => this.idleWaiters.push(resolve))
     }
+  }
+
+  // ─── Call trace (recursion inspection) ───────────────────────────────────
+
+  /**
+   * All recorded calls of a definition, as a pre-order walk of the call tree
+   * (a call immediately precedes its children; siblings sort by node id).
+   * Paths key into callStore/callInputs.
+   */
+  callsForDef(defId: string): Array<{ path: string } & CallInfo> {
+    return [...this.callIndex.entries()]
+      .filter(([, info]) => info.defId === defId)
+      .map(([path, info]) => ({ path, ...info }))
+      .sort((a, b) => comparePaths(a.path, b.path))
+  }
+
+  /** The node-state store of one recorded call (traced transient or retained). */
+  callStore(path: string): ReadonlyMap<NodeId, NodeState> | undefined {
+    return this.traceStores.get(path) ?? this.interiorStores.get(path)
   }
 
   /**
@@ -435,6 +535,8 @@ export class Engine {
       transient: false,
       pullStack: [],
       firstError: null,
+      underApply: false,
+      recording: false,
     }
   }
 
@@ -590,6 +692,7 @@ export class Engine {
         })
         if (generation !== s.generation) return // superseded while running — discard
         s.outputs = def.outputs.map((o) => result[o.name])
+        s.inputs = inputs
         s.error = undefined
         s.blocked = false
         s.cause = undefined
@@ -755,7 +858,7 @@ export class Engine {
     // Like an instance boundary: coerce each value to the declared slot type,
     // inferring the source type from the runtime value itself.
     const bound = meta.inputs.map((slot, i) => coerce(inputs[i], inferDataType(inputs[i]), slot.type))
-    return this.evaluateInterior(subgraph, meta, bound, scope, budget, signal, `apply${this.applySeq++}`)
+    return this.evaluateInterior(subgraph, meta, bound, scope, budget, signal, `apply${this.applySeq++}`, true)
   }
 
   private applySeq = 0
@@ -768,11 +871,15 @@ export class Engine {
     budget: { remaining: number },
     signal: AbortSignal,
     pathSegment: string,
+    underApply = false,
   ): Promise<unknown[]> {
     // Store retention: instance runs in a stable scope keep their interior
     // caches; recursive re-entries and apply() calls evaluate transiently.
     const retained = !parentScope.transient && !parentScope.defStack.includes(meta.id)
     const path = parentScope.path === '' ? pathSegment : `${parentScope.path}/${pathSegment}`
+    underApply = underApply || parentScope.underApply
+    // The call trace observes instance calls from a root-level run downward.
+    const recording = !underApply && (parentScope.recording || parentScope.path === '')
 
     let store = retained ? this.interiorStores.get(path) : undefined
     if (!store) {
@@ -791,6 +898,20 @@ export class Engine {
     const inputPanelId = subgraph.inputNode.id
     this.seedInterior(subgraph, store, seeds ?? new Set([inputPanelId]))
 
+    if (recording) {
+      if (seeds === undefined) {
+        // Full re-seed — this call's whole subtree re-evaluates, so stale
+        // deeper records go first (a shorter recursion prunes its old depths).
+        // Seeded partial re-runs keep untouched deeper calls; a deep call
+        // that does re-run clears its own subtree on its way through.
+        this.pruneTrace(`${path}/`)
+      }
+      this.callIndex.set(path, { defId: meta.id, inputs: inputValues, depth: path.split('/').length })
+      if (!retained && this.traceStores.size < TRACE_STORE_CAP) {
+        this.traceStores.set(path, store)
+      }
+    }
+
     const scope: EvalScope = {
       graph: subgraph,
       store,
@@ -802,6 +923,8 @@ export class Engine {
       transient: !retained,
       pullStack: [],
       firstError: null,
+      underApply,
+      recording,
     }
 
     // Interior sinks (a Preview inside the definition) are pull roots too —
@@ -818,6 +941,16 @@ export class Engine {
       outputs.push(await this.readBoundaryOutput(subgraph, scope, slot, index))
     }
     return outputs
+  }
+
+  /** Drops every traced call under a path prefix (a re-seeded call's stale subtree). */
+  private pruneTrace(prefix: string): void {
+    for (const key of [...this.traceStores.keys()]) {
+      if (key.startsWith(prefix)) this.traceStores.delete(key)
+    }
+    for (const key of [...this.callIndex.keys()]) {
+      if (key.startsWith(prefix)) this.callIndex.delete(key)
+    }
   }
 
   /** Marks the given starting points and everything downstream of them dirty in the store. */
@@ -968,6 +1101,7 @@ export class Engine {
         running: false,
         generation: 0,
         outputs: undefined,
+        inputs: undefined,
         error: undefined,
         blocked: false,
         cause: undefined,
