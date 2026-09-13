@@ -41,7 +41,7 @@ export function pbkdf2Passwords(): GraphDocument {
   const b64 = b.node('encoding/base64-encode', [1000, 1000])
   const cipherWatch = b.watch([1400, 1000], 'Ciphertext')
   const saltB64 = b.node('encoding/base64-encode', [550, 1300], 'Salt (store beside ciphertext)')
-  const saltWatch = b.watch([1000, 1300], 'Salt — not secret')
+  const saltWatch = b.watch([1000, 1300], 'Salt (not secret)')
 
   b.link(message, 'text', enc, 'data')
   b.link(kdf, 'key', enc, 'key')
@@ -63,12 +63,12 @@ export function pbkdf2Passwords(): GraphDocument {
     [1000, 1600],
     'The salt is not a secret',
     [
-      'Store it **next to the ciphertext** — its only job is to make every',
+      'Store it **next to the ciphertext**: its only job is to make every',
       'derivation unique, so two users with the same password get different',
       'keys and attackers can\'t precompute a dictionary once for everyone.',
       '',
       'The **iteration count** (100 000 here) is your brake pedal: raise it',
-      'and every guess gets slower — including yours. Watch the graph',
+      'and every guess gets slower, including yours. Watch the graph',
       'recompute when you edit the password; that pause *is* the security.',
     ].join('\n'),
     'Notes',

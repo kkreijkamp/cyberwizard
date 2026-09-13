@@ -76,11 +76,11 @@ const EXPECTED_VALUES: Record<string, (dump: Dump) => void> = {
     })
   },
   signatures: (dump) => {
-    expect(sinkValue(dump, 'Verdict')).toEqual({ kind: 'string', value: '✓ authentic — the signature matches' })
+    expect(sinkValue(dump, 'Verdict')).toEqual({ kind: 'string', value: '✓ authentic: the signature matches' })
   },
   'ecdh-agreement': (dump) => {
-    const a = sinkValue(dump, 'Shared secret — Alice')
-    const bS = sinkValue(dump, 'Shared secret — Bob (identical!)')
+    const a = sinkValue(dump, 'Shared secret (Alice)')
+    const bS = sinkValue(dump, 'Shared secret (Bob, identical!)')
     expect(a?.kind).toBe('bytes')
     expect(a?.base64).toBe(bS?.base64) // the whole point: identical secrets
   },

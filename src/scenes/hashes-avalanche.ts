@@ -17,7 +17,7 @@ export function hashesAvalanche(): GraphDocument {
       'irreversible: the digest tells you nothing about the input.',
       '',
       'Below, two messages that differ in **one letter** produce completely',
-      'different SHA-256 digests — the **avalanche effect**. Flip one input bit',
+      'different SHA-256 digests: the **avalanche effect**. Flip one input bit',
       'and about half the digest bits change.',
       '',
       'Try it: edit a message by a single character and compare the wells.',
@@ -32,7 +32,7 @@ export function hashesAvalanche(): GraphDocument {
   const shaA = b.node('hashing/sha-256', [550, 450], 'SHA-256 of A')
   const shaB = b.node('hashing/sha-256', [550, 750], 'SHA-256 of B')
   const watchA = b.watch([950, 450], 'digest A')
-  const watchB = b.watch([950, 750], 'digest B — no resemblance')
+  const watchB = b.watch([950, 750], 'digest B (no resemblance)')
 
   b.link(fox, 'text', shaA, 'data')
   b.link(shaA, 'hex', watchA, 'value')
@@ -41,15 +41,15 @@ export function hashesAvalanche(): GraphDocument {
 
   b.note(
     [550, 1050],
-    'MD5 and SHA-1 are broken — kept for forensics',
+    'MD5 and SHA-1 are broken (kept for forensics)',
     [
       '**MD5** and **SHA-1** collide on demand: two different files can be made',
-      'to share a digest. Never use them for integrity or signatures — but you',
+      'to share a digest. Never use them for integrity or signatures, but you',
       'will meet them constantly in old systems, logs, and malware reports,',
       'which is why they live in the palette.',
       '',
       'For new designs: **SHA-256** (or SHA-512). For passwords: not hashes at',
-      'all — see the *Encrypting with a Password* example (PBKDF2).',
+      'all; see the *Encrypting with a Password* example (PBKDF2).',
     ].join('\n'),
     'Notes',
     [330, 300],

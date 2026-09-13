@@ -13,14 +13,14 @@ export function ecdhAgreement(): GraphDocument {
     [50, 50],
     'The magic of Diffie–Hellman',
     [
-      'Alice and Bob each make a keypair and swap **public keys only** — in',
+      'Alice and Bob each make a keypair and swap **public keys only**, in',
       'the open, with Mallory watching.',
       '',
       'Each then combines *their own private key* with *the other\'s public',
       'key*… and both arrive at **the same shared secret**. Mallory, holding',
       'only the two public keys, cannot compute it.',
       '',
-      'Below: both Derive nodes output identical values. Check the wells —',
+      'Below: both Derive nodes output identical values. Check the wells:',
       'the secret *never* crosses a wire between the two sides.',
     ].join('\n'),
     'Crypto',
@@ -34,8 +34,8 @@ export function ecdhAgreement(): GraphDocument {
 
   const deriveAlice = b.node('crypto/ecdh-derive', [1000, 500], 'Derive (Alice side)')
   const deriveBob = b.node('crypto/ecdh-derive', [1000, 800], 'Derive (Bob side)')
-  const secretA = b.watch([1450, 500], 'Shared secret — Alice')
-  const secretB = b.watch([1450, 800], 'Shared secret — Bob (identical!)')
+  const secretA = b.watch([1450, 500], 'Shared secret (Alice)')
+  const secretB = b.watch([1450, 800], 'Shared secret (Bob, identical!)')
 
   b.link(alice, 'publicKey', alicePub, 'value')
   b.link(bob, 'publicKey', bobPub, 'value')
@@ -50,7 +50,7 @@ export function ecdhAgreement(): GraphDocument {
     [1450, 1050],
     'DH output is key *material*, not a key',
     [
-      'The shared secret is mathematically strong but not uniformly random —',
+      'The shared secret is mathematically strong but not uniformly random:',
       'using it directly as an AES key is sloppy. **HKDF** fixes that: it',
       'extracts and expands proper key material, labelled by **info** so one',
       'secret can yield independent keys for different purposes.',
@@ -77,7 +77,7 @@ export function ecdhAgreement(): GraphDocument {
   b.link(enc, 'ciphertext', cipherWatch, 'value')
 
   b.group('Two keypairs, born apart', [40, 440, 390, 520], '#47603f')
-  b.group('Same secret, twice — never transmitted', [990, 440, 870, 520], '#3a5580')
+  b.group('Same secret, twice, never transmitted', [990, 440, 870, 520], '#3a5580')
   b.group('KDF → encrypt', [990, 1290, 1300, 560], '#a83a32')
 
   return b.build()

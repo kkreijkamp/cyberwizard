@@ -14,14 +14,14 @@ export function signatures(): GraphDocument {
     'Signatures: proof of authorship, not secrecy',
     [
       'A signature answers one question: **did THIS keyholder sign THIS',
-      'message?** The message itself is public — signing hides nothing.',
+      'message?** The message itself is public; signing hides nothing.',
       '',
       '- The **private key signs** (only the author can).',
       '- The **public key verifies** (anyone can check).',
       '',
       'Ed25519 is the modern default: fast, deterministic, tiny 64-byte',
       'signatures. Change one letter of the signed message below and watch',
-      'the verdict flip to **✗ forged** — instantly, because the whole graph',
+      'the verdict flip to **✗ forged**, instantly, because the whole graph',
       'recomputes on edit.',
     ].join('\n'),
     'Crypto',
@@ -47,7 +47,7 @@ export function signatures(): GraphDocument {
   b.link(sign, 'signature', verify, 'signature')
   b.link(pair, 'publicKey', verify, 'publicKey')
 
-  const yes = b.config('io/text-input', [1350, 1000], { text: '✓ authentic — the signature matches' }, 'then')
+  const yes = b.config('io/text-input', [1350, 1000], { text: '✓ authentic: the signature matches' }, 'then')
   const no = b.config('io/text-input', [1350, 1300], { text: '✗ forged or tampered' }, 'else')
   const verdict = b.node('flow/select', [1650, 1150], 'Verdict')
   const verdictWatch = b.watch([2050, 1150], 'Verdict')
@@ -63,9 +63,9 @@ export function signatures(): GraphDocument {
     [
       'The **Select** node is a value-level if: it only evaluates the branch',
       'it takes. The `then` and `else` wells stay `∅` until their side is',
-      'chosen — unwired-cycle-free control flow.',
+      'chosen: unwired-cycle-free control flow.',
       '',
-      'Verify outputs a **boolean** — perfect Select condition. Booleans drive',
+      'Verify outputs a **boolean**: perfect Select condition. Booleans drive',
       'branching everywhere in CyberWizard, including stopping recursion',
       '(see the Recursion example).',
     ].join('\n'),

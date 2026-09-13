@@ -47,13 +47,13 @@ export const SCENES: readonly Scene[] = [
   {
     id: 'pbkdf2-passwords',
     title: 'Encrypting with a Password',
-    description: 'PBKDF2 stretches a human password into a real AES key — salt and iterations explained.',
+    description: 'PBKDF2 stretches a human password into a real AES key, with salt and iterations explained.',
     build: pbkdf2Passwords,
   },
   {
     id: 'rsa-hybrid',
     title: 'Hybrid Encryption (RSA + AES)',
-    description: 'RSA wraps a one-time AES key, AES-GCM carries the message — the TLS/PGP pattern.',
+    description: 'RSA wraps a one-time AES key, AES-GCM carries the message (the TLS/PGP pattern).',
     build: rsaHybrid,
   },
   {
@@ -77,7 +77,7 @@ export const SCENES: readonly Scene[] = [
   {
     id: 'recursion-lens',
     title: 'Recursion & the Call Lens',
-    description: 'A subgraph that calls itself — double-click into it and step through every recursion layer.',
+    description: 'A subgraph that calls itself: double-click into it and step through every recursion layer.',
     build: recursionLens,
   },
   {

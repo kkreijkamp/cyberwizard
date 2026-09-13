@@ -18,7 +18,7 @@ export function recursionLens(): GraphDocument {
       'itself: `n! = n × (n−1)!`, stopping at `n ≤ 1`.',
       '',
       '**Go inside:** double-click the Factorial node. Then double-click the',
-      'self-instance *inside* — you step one recursion layer deeper, and every',
+      'self-instance *inside*: you step one recursion layer deeper, and every',
       'well shows **that call\'s** values.',
       '',
       '- The dropdown next to the breadcrumb jumps straight to any layer.',
@@ -65,11 +65,11 @@ export function recursionLens(): GraphDocument {
     'Why the recursion stops',
     [
       '**Select is lazy**: it only evaluates the branch it takes.',
-      'At `n ≤ 1` it takes `then` — the `else` branch (which contains the',
+      'At `n ≤ 1` it takes `then`; the `else` branch (which contains the',
       'self-call) *never runs*, so the recursion terminates.',
       '',
       'Watch the wells while lensed on the base layer: `multiply` and the',
-      'self-instance show `∅` — they were never demanded there.',
+      'self-instance show `∅`: they were never demanded there.',
     ].join('\n'),
     'Notes',
     [330, 300],
@@ -79,7 +79,7 @@ export function recursionLens(): GraphDocument {
     [950, 600],
     'You are inside the definition',
     [
-      'Edits here change the definition itself — every call and every',
+      'Edits here change the definition itself: every call and every',
       'instance follows.',
       '',
       'The breadcrumb (top-left) walks you back out; **Esc** pops one',
@@ -91,7 +91,7 @@ export function recursionLens(): GraphDocument {
 
   const input = b.config('io/number-input', [50, 700], { value: 6 }, 'n')
   const instance = b.instance(fact, [450, 700])
-  const watch = b.watch([850, 700], 'n! — click into me')
+  const watch = b.watch([850, 700], 'n! (click into me)')
 
   b.link(input, 'number', instance, 'n')
   b.link(instance, 'result', watch, 'value')
