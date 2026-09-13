@@ -218,3 +218,23 @@ describe('ec (ECDSA + ECDH)', () => {
     expect(ab).not.toEqual(ac)
   })
 })
+
+describe('ed25519', () => {
+  it('signs and verifies (deterministic 64-byte signatures)', async () => {
+    const { publicKey, privateKey } = await runOp('crypto/ed25519-generate')
+    const a = (await runOp('crypto/ed25519-sign', { data: bytesOf('message'), privateKey })).signature
+    const b = (await runOp('crypto/ed25519-sign', { data: bytesOf('message'), privateKey })).signature
+    expect(a).toEqual(b) // deterministic
+    expect((a as Uint8Array).length).toBe(64)
+    const { valid } = await runOp('crypto/ed25519-verify', { data: bytesOf('message'), signature: a, publicKey })
+    expect(valid).toBe(true)
+  })
+
+  it('rejects tampered data and wrong keys', async () => {
+    const a = await runOp('crypto/ed25519-generate')
+    const b = await runOp('crypto/ed25519-generate')
+    const { signature } = await runOp('crypto/ed25519-sign', { data: bytesOf('message'), privateKey: a.privateKey })
+    expect((await runOp('crypto/ed25519-verify', { data: bytesOf('massage'), signature, publicKey: a.publicKey })).valid).toBe(false)
+    expect((await runOp('crypto/ed25519-verify', { data: bytesOf('message'), signature, publicKey: b.publicKey })).valid).toBe(false)
+  })
+})
