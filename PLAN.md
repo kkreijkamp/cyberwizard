@@ -127,6 +127,9 @@ The registry drives the node palette, search, and slot-type compatibility checks
   dragging from a slot filters palette to type-compatible nodes
 - **Live previews**: each node shows a truncated render of its current output
   (text snippet / hex dump / image / JSON summary); click to expand
+- **State trace**: one-click JSON dump of the full live state — every node's
+  values, errors, and the whole recorded call tree (the debugging counterpart
+  to Save, which serializes structure only)
 - Input nodes: text paste, file drop, hex editor
 - Output nodes: text/hex/JSON/image preview, file download
 - Dark theme, cyberpunk accent (it is called CyberWizard)
