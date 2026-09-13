@@ -286,3 +286,31 @@ describe('kdf', () => {
     expect(a).not.toEqual(b)
   })
 })
+
+describe('jwt-decode', () => {
+  // The classic jwt.io HS256 example token.
+  const TOKEN =
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.' +
+    'eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.' +
+    'SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c'
+
+  it('splits header, payload, signature, and the signed bytes', async () => {
+    const { header, payload, signature, signedData } = await runOp('crypto/jwt-decode', { token: TOKEN })
+    expect(header).toEqual({ alg: 'HS256', typ: 'JWT' })
+    expect(payload).toEqual({ sub: '1234567890', name: 'John Doe', iat: 1516239022 })
+    expect((signature as Uint8Array).length).toBe(32) // SHA-256
+    // signedData is exactly what an HMAC-SHA-256 over the key would verify.
+    expect(textOf(signedData)).toBe(TOKEN.split('.').slice(0, 2).join('.'))
+  })
+
+  it('signedData verifies against the known jwt.io secret', async () => {
+    const { signedData, signature } = await runOp('crypto/jwt-decode', { token: TOKEN })
+    const { hex } = await runOp('hashing/hmac', { data: signedData, key: bytesOf('your-256-bit-secret') }, { hash: 'SHA-256' })
+    expect(hexToBytes(hex as string)).toEqual(signature)
+  })
+
+  it('rejects malformed tokens with clear errors', async () => {
+    await expect(runOp('crypto/jwt-decode', { token: 'two.parts' })).rejects.toThrow(/3 dot-separated parts, got 2/)
+    await expect(runOp('crypto/jwt-decode', { token: 'a.b.c' })).rejects.toThrow()
+  })
+})
