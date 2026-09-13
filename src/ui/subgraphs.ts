@@ -11,6 +11,7 @@
 import { LGraphCanvas, LGraphNode, LiteGraph, Subgraph } from '@comfyorg/litegraph'
 import type { LGraph, LGraphCanvas as LGraphCanvasT } from '@comfyorg/litegraph'
 import { collapseToSubgraph } from '../core/collapse'
+import { NOTE_TYPE } from '../core/note-widget'
 import {
   addDefInput,
   addDefOutput,
@@ -243,6 +244,19 @@ export function installCollapse(canvas: LGraphCanvasT, rootGraph: LGraph): void 
           // (offset) lattice right away, like nodes at add time.
           const groups = canvas.graph?._groups
           groups?.[groups.length - 1]?.snapToGrid(LiteGraph.CANVAS_GRID_SIZE)
+        },
+      },
+      {
+        content: 'Add Note',
+        callback: () => {
+          const node = LiteGraph.createNode(NOTE_TYPE)
+          const target = canvas.graph
+          if (!node || !target) return
+          // Centred on the menu's click point, like a palette spawn; the
+          // add-time hook snaps position and size onto the grid.
+          node.pos = [canvas.graph_mouse[0] - node.size[0] / 2, canvas.graph_mouse[1] - 15]
+          target.add(node)
+          canvas.selectNode(node)
         },
       },
     ]

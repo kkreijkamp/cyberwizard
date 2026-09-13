@@ -39,10 +39,11 @@ costs nothing. To evaluate any node on demand, right-click → *Compute*.
 Node parameters can be promoted to input slots from the same context menu,
 which is how you wire a regex or a key in from another node.
 
-Notes (the *Notes* category) are writable sticky notes that compute nothing:
-click the body to write markdown (headings, **bold**, *italic*, `code`,
-lists, quotes, rules, links), double-click the title to rename it, and
-right-click → *Color* to recolor in any node category color.
+Notes (the *Notes* category, or right-click the canvas → *Add Note*) are
+writable sticky notes that compute nothing: click the body to write markdown
+(headings, **bold**, *italic*, `code`, lists, quotes, rules, links),
+double-click the title to rename it, and right-click → *Color* to recolor in
+any node category color.
 
 The header buttons: **Save** / **Load** (graph as a JSON file), **Share**
 (copies a URL with the deflated graph in the hash), **New**. The canvas
