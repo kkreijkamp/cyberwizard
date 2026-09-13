@@ -14,6 +14,13 @@ import { getSubgraphDef } from '../core/subgraph'
 import { repr } from '../core/types'
 import { LAST_INPUT_PROPERTY } from '../nodes/io/preview'
 
+let inspectOpen = false
+
+/** True while an inspect card is open — other Esc handlers defer to the card's own. */
+export function isInspectOpen(): boolean {
+  return inspectOpen
+}
+
 export function installInspect(engine: Engine): void {
   let openCard: { element: HTMLElement; onKey: (e: KeyboardEvent) => void; onPointerDown: (e: PointerEvent) => void } | undefined
 
@@ -23,6 +30,7 @@ export function installInspect(engine: Engine): void {
     document.removeEventListener('keydown', openCard.onKey)
     document.removeEventListener('pointerdown', openCard.onPointerDown, true)
     openCard = undefined
+    inspectOpen = false
   }
 
   function open(node: LGraphNode): void {
@@ -68,6 +76,7 @@ export function installInspect(engine: Engine): void {
     setTimeout(() => document.addEventListener('pointerdown', onPointerDown, true), 0)
     document.addEventListener('keydown', onKey)
     openCard = { element: card, onKey, onPointerDown }
+    inspectOpen = true
   }
 
   setPreviewClickHandler((node) => open(node))

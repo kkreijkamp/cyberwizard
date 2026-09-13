@@ -59,12 +59,19 @@ export function onSetGraph(canvas: LGraphCanvasT, listener: (newGraph: LGraph | 
 
 // ─── Navigation: breadcrumb + Escape ─────────────────────────────────────────
 
+/** Handle to the breadcrumb bar: lets adjacent UI keep persistent elements after the crumbs. */
+export interface BreadcrumbHandle {
+  /** Appends an element after the crumbs; it survives re-renders. */
+  addExtra(element: HTMLElement): void
+}
+
 export function installBreadcrumb(
   bar: HTMLElement,
   canvas: LGraphCanvasT,
   rootGraph: LGraph,
-): void {
+): BreadcrumbHandle {
   let stack: Array<LGraph | Subgraph> = [rootGraph]
+  const extras: HTMLElement[] = []
 
   function render(): void {
     bar.hidden = stack.length <= 1
@@ -88,6 +95,7 @@ export function installBreadcrumb(
         bar.append(link)
       }
     })
+    for (const element of extras) bar.append(element)
   }
 
   onSetGraph(canvas, (newGraph) => {
@@ -104,6 +112,12 @@ export function installBreadcrumb(
   })
 
   render()
+  return {
+    addExtra(element: HTMLElement): void {
+      extras.push(element)
+      render()
+    },
+  }
 }
 
 // ─── IO panel ────────────────────────────────────────────────────────────────

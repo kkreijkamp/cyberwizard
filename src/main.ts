@@ -6,6 +6,7 @@ import { installConnectionRules } from './core/registry'
 import { deserializeGraph } from './core/serialize'
 import { attachSubgraphSupport } from './core/subgraph'
 import { buildShowcaseGraph } from './showcase'
+import { installCallLens } from './ui/call-lens'
 import { installComputeMenu } from './ui/compute-menu'
 import { installHiDPICanvas } from './ui/hidpi'
 import { installInspect } from './ui/inspect'
@@ -71,7 +72,8 @@ startAutosave(graph, canvas)
 const newSubgraphButton = document.querySelector<HTMLButtonElement>('#btn-new-subgraph')
 if (newSubgraphButton) wireNewSubgraphButton(newSubgraphButton, canvas, graph)
 const breadcrumbBar = document.querySelector<HTMLElement>('#breadcrumb')
-if (breadcrumbBar) installBreadcrumb(breadcrumbBar, canvas, graph)
+const breadcrumb = breadcrumbBar ? installBreadcrumb(breadcrumbBar, canvas, graph) : undefined
+if (breadcrumb) installCallLens(engine, canvas, graph, breadcrumb)
 const ioPanel = document.querySelector<HTMLElement>('#io-panel')
 if (ioPanel) installIOPanel(ioPanel, canvas, graph)
 installCollapse(canvas, graph)

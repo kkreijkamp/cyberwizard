@@ -460,6 +460,28 @@ export class Engine {
     return this.traceStores.get(path) ?? this.interiorStores.get(path)
   }
 
+  /** Recorded info for one call path (definition, boundary inputs, depth). */
+  callInfo(path: string): CallInfo | undefined {
+    return this.callIndex.get(path)
+  }
+
+  /** True when any recorded call sits below this path (a deeper recursion layer). */
+  hasCallsBelow(path: string): boolean {
+    const prefix = `${path}/`
+    for (const key of this.callIndex.keys()) {
+      if (key.startsWith(prefix)) return true
+    }
+    return false
+  }
+
+  /** Fired after each evaluation flush / compute — for UI that reads settled engine state. */
+  onSettled(listener: () => void): () => void {
+    this.settledListeners.add(listener)
+    return () => this.settledListeners.delete(listener)
+  }
+
+  private readonly settledListeners = new Set<() => void>()
+
   // ─── The lens ────────────────────────────────────────────────────────────
 
   /** The call path currently driving interior value display, or null (default view). */
@@ -544,6 +566,7 @@ export class Engine {
     } finally {
       this.pendingComputes--
       this.refreshLensView()
+      for (const listener of this.settledListeners) listener()
       this.drainIdleWaiters()
     }
   }
@@ -633,6 +656,7 @@ export class Engine {
       this.evaluating = false
       // Evaluation paints as it runs; settle the visible interior on the lens.
       this.refreshLensView()
+      for (const listener of this.settledListeners) listener()
       this.drainIdleWaiters()
     }
   }

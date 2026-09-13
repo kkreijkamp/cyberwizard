@@ -228,6 +228,23 @@ body {
   font-weight: 700;
 }
 
+#call-lens {
+  margin-left: 10px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 4px;
+  max-width: 300px;
+}
+
+#call-lens:hover {
+  color: var(--ink);
+  border-color: var(--amber);
+}
+
 #io-panel {
   flex-shrink: 0;
   max-height: 45%;
