@@ -67,3 +67,46 @@ describe('aes-gcm', () => {
     await expect(runOp('crypto/aes-gcm-encrypt', { data: PLAIN, key: new Uint8Array(5), iv: IV })).rejects.toThrow(/16, 24 or 32 bytes.*got 5/)
   })
 })
+
+describe('aes-cbc', () => {
+  // NIST SP 800-38A F.2.1 CBC-AES128: known key/iv and 4 plaintext blocks.
+  // WebCrypto appends a padding block, so the NIST blocks are a strict prefix.
+  const KEY = hexToBytes('2b7e151628aed2a6abf7158809cf4f3c')
+  const IV = hexToBytes('000102030405060708090a0b0c0d0e0f')
+  const PLAIN = hexToBytes(
+    '6bc1bee22e409f96e93d7e117393172a' +
+      'ae2d8a571e03ac9c9eb76fac45af8e51' +
+      '30c81c46a35ce411e5fbc1191a0a52ef' +
+      'f69f2445df4f9b17ad2b417be66c3710',
+  )
+  const EXPECTED_PREFIX =
+    '7649abac8119b246cee98e9b12e9197d' +
+    '5086cb9b507219ee95db113a917678b2' +
+    '73bed6b8e3c1743b7116e69e22229516' +
+    '3ff1caa1681fac09120eca307586e1a7'
+
+  it('matches the NIST CBC-AES128 vectors (plus a padding block)', async () => {
+    const { ciphertext } = await runOp('crypto/aes-cbc-encrypt', { data: PLAIN, key: KEY, iv: IV })
+    const hex = bytesToHex(ciphertext as Uint8Array)
+    expect(hex.startsWith(EXPECTED_PREFIX)).toBe(true)
+    expect(hex.length).toBe(EXPECTED_PREFIX.length + 32) // one PKCS#7 padding block
+  })
+
+  it('round-trips and strips padding', async () => {
+    const key = crypto.getRandomValues(new Uint8Array(24))
+    const { ciphertext, iv } = await runOp('crypto/aes-cbc-encrypt', { data: bytesOf('not a multiple of 16'), key })
+    expect((iv as Uint8Array).length).toBe(16)
+    const { plaintext } = await runOp('crypto/aes-cbc-decrypt', { ciphertext, key, iv })
+    expect(textOf(plaintext)).toBe('not a multiple of 16')
+  })
+
+  it('decrypts the NIST vector prefix when given the full ciphertext', async () => {
+    const { ciphertext } = await runOp('crypto/aes-cbc-encrypt', { data: PLAIN, key: KEY, iv: IV })
+    const { plaintext } = await runOp('crypto/aes-cbc-decrypt', { ciphertext, key: KEY, iv: IV })
+    expect(plaintext).toEqual(PLAIN)
+  })
+
+  it('rejects a bad iv length', async () => {
+    await expect(runOp('crypto/aes-cbc-encrypt', { data: PLAIN, key: KEY, iv: new Uint8Array(8) })).rejects.toThrow(/exactly 16 bytes, got 8/)
+  })
+})
