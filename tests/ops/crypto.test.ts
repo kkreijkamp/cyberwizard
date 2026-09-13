@@ -110,3 +110,42 @@ describe('aes-cbc', () => {
     await expect(runOp('crypto/aes-cbc-encrypt', { data: PLAIN, key: KEY, iv: new Uint8Array(8) })).rejects.toThrow(/exactly 16 bytes, got 8/)
   })
 })
+
+describe('rsa (OAEP)', () => {
+  it('generates a key pair and round-trips a wrapped key', async () => {
+    const { publicKey, privateKey } = await runOp('crypto/rsa-generate', {}, { modulus: '2048', hash: 'SHA-256', usage: 'encrypt' })
+    expect((publicKey as Uint8Array).length).toBeGreaterThan(250)
+    expect((privateKey as Uint8Array).length).toBeGreaterThan(1000)
+
+    const wrapped = crypto.getRandomValues(new Uint8Array(32)) // a symmetric session key
+    const { ciphertext } = await runOp('crypto/rsa-encrypt', { data: wrapped, publicKey })
+    expect((ciphertext as Uint8Array).length).toBe(256) // one modulus
+    const { plaintext } = await runOp('crypto/rsa-decrypt', { ciphertext, privateKey })
+    expect(plaintext).toEqual(wrapped)
+  })
+
+  it('works with SHA-512 and 3072-bit keys', async () => {
+    const { publicKey, privateKey } = await runOp('crypto/rsa-generate', {}, { modulus: '3072', hash: 'SHA-512', usage: 'encrypt' })
+    const { ciphertext } = await runOp('crypto/rsa-encrypt', { data: bytesOf('hi'), publicKey }, { hash: 'SHA-512' })
+    expect((ciphertext as Uint8Array).length).toBe(384)
+    const { plaintext } = await runOp('crypto/rsa-decrypt', { ciphertext, privateKey }, { hash: 'SHA-512' })
+    expect(textOf(plaintext)).toBe('hi')
+  })
+
+  it('fails to decrypt with a different key', async () => {
+    const a = await runOp('crypto/rsa-generate', {}, { usage: 'encrypt' })
+    const b = await runOp('crypto/rsa-generate', {}, { usage: 'encrypt' })
+    const { ciphertext } = await runOp('crypto/rsa-encrypt', { data: bytesOf('secret'), publicKey: a.publicKey })
+    await expect(runOp('crypto/rsa-decrypt', { ciphertext, privateKey: b.privateKey })).rejects.toThrow(/decryption failed/)
+  })
+
+  it('rejects oversized payloads with a clear error', async () => {
+    const { publicKey } = await runOp('crypto/rsa-generate', {}, { modulus: '2048', hash: 'SHA-256', usage: 'encrypt' })
+    const tooBig = new Uint8Array(191) // 2048/SHA-256 limit is 190
+    await expect(runOp('crypto/rsa-encrypt', { data: tooBig, publicKey })).rejects.toThrow(/payload too large \(191 bytes\)/)
+  })
+
+  it('rejects garbage key material', async () => {
+    await expect(runOp('crypto/rsa-encrypt', { data: bytesOf('x'), publicKey: new Uint8Array(10) })).rejects.toThrow(/not a valid RSA public/)
+  })
+})
