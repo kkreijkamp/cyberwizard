@@ -26,12 +26,14 @@ function boolOf(value: unknown, identity: boolean): boolean {
 function toGateBytes(value: unknown): Uint8Array {
   if (value instanceof Uint8Array) return value
   if (typeof value === 'number') {
-    if (!Number.isFinite(value) || value < 0) throw new Error(`gate operand must be a non-negative integer, got ${repr(value)}`)
+    // Full reprs in every message: the inspect overlay shows them whole (the
+    // badge clips to three lines regardless).
+    if (!Number.isFinite(value) || value < 0) throw new Error(`gate operand must be a non-negative integer, got ${repr(value, { full: true })}`)
     return bigIntToBytes(BigInt(Math.trunc(value)))
   }
   if (typeof value === 'boolean') return new Uint8Array([value ? 1 : 0])
   if (typeof value === 'string') return bigIntToBytes(stringToBignum(value))
-  throw new Error(`gate operand must be bytes/number/string/boolean, got ${repr(value)}`)
+  throw new Error(`gate operand must be bytes/number/string/boolean, got ${repr(value, { full: true })}`)
 }
 
 /** Bitwise op over two byte strings; the shorter is left-padded with zeros. */

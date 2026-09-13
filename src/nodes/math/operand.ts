@@ -19,7 +19,9 @@ export function toOperand(value: unknown, identity = 0): Uint8Array | number {
   if (typeof value === 'number') return value
   if (typeof value === 'string') return coerce(value, STRING, NUMBER) as number
   if (typeof value === 'boolean') return value ? 1 : 0
-  throw new Error(`not a numeric operand: ${repr(value)}`)
+  // Full repr: the message is the whole story in the inspect overlay (the
+  // badge clips to three lines regardless, so brevity buys nothing there).
+  throw new Error(`not a numeric operand: ${repr(value, { full: true })}`)
 }
 
 /** Exact integer view of an operand, for the bignum path. */

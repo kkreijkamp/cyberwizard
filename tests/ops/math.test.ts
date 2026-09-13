@@ -209,3 +209,22 @@ describe('math/comparisons on bytes (bignum ordering)', () => {
     expect((await runOp('math/less-eq', { a: 'ff', b: new Uint8Array([0xff]) })).result).toBe(true)
   })
 })
+
+describe('operand error messages', () => {
+  it('render the full offending value — the inspect overlay shows it whole', async () => {
+    const items = Array.from({ length: 8 }, (_, i) => new Uint8Array([i, i, i, i]))
+    const err = await runOp('math/shift-left', { value: items }).then(
+      () => {
+        throw new Error('expected shift-left to reject a list')
+      },
+      (e: Error) => e,
+    )
+    expect(err.message).toContain('not a numeric operand')
+    expect(err.message).toContain('[8 items]')
+    // Every item renders — the compact repr would have stopped at five.
+    for (let i = 0; i < 8; i++) {
+      expect(err.message).toContain(`⟨4B⟩ 0${i} 0${i} 0${i} 0${i}`)
+    }
+    expect(err.message).not.toContain('…')
+  })
+})
