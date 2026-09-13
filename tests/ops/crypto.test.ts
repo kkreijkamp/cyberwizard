@@ -149,3 +149,33 @@ describe('rsa (OAEP)', () => {
     await expect(runOp('crypto/rsa-encrypt', { data: bytesOf('x'), publicKey: new Uint8Array(10) })).rejects.toThrow(/not a valid RSA public/)
   })
 })
+
+describe('rsa-pss (sign/verify)', () => {
+  it('signs and verifies', async () => {
+    const { publicKey, privateKey } = await runOp('crypto/rsa-generate', {}, { usage: 'sign' })
+    const { signature } = await runOp('crypto/rsa-sign', { data: bytesOf('message'), privateKey })
+    expect((signature as Uint8Array).length).toBe(256)
+    const { valid } = await runOp('crypto/rsa-verify', { data: bytesOf('message'), signature, publicKey })
+    expect(valid).toBe(true)
+  })
+
+  it('rejects tampered data, wrong keys, and wrong salt lengths', async () => {
+    const a = await runOp('crypto/rsa-generate', {}, { usage: 'sign' })
+    const b = await runOp('crypto/rsa-generate', {}, { usage: 'sign' })
+    const { signature } = await runOp('crypto/rsa-sign', { data: bytesOf('message'), privateKey: a.privateKey })
+
+    const tampered = await runOp('crypto/rsa-verify', { data: bytesOf('massage'), signature, publicKey: a.publicKey })
+    expect(tampered.valid).toBe(false)
+    const wrongKey = await runOp('crypto/rsa-verify', { data: bytesOf('message'), signature, publicKey: b.publicKey })
+    expect(wrongKey.valid).toBe(false)
+    const wrongSalt = await runOp('crypto/rsa-verify', { data: bytesOf('message'), signature, publicKey: a.publicKey }, { saltLength: 20 })
+    expect(wrongSalt.valid).toBe(false)
+  })
+
+  it('signs with SHA-512 and a custom salt length', async () => {
+    const { publicKey, privateKey } = await runOp('crypto/rsa-generate', {}, { usage: 'sign', hash: 'SHA-512' })
+    const { signature } = await runOp('crypto/rsa-sign', { data: bytesOf('m'), privateKey }, { hash: 'SHA-512', saltLength: 64 })
+    const { valid } = await runOp('crypto/rsa-verify', { data: bytesOf('m'), signature, publicKey }, { hash: 'SHA-512', saltLength: 64 })
+    expect(valid).toBe(true)
+  })
+})
