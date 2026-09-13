@@ -16,6 +16,7 @@ import { installNotes } from './ui/notes'
 import { installWidgetInputMenu } from './ui/widget-inputs'
 import { createPalette } from './ui/palette'
 import { initialDocument, startAutosave, wirePersistence } from './ui/persistence'
+import { installExamplesPicker } from './ui/scenes'
 import { wireStateTraceButton } from './ui/state-trace'
 import {
   installBreadcrumb,
@@ -72,6 +73,9 @@ startAutosave(graph, canvas)
 
 const traceButton = document.querySelector<HTMLButtonElement>('#btn-trace')
 if (traceButton) wireStateTraceButton(traceButton, engine)
+
+const headerActions = document.querySelector<HTMLElement>('.header-actions')
+if (headerActions) installExamplesPicker(headerActions, graph, canvas)
 
 const newSubgraphButton = document.querySelector<HTMLButtonElement>('#btn-new-subgraph')
 if (newSubgraphButton) wireNewSubgraphButton(newSubgraphButton, canvas, graph)

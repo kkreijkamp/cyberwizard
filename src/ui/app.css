@@ -81,6 +81,22 @@ body {
   color: var(--amber);
 }
 
+.header-actions select {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 3px 6px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.header-actions select:hover {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
 #graph-host {
   flex: 1;
   min-height: 0;
