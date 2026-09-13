@@ -323,6 +323,7 @@ export class Engine {
     this.callIndex.clear()
     this.lensPath = null
     this.lensGraph = null
+    this.traceOverflowed = false
   }
 
   stateOf(node: LGraphNode): Readonly<NodeState> {
@@ -464,6 +465,32 @@ export class Engine {
   callInfo(path: string): CallInfo | undefined {
     return this.callIndex.get(path)
   }
+
+  /** Every recorded call, pre-order (a call precedes its children; siblings by id). */
+  allCalls(): Array<{ path: string } & CallInfo> {
+    return [...this.callIndex.entries()]
+      .map(([path, info]) => ({ path, ...info }))
+      .sort((a, b) => comparePaths(a.path, b.path))
+  }
+
+  /** Which map a call's store lives in — retained (memoized) or traced (observational). */
+  callStoreOrigin(path: string): 'retained' | 'traced' | undefined {
+    if (this.traceStores.has(path)) return 'traced'
+    if (this.interiorStores.has(path)) return 'retained'
+    return undefined
+  }
+
+  /** Raw per-node states of the root graph (the state-trace export's root section). */
+  rootStates(): ReadonlyMap<NodeId, NodeState> {
+    return this.states
+  }
+
+  /** True when the trace cap refused records — the exported call tree is incomplete. */
+  traceOverflow(): boolean {
+    return this.traceOverflowed
+  }
+
+  private traceOverflowed = false
 
   /** True when any recorded call sits below this path (a deeper recursion layer). */
   hasCallsBelow(path: string): boolean {
@@ -1059,8 +1086,9 @@ export class Engine {
         this.pruneTrace(`${path}/`)
       }
       this.callIndex.set(path, { defId: meta.id, inputs: inputValues, depth: path.split('/').length })
-      if (!retained && this.traceStores.size < TRACE_STORE_CAP) {
-        this.traceStores.set(path, store)
+      if (!retained) {
+        if (this.traceStores.size < TRACE_STORE_CAP) this.traceStores.set(path, store)
+        else this.traceOverflowed = true
       }
     }
 

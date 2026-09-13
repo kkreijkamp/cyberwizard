@@ -16,6 +16,7 @@ import { installNotes } from './ui/notes'
 import { installWidgetInputMenu } from './ui/widget-inputs'
 import { createPalette } from './ui/palette'
 import { initialDocument, startAutosave, wirePersistence } from './ui/persistence'
+import { wireStateTraceButton } from './ui/state-trace'
 import {
   installBreadcrumb,
   installCollapse,
@@ -68,6 +69,9 @@ if (paletteHost) createPalette(paletteHost, canvas, graph)
 
 wirePersistence(graph, canvas)
 startAutosave(graph, canvas)
+
+const traceButton = document.querySelector<HTMLButtonElement>('#btn-trace')
+if (traceButton) wireStateTraceButton(traceButton, engine)
 
 const newSubgraphButton = document.querySelector<HTMLButtonElement>('#btn-new-subgraph')
 if (newSubgraphButton) wireNewSubgraphButton(newSubgraphButton, canvas, graph)
