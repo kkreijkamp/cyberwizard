@@ -36,6 +36,18 @@ describe('notes/note', () => {
     expect(node.properties.tint).toBe('Notes')
   })
 
+  it('sizes its body to the content without the phantom slot row', () => {
+    const node = mkNote(new LGraph())
+    const widget = (node.widgets ?? [])[0] as unknown as { computeSize(w?: number): [number, number] }
+    // The library's computeSize lays widgets out at its own min width
+    // (NODE_WIDTH × 1.5 when widgets exist), not node.size.
+    const content = widget.computeSize(LiteGraph.NODE_WIDTH * 1.5)[1]
+    // Content + litegraph's per-widget margins and footer (4 + 8 + 6 on
+    // pinned 0.17.2) — the slotless node's clamped 20px slot row is
+    // subtracted by the note.
+    expect(node.computeSize()[1]).toBe(content + 18)
+  })
+
   it('never offers its params as connection points', () => {
     const node = mkNote(new LGraph())
     const def = getNodeDef(node)

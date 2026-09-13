@@ -12,6 +12,7 @@
  * tint never fight.
  */
 
+import { LiteGraph } from '@comfyorg/litegraph'
 import { NOTE_TINTS, defineNode } from '../../core/registry'
 import { NOTE_TEXT_PARAM, NOTE_TINT_PARAM, makeNoteWidget } from '../../core/note-widget'
 
@@ -27,6 +28,16 @@ defineNode({
     { kind: 'enum', name: NOTE_TINT_PARAM, label: 'Color', default: 'Notes', options: NOTE_TINTS, hidden: true },
   ] as const,
   setup(node) {
+    // The library's computeSize clamps every node to ≥1 slot row — a slotless
+    // note pays ~20px of dead space at its foot, which also pushes the
+    // snapped height across a grid cell about a line before the text visibly
+    // reaches it. Subtract the phantom row so the height hugs the content.
+    const baseComputeSize = node.computeSize.bind(node)
+    node.computeSize = (out) => {
+      const size = baseComputeSize(out)
+      size[1] = Math.max(0, size[1] - LiteGraph.NODE_SLOT_HEIGHT)
+      return size
+    }
     node.addCustomWidget(makeNoteWidget(node))
     node.onNodeTitleDblClick = (e, _pos, canvas) => {
       canvas.prompt('Title', node.title, (value: string) => {
