@@ -179,3 +179,42 @@ describe('rsa-pss (sign/verify)', () => {
     expect(valid).toBe(true)
   })
 })
+
+describe('ec (ECDSA + ECDH)', () => {
+  it('ECDSA signs and verifies on every curve', async () => {
+    for (const curve of ['P-256', 'P-384', 'P-521']) {
+      const { publicKey, privateKey } = await runOp('crypto/ec-generate', {}, { curve, usage: 'sign' })
+      const { signature } = await runOp('crypto/ecdsa-sign', { data: bytesOf('message'), privateKey }, { curve })
+      const { valid } = await runOp('crypto/ecdsa-verify', { data: bytesOf('message'), signature, publicKey }, { curve })
+      expect(valid).toBe(true)
+      const tampered = await runOp('crypto/ecdsa-verify', { data: bytesOf('massage'), signature, publicKey }, { curve })
+      expect(tampered.valid).toBe(false)
+    }
+  })
+
+  it('ECDH derives the same secret on both sides', async () => {
+    const alice = await runOp('crypto/ec-generate', {}, { curve: 'P-256', usage: 'derive' })
+    const bob = await runOp('crypto/ec-generate', {}, { curve: 'P-256', usage: 'derive' })
+    const { sharedSecret: forAlice } = await runOp(
+      'crypto/ecdh-derive',
+      { privateKey: alice.privateKey, publicKey: bob.publicKey },
+      { curve: 'P-256', length: 32 },
+    )
+    const { sharedSecret: forBob } = await runOp(
+      'crypto/ecdh-derive',
+      { privateKey: bob.privateKey, publicKey: alice.publicKey },
+      { curve: 'P-256', length: 32 },
+    )
+    expect(forAlice).toEqual(forBob)
+    expect((forAlice as Uint8Array).length).toBe(32)
+  })
+
+  it('ECDH secrets differ across pairs', async () => {
+    const alice = await runOp('crypto/ec-generate', {}, { usage: 'derive' })
+    const bob = await runOp('crypto/ec-generate', {}, { usage: 'derive' })
+    const carol = await runOp('crypto/ec-generate', {}, { usage: 'derive' })
+    const ab = (await runOp('crypto/ecdh-derive', { privateKey: alice.privateKey, publicKey: bob.publicKey })).sharedSecret
+    const ac = (await runOp('crypto/ecdh-derive', { privateKey: alice.privateKey, publicKey: carol.publicKey })).sharedSecret
+    expect(ab).not.toEqual(ac)
+  })
+})
