@@ -331,3 +331,70 @@ describe('recursion call trace', () => {
     dispose()
   })
 })
+
+describe('the call lens', () => {
+  it('scopes outputsOf/stateOf to the lensed call', async () => {
+    const { graph, engine, dispose } = rig()
+    const { defId, self, mul, select } = buildFactorial(graph)
+    const { instance } = buildCall(graph, defId, 5)
+    await engine.whenIdle()
+
+    engine.setLensPath(callPath(instance, self, 3)) // the n=3 call
+    expect(engine.outputsOf(mul)).toEqual([6])
+    expect(engine.outputsOf(select)).toEqual([6])
+
+    engine.setLensPath(callPath(instance, self, 5)) // the n=1 base case
+    expect(engine.outputsOf(mul)).toBeUndefined() // never demanded here
+    expect(engine.outputsOf(select)).toEqual([1])
+
+    // Root nodes are never affected by the lens.
+    expect(engine.outputsOf(instance)).toEqual([120])
+
+    engine.setLensPath(null)
+    expect(engine.getLensPath()).toBeNull()
+    expect(engine.outputsOf(mul)).toEqual([120]) // default: the top call
+    dispose()
+  })
+
+  it('ignores unknown paths', async () => {
+    const { graph, engine, dispose } = rig()
+    const { defId } = buildFactorial(graph)
+    buildCall(graph, defId, 3)
+    await engine.whenIdle()
+
+    engine.setLensPath('999/3')
+    expect(engine.getLensPath()).toBeNull()
+    dispose()
+  })
+
+  it('falls back to the first remaining call when the lensed call vanishes', async () => {
+    const { graph, engine, dispose } = rig()
+    const { defId, self } = buildFactorial(graph)
+    const { instance, input } = buildCall(graph, defId, 5)
+    await engine.whenIdle()
+
+    engine.setLensPath(callPath(instance, self, 5))
+    setParam(input, 'value', 2)
+    await engine.whenIdle()
+    expect(engine.getLensPath()).toBe(callPath(instance, self, 1))
+    dispose()
+  })
+
+  it('reads interior nodes through interior stores, never the root store', async () => {
+    const { graph, engine, dispose } = rig()
+    const { defId } = buildFactorial(graph)
+    const { input } = buildCall(graph, defId, 5)
+    await engine.whenIdle()
+
+    // Interior and root id spaces overlap: interior lessEq shares an id with
+    // a root node. stateOf must resolve through the interior store (5 ≤ 1 is
+    // false at the top call), not return the root node's state ([5]).
+    const sub = interiorOf(graph, defId)
+    const lessEq = sub._nodes.find((n) => n.type === 'math/less-eq')
+    if (!lessEq) throw new Error('no lessEq')
+    expect(engine.stateOf(lessEq).outputs).toEqual([false])
+    expect(engine.stateOf(input).outputs).toEqual([5])
+    expect(engine.stateOf(lessEq)).not.toBe(engine.stateOf(input))
+    dispose()
+  })
+})

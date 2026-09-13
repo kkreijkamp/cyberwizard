@@ -41,6 +41,7 @@ import type { LGraph, LGraphNode, NodeId, Subgraph, SubgraphNode } from '@comfyo
 import type { DataType } from './types'
 import { ANY, dataTypeFromKind, fromSlotType, inferDataType, repr } from './types'
 import { CoercionError, coerce } from './coerce'
+import { SINK_WIDGET_NAME } from './preview-widget'
 import type { SlotDef, UntypedNodeDef } from './registry'
 import { PREVIEW_WIDGET_NAME, getNodeDef, paramDataType, setDirtyHandler } from './registry'
 import type { SubgraphDefMeta } from './subgraph'
@@ -124,6 +125,23 @@ class UpstreamBlocked extends Error {
 }
 /** Thrown out of RunContext.pull when the pulled slot's upstream was superseded mid-pull. */
 class UpstreamStale extends Error {}
+
+/**
+ * Synthetic state for nodes that never ran in the lensed call — paints '∅'
+ * and restores colors. Shared and frozen: paint() never mutates state.
+ */
+const EMPTY_STATE: NodeState = Object.freeze({
+  dirty: true,
+  running: false,
+  generation: 0,
+  outputs: undefined,
+  inputs: undefined,
+  error: undefined,
+  blocked: false,
+  cause: undefined,
+  inFlight: undefined,
+  cycle: false,
+})
 
 /**
  * One evaluation context: the root graph, or the interior of one subgraph
@@ -219,6 +237,13 @@ export class Engine {
   private readonly traceStores = new Map<string, Map<NodeId, NodeState>>()
   /** Every recorded call (retained or traced), keyed by instance path. */
   private readonly callIndex = new Map<string, CallInfo>()
+  /**
+   * The call lens: which recorded call drives interior value display (badges,
+   * link styles, inspect overlay). Null = default view (top call / root).
+   * lensGraph is the resolved definition the lensed call belongs to, cached.
+   */
+  private lensPath: string | null = null
+  private lensGraph: Subgraph | null = null
   private scheduled = false
   private evaluating = false
   private rerunRequested = false
@@ -276,6 +301,9 @@ export class Engine {
     for (const key of [...this.callIndex.keys()]) {
       if (key === path || key.startsWith(prefix)) this.callIndex.delete(key)
     }
+    if (this.lensPath !== null && (this.lensPath === path || this.lensPath.startsWith(prefix))) {
+      this.setLensPath(null)
+    }
   }
 
   /**
@@ -293,9 +321,19 @@ export class Engine {
     this.invalidatedSeeds.clear()
     this.traceStores.clear()
     this.callIndex.clear()
+    this.lensPath = null
+    this.lensGraph = null
   }
 
   stateOf(node: LGraphNode): Readonly<NodeState> {
+    if (this.lensGraph !== null && node.graph === this.lensGraph) {
+      return this.lensStore()?.get(node.id) ?? EMPTY_STATE
+    }
+    if (node.graph !== this.graph) {
+      // Interior node outside the lens: read-only lookup — never create a
+      // root-store entry (interior and root id spaces overlap).
+      return this.defaultInteriorState(node) ?? EMPTY_STATE
+    }
     return this.state(node)
   }
 
@@ -337,6 +375,11 @@ export class Engine {
 
   /** The failing state for a node, whether it lives at root or in a retained instance interior. */
   private failureState(node: LGraphNode): { s: NodeState; graph: LGraph } | undefined {
+    if (this.lensGraph !== null && node.graph === this.lensGraph) {
+      const s = this.lensStore()?.get(node.id)
+      if (s && (s.error || s.blocked)) return { s, graph: this.lensGraph }
+      return undefined
+    }
     if (node.graph === this.graph) {
       const root = this.states.get(node.id)
       if (root && (root.error || root.blocked)) return { s: root, graph: this.graph }
@@ -370,13 +413,23 @@ export class Engine {
    * that live there: interior and root id spaces overlap.
    */
   outputsOf(node: LGraphNode): readonly unknown[] | undefined {
+    if (this.lensGraph !== null && node.graph === this.lensGraph) {
+      // The lens store is authoritative for its subgraph: a node absent from
+      // it simply never ran in this call.
+      return this.lensStore()?.get(node.id)?.outputs
+    }
     if (node.graph === this.graph) {
       const root = this.states.get(node.id)
       if (root?.outputs !== undefined) return root.outputs
     }
+    return this.defaultInteriorState(node)?.outputs
+  }
+
+  /** First retained interior state with outputs for the node (the default, top-call view). */
+  private defaultInteriorState(node: LGraphNode): NodeState | undefined {
     for (const store of this.interiorStores.values()) {
       const s = store.get(node.id)
-      if (s?.outputs !== undefined) return s.outputs
+      if (s?.outputs !== undefined) return s
     }
     return undefined
   }
@@ -407,6 +460,78 @@ export class Engine {
     return this.traceStores.get(path) ?? this.interiorStores.get(path)
   }
 
+  // ─── The lens ────────────────────────────────────────────────────────────
+
+  /** The call path currently driving interior value display, or null (default view). */
+  getLensPath(): string | null {
+    return this.lensPath
+  }
+
+  /**
+   * Sets the call lens: which recorded call's values interior badges, link
+   * styles, and the inspect overlay show while the lens call's definition is
+   * open. Unknown paths clear the lens. Repaints the affected interior from
+   * the newly selected store, and restores the default (top-call) view on the
+   * subgraph the lens moved away from.
+   */
+  setLensPath(path: string | null): void {
+    const previous = this.lensGraph
+    const info = path === null ? undefined : this.callIndex.get(path)
+    const subgraph = info ? (this.graph.subgraphs.get(info.defId as never) as Subgraph | undefined) : undefined
+    this.lensPath = info && subgraph ? path : null
+    this.lensGraph = info && subgraph ? subgraph : null
+    if (previous !== null && previous !== this.lensGraph) this.paintDefaultView(previous)
+    this.refreshLensView()
+  }
+
+  private lensStore(): ReadonlyMap<NodeId, NodeState> | undefined {
+    return this.lensPath === null ? undefined : this.callStore(this.lensPath)
+  }
+
+  /**
+   * Repaints every interior node of the lensed definition from the lens store
+   * (nodes that never ran in this call paint '∅'). Runs after every flush and
+   * compute, so mid-flush evaluation paints always settle on the lensed call.
+   */
+  private refreshLensView(): void {
+    if (this.lensPath !== null && !this.callIndex.has(this.lensPath)) {
+      // The lensed call vanished (a shorter recursion re-ran): fall back to
+      // the same definition's first remaining call, or drop the lens.
+      const defId = this.lensGraph?.id
+      this.setLensPath(defId === undefined ? null : (this.callsForDef(defId)[0]?.path ?? null))
+      return
+    }
+    if (this.lensGraph === null) return
+    const store = this.lensStore()
+    for (const node of this.lensGraph._nodes) {
+      const s = store?.get(node.id) ?? EMPTY_STATE
+      this.paint(node, s)
+      this.paintSinkValue(node, s)
+    }
+  }
+
+  /** Repaints a definition's interior from default states after the lens moves away. */
+  private paintDefaultView(subgraph: Subgraph): void {
+    for (const node of subgraph._nodes) {
+      const s = this.defaultInteriorState(node) ?? EMPTY_STATE
+      this.paint(node, s)
+      this.paintSinkValue(node, s)
+    }
+  }
+
+  /**
+   * Preview sinks write their own widget per run (per call — the shared well
+   * ends on an arbitrary depth); the lens rewrites it from the call state's
+   * recorded inputs.
+   */
+  private paintSinkValue(node: LGraphNode, s: NodeState): void {
+    if (getNodeDef(node)?.outputs.length !== 0) return // sinks only
+    const widget = node.widgets?.find((w) => w.name === SINK_WIDGET_NAME) as { value?: unknown } | undefined
+    if (!widget) return
+    const value = s.inputs === undefined ? undefined : Object.values(s.inputs)[0]
+    widget.value = value === undefined ? '∅' : repr(value)
+  }
+
   /**
    * Pulls one node on demand, as if a sink demanded it: the node and any
    * dirty upstream evaluate, clean cached values memo-hit, and the badge
@@ -418,6 +543,7 @@ export class Engine {
       await this.ensure(node, this.rootScope())
     } finally {
       this.pendingComputes--
+      this.refreshLensView()
       this.drainIdleWaiters()
     }
   }
@@ -505,6 +631,8 @@ export class Engine {
       } while (this.rerunRequested || this.anySinkDirty())
     } finally {
       this.evaluating = false
+      // Evaluation paints as it runs; settle the visible interior on the lens.
+      this.refreshLensView()
       this.drainIdleWaiters()
     }
   }

@@ -1,9 +1,9 @@
 import type { LGraphNode } from '@comfyorg/litegraph'
-import { makePreviewWidget } from '../../core/preview-widget'
+import { SINK_WIDGET_NAME, makePreviewWidget } from '../../core/preview-widget'
 import { defineNode } from '../../core/registry'
 import { ANY, repr } from '../../core/types'
 
-const WIDGET_NAME = 'preview'
+const WIDGET_NAME = SINK_WIDGET_NAME
 
 /** Raw input from the last run, stashed for the inspect overlay (never serialized). */
 export const LAST_INPUT_PROPERTY = '__lastInput'

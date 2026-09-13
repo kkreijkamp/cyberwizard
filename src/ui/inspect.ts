@@ -55,7 +55,9 @@ export function installInspect(engine: Engine): void {
 
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') {
-        e.stopPropagation()
+        // stopImmediate: the breadcrumb's own document-level Esc listener
+        // must not ALSO navigate up a level for this same keypress.
+        e.stopImmediatePropagation()
         close()
       }
     }
@@ -80,6 +82,16 @@ function contentFor(engine: Engine, node: LGraphNode): string {
     return cause ? `⚠ ${cause.title}: ${cause.message}` : '⚠ blocked upstream'
   }
 
+  // Sinks have no outputs; their value is the input. Prefer the state's
+  // recorded per-call inputs (lens-aware) over the node property, which every
+  // call overwrites — it only ever holds the last call's value.
+  const def = getNodeDef(node)
+  if (def && def.outputs.length === 0) {
+    const firstInput = def.inputs[0]
+    const recorded = firstInput === undefined ? undefined : state.inputs?.[firstInput.name]
+    if (recorded !== undefined) return repr(recorded, { full: true })
+  }
+
   const lastInput = node.properties[LAST_INPUT_PROPERTY]
   if (lastInput !== undefined) return repr(lastInput, { full: true })
 
@@ -89,7 +101,7 @@ function contentFor(engine: Engine, node: LGraphNode): string {
       ? node.graph
         ? getSubgraphDef(node.graph.rootGraph, node.type)?.outputs
         : undefined
-      : getNodeDef(node)?.outputs
+      : def?.outputs
     return outputs.map((value, i) => `${defs?.[i]?.name ?? String(i)}: ${repr(value, { full: true })}`).join('\n')
   }
 

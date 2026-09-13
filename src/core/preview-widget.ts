@@ -26,6 +26,13 @@ const FONT_SIZE = 11
 /** Click bridge (core → ui): ui/inspect registers the handler at startup. */
 let clickHandler: ((node: LGraphNode) => void) | undefined
 
+/**
+ * Widget name of the Preview sink's value well (nodes/io/preview). Sinks have
+ * no ⇒ badge (no outputs), so the engine's lens repaint rewrites this widget
+ * from the call state's recorded inputs.
+ */
+export const SINK_WIDGET_NAME = 'preview'
+
 export function setPreviewClickHandler(handler: ((node: LGraphNode) => void) | undefined): void {
   clickHandler = handler
 }
