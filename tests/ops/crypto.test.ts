@@ -238,3 +238,51 @@ describe('ed25519', () => {
     expect((await runOp('crypto/ed25519-verify', { data: bytesOf('message'), signature, publicKey: b.publicKey })).valid).toBe(false)
   })
 })
+
+describe('kdf', () => {
+  it('PBKDF2-HMAC-SHA1 matches RFC 6070', async () => {
+    const { hex } = await runOp(
+      'crypto/pbkdf2',
+      { password: bytesOf('password'), salt: bytesOf('salt') },
+      { hash: 'SHA-1', iterations: 1, length: 20 },
+    )
+    expect(hex).toBe('0c60c80f961f0e71f3a9b524af6012062fe037a6')
+  })
+
+  it('PBKDF2-HMAC-SHA256 matches the standard vector', async () => {
+    const { hex } = await runOp(
+      'crypto/pbkdf2',
+      { password: bytesOf('password'), salt: bytesOf('salt') },
+      { hash: 'SHA-256', iterations: 1, length: 32 },
+    )
+    expect(hex).toBe('120fb6cffcf8b32c43e7225256c4f837a86548c92ccc35480805987cb70be17b')
+  })
+
+  it('PBKDF2 is deterministic, salt- and iteration-sensitive', async () => {
+    const args = { password: bytesOf('pw'), salt: bytesOf('s') }
+    const a = (await runOp('crypto/pbkdf2', args, { iterations: 10 })).key
+    expect((await runOp('crypto/pbkdf2', args, { iterations: 10 })).key).toEqual(a)
+    expect((await runOp('crypto/pbkdf2', args, { iterations: 11 })).key).not.toEqual(a)
+    expect((await runOp('crypto/pbkdf2', { ...args, salt: bytesOf('t') }, { iterations: 10 })).key).not.toEqual(a)
+  })
+
+  it('HKDF matches RFC 5869 test case 1 (SHA-256)', async () => {
+    const { hex } = await runOp(
+      'crypto/hkdf',
+      {
+        ikm: new Uint8Array(22).fill(0x0b),
+        salt: hexToBytes('000102030405060708090a0b0c'),
+        info: hexToBytes('f0f1f2f3f4f5f6f7f8f9'),
+      },
+      { hash: 'SHA-256', length: 42 },
+    )
+    expect(hex).toBe('3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5bf34007208d5b887185865')
+  })
+
+  it('HKDF info labels produce different keys', async () => {
+    const base = { ikm: new Uint8Array(32), salt: new Uint8Array(16) }
+    const a = (await runOp('crypto/hkdf', { ...base, info: bytesOf('encryption') })).key
+    const b = (await runOp('crypto/hkdf', { ...base, info: bytesOf('signing') })).key
+    expect(a).not.toEqual(b)
+  })
+})
