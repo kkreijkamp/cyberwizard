@@ -6,8 +6,11 @@
 
 import type { GraphDocument } from '../core/serialize'
 import { aesGcm } from './aes-gcm'
+import { ecdhAgreement } from './ecdh-agreement'
 import { hashesAvalanche } from './hashes-avalanche'
 import { pbkdf2Passwords } from './pbkdf2-passwords'
+import { rsaHybrid } from './rsa-hybrid'
+import { signatures } from './signatures'
 import { welcomeTour } from './welcome-tour'
 
 export interface Scene {
@@ -42,5 +45,23 @@ export const SCENES: readonly Scene[] = [
     title: 'Encrypting with a Password',
     description: 'PBKDF2 stretches a human password into a real AES key — salt and iterations explained.',
     build: pbkdf2Passwords,
+  },
+  {
+    id: 'rsa-hybrid',
+    title: 'Hybrid Encryption (RSA + AES)',
+    description: 'RSA wraps a one-time AES key, AES-GCM carries the message — the TLS/PGP pattern.',
+    build: rsaHybrid,
+  },
+  {
+    id: 'signatures',
+    title: 'Digital Signatures (Ed25519)',
+    description: 'Prove authorship without secrecy; a lazy Select renders the verdict.',
+    build: signatures,
+  },
+  {
+    id: 'ecdh-agreement',
+    title: 'ECDH: Secrets From Thin Air',
+    description: 'Two parties derive the same secret without sending it, then HKDF makes it an AES key.',
+    build: ecdhAgreement,
   },
 ]
