@@ -118,16 +118,17 @@ export function applyTheme(canvas: LGraphCanvas): void {
   })
 
   // The title box — the stock square at the title's left, which is really the
-  // collapse toggle — becomes a quiet chevron in the title text colour: '>'
-  // normally, rotated to point down while collapsed. Setting onDrawTitleBox
-  // makes the library skip its own box draw entirely (drawTitleBox early-
-  // returns into the hook), so no square is ever painted — the engine's rust
-  // boxcolor on failure simply has nothing left to show through, which is
-  // fine: the whole-node rust repaint carries the error signal.
+  // collapse toggle — becomes a quiet chevron in the title text colour: '∨'
+  // while open, '>' while collapsed (the disclosure-triangle convention).
+  // Setting onDrawTitleBox makes the library skip its own box draw entirely
+  // (drawTitleBox early-returns into the hook), so no square is ever
+  // painted — the engine's rust boxcolor on failure simply has nothing left
+  // to show through, which is fine: the whole-node rust repaint carries the
+  // error signal.
   LGraphNode.prototype.onDrawTitleBox = function (this: LGraphNode, ctx: CanvasRenderingContext2D) {
     ctx.save()
     ctx.translate(15, -LiteGraph.NODE_TITLE_HEIGHT / 2)
-    if (this.flags.collapsed) ctx.rotate(Math.PI / 2)
+    if (!this.flags.collapsed) ctx.rotate(Math.PI / 2)
     ctx.beginPath()
     ctx.moveTo(-2.7, -4.5)
     ctx.lineTo(2.7, 0)
