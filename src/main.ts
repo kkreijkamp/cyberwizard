@@ -56,6 +56,10 @@ else deserializeGraph(welcomeTour(), graph) // first boot: the annotated tour, n
 
 // LGraphCanvas starts its own render loop on construction (unless skip_render).
 const canvas = new LGraphCanvas(canvasElement, graph, { autoresize: true })
+// The library binds its keydown handler (Delete/Backspace, copy/paste,
+// space-pan) to the CANVAS element — without a tabindex it can never hold
+// keyboard focus, so none of those keys ever reached it.
+canvasElement.tabIndex = 0
 installHiDPICanvas(canvas)
 applyTheme(canvas)
 installLinkStyles(canvas, engine)

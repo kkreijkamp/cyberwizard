@@ -126,6 +126,12 @@ body {
   position: relative;
 }
 
+/* The canvas is focusable (its keydown handler drives Delete, copy/paste,
+   space-pan) — suppress the default focus ring, the app is chrome enough. */
+#graph:focus {
+  outline: none;
+}
+
 #graph {
   display: block;
   width: 100%;
