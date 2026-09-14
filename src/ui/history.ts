@@ -143,17 +143,29 @@ export function installHistory(graph: LGraph, canvas: LGraphCanvas): HistoryDriv
   }
 }
 
-/** The ↶/↷ header buttons, prepended to the header actions; disabled state tracks the stacks. */
+/** The undo/redo header buttons, prepended to the header actions; disabled state tracks the stacks. */
 export function wireHistoryButtons(host: HTMLElement, driver: HistoryDriver): void {
+  // Inline SVG: Unicode arrows (↶/⟲) render differently on every platform.
+  // Stroke is currentColor, so amber hover and dimmed disabled states apply.
   const undoButton = document.createElement('button')
   undoButton.id = 'btn-undo'
-  undoButton.textContent = '↶'
+  undoButton.className = 'icon-button'
   undoButton.title = 'Undo (Ctrl+Z)'
+  undoButton.innerHTML =
+    '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' +
+    '<polyline points="6.5 2.5 2.5 6.5 6.5 10.5"/>' +
+    '<path d="M3 6.5 H10.5 a3.5 3.5 0 0 1 0 7 H7"/>' +
+    '</svg>'
   undoButton.addEventListener('click', () => driver.undo())
   const redoButton = document.createElement('button')
   redoButton.id = 'btn-redo'
-  redoButton.textContent = '↷'
+  redoButton.className = 'icon-button'
   redoButton.title = 'Redo (Ctrl+Shift+Z)'
+  redoButton.innerHTML =
+    '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' +
+    '<polyline points="9.5 2.5 13.5 6.5 9.5 10.5"/>' +
+    '<path d="M13 6.5 H5.5 a3.5 3.5 0 0 0 0 7 H9"/>' +
+    '</svg>'
   redoButton.addEventListener('click', () => driver.redo())
 
   function refresh(): void {

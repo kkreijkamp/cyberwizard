@@ -91,6 +91,19 @@ body {
   color: var(--ink);
 }
 
+.header-actions button.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 7px;
+}
+
+.header-actions button.icon-button svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
 .header-actions select {
   background: var(--surface);
   color: var(--ink);
