@@ -29,6 +29,7 @@ import {
   SUBGRAPH_OUTPUT_NODE_ID,
   allSubgraphDefs,
   clearSubgraphDefs,
+  engineFor,
   getSubgraphDef,
   registerRestoredDef,
 } from './subgraph'
@@ -239,9 +240,16 @@ export interface LoadResult {
  * graph: node removal/addition flows through the engine's normal hooks.
  */
 export function deserializeGraph(doc: GraphDocument, graph: LGraph, canvas?: LGraphCanvas): LoadResult {
+  // Captured for the engine's reconcileAfterLoad: unchanged nodes keep their
+  // cached outputs across the restore instead of re-evaluating wholesale.
+  const oldDoc = serializeGraph(graph)
   // The load gate (core/load-gate): per-node add hooks stay quiet for the
   // whole pass, so the restored graph is byte-identical to the document.
-  return withLoadGate(() => deserializeGated(doc, graph, canvas))
+  const result = withLoadGate(() => deserializeGated(doc, graph, canvas))
+  // Engine reconciliation AFTER the gate closes (its dirty-marking is live
+  // again): diff old vs new, dirty only what changed, repaint survivors.
+  engineFor(graph)?.reconcileAfterLoad(oldDoc, doc)
+  return result
 }
 
 function deserializeGated(doc: GraphDocument, graph: LGraph, canvas?: LGraphCanvas): LoadResult {

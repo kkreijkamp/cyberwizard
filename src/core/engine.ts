@@ -41,9 +41,11 @@ import type { LGraph, LGraphNode, NodeId, Subgraph, SubgraphNode } from '@comfyo
 import type { DataType } from './types'
 import { ANY, dataTypeFromKind, fromSlotType, inferDataType, repr } from './types'
 import { CoercionError, coerce } from './coerce'
+import { isLoading } from './load-gate'
 import { SINK_WIDGET_NAME } from './preview-widget'
 import type { SlotDef, UntypedNodeDef } from './registry'
 import { PREVIEW_WIDGET_NAME, getNodeDef, paramDataType, setDirtyHandler } from './registry'
+import type { GraphDocument } from './serialize'
 import type { SubgraphDefMeta } from './subgraph'
 import { getSubgraphDef } from './subgraph'
 
@@ -107,6 +109,22 @@ function comparePaths(a: string, b: string): number {
     if (as[i] !== bs[i]) return Number(as[i]) - Number(bs[i])
   }
   return as.length - bs.length
+}
+
+/** Per-node sorted link sets, for restore diffing (SerializedLink carries no id). */
+function linkSetsOf(doc: GraphDocument): Map<number, string> {
+  const byNode = new Map<number, string[]>()
+  for (const link of doc.links) {
+    const key = `${link.from.node}:${link.from.slot}>${link.to.node}:${link.to.slot}`
+    for (const id of [link.from.node, link.to.node]) {
+      const list = byNode.get(id)
+      if (list) list.push(key)
+      else byNode.set(id, [key])
+    }
+  }
+  const out = new Map<number, string>()
+  for (const [id, list] of byNode) out.set(id, list.sort().join('|'))
+  return out
 }
 
 interface ResolvedInput {
@@ -252,16 +270,24 @@ export class Engine {
   private readonly previousOnNodeRemoved: LGraph['onNodeRemoved']
 
   constructor(readonly graph: LGraph) {
-    setDirtyHandler(graph, (node) => this.markDirty(node))
+    // All dirty-marking entry points check the load gate: during a bulk
+    // restore the reconcile pass (not the per-edge bridges) decides what
+    // re-runs. This covers onNodeAdded, registry widget wiring, and the
+    // subgraph coordinator's instance bridges alike.
+    setDirtyHandler(graph, (node) => {
+      if (!isLoading()) this.markDirty(node)
+    })
     this.previousOnNodeAdded = graph.onNodeAdded
     graph.onNodeAdded = (node) => {
       this.previousOnNodeAdded?.call(graph, node)
-      this.markDirty(node)
+      // Bulk restores dirty nothing here: reconcileAfterLoad diffs instead,
+      // so unchanged nodes keep their cached outputs.
+      if (!isLoading()) this.markDirty(node)
     }
     this.previousOnNodeRemoved = graph.onNodeRemoved
     graph.onNodeRemoved = (node) => {
       this.previousOnNodeRemoved?.call(graph, node)
-      this.forget(node)
+      if (!isLoading()) this.forget(node)
     }
     for (const node of graph._nodes) this.markDirty(node)
     this.schedule()
@@ -311,8 +337,11 @@ export class Engine {
    * LGraph.clear() never fires graph.onNodeRemoved, and the new document
    * reuses low node ids: stale stores would alias into it. Called by
    * clearSubgraphDefs (core/subgraph), which covers both load paths.
+   * During a gated load this does nothing: reconcileAfterLoad prunes instead,
+   * so undo/redo restores keep the cached outputs of unchanged nodes.
    */
   reset(): void {
+    if (isLoading()) return
     for (const controller of this.abortControllers.values()) controller.abort()
     this.abortControllers.clear()
     this.states.clear()
@@ -324,6 +353,85 @@ export class Engine {
     this.lensPath = null
     this.lensGraph = null
     this.traceOverflowed = false
+  }
+
+  /**
+   * Reconciles engine state after a gated document restore (called by
+   * deserializeGraph with the pre- and post-load documents). Instead of
+   * re-evaluating everything, only nodes whose type, params, or wiring
+   * changed (and definitions whose content changed) are marked dirty — their
+   * downstream follows by ordinary dirty propagation — while vanished nodes
+   * and definitions lose their stores. Survivors are repainted from their
+   * kept state immediately, so their badges never flash to '∅'.
+   */
+  reconcileAfterLoad(oldDoc: GraphDocument, newDoc: GraphDocument): void {
+    // In-flight runs from the old document are always suspect.
+    for (const controller of this.abortControllers.values()) controller.abort()
+    this.abortControllers.clear()
+
+    const oldNodes = new Map(oldDoc.nodes.map((n) => [n.id, n]))
+    const newNodes = new Map(newDoc.nodes.map((n) => [n.id, n]))
+    const oldDefs = new Map((oldDoc.subgraphs ?? []).map((s) => [s.id, s]))
+    const newDefs = new Map((newDoc.subgraphs ?? []).map((s) => [s.id, s]))
+    const oldLinks = linkSetsOf(oldDoc)
+    const newLinks = linkSetsOf(newDoc)
+
+    const changedDefs = new Set<string>()
+    for (const [id, sub] of newDefs) {
+      const old = oldDefs.get(id)
+      if (!old || JSON.stringify(old) !== JSON.stringify(sub)) changedDefs.add(id)
+    }
+    const goneDefIds = new Set([...oldDefs.keys()].filter((id) => !newDefs.has(id)))
+
+    // Path-keyed state dies when its root instance vanished, or its
+    // definition changed or vanished. Unrecorded paths can't be validated.
+    const pathGone = (path: string): boolean => {
+      const rootId = Number(path.split('/')[0])
+      if (!newNodes.has(rootId)) return true
+      const defId = this.callIndex.get(path)?.defId
+      if (defId === undefined) return true
+      return changedDefs.has(defId) || goneDefIds.has(defId)
+    }
+    for (const key of [...this.interiorStores.keys()]) if (pathGone(key)) this.interiorStores.delete(key)
+    for (const key of [...this.traceStores.keys()]) if (pathGone(key)) this.traceStores.delete(key)
+    for (const key of [...this.pendingSeeds.keys()]) if (pathGone(key)) this.pendingSeeds.delete(key)
+    for (const key of [...this.invalidatedSeeds]) if (pathGone(key)) this.invalidatedSeeds.delete(key)
+    for (const key of [...this.callIndex.keys()]) if (pathGone(key)) this.callIndex.delete(key)
+    if (this.lensPath !== null && pathGone(this.lensPath)) this.setLensPath(null)
+
+    // Root nodes: forget the vanished, dirty the changed, repaint the kept.
+    for (const id of [...this.states.keys()]) {
+      if (!newNodes.has(id as number)) this.states.delete(id)
+    }
+    for (const node of this.graph._nodes) {
+      const id = node.id as number
+      const old = oldNodes.get(id)
+      const fresh = newNodes.get(id)
+      const changed =
+        old === undefined ||
+        fresh === undefined ||
+        old.type !== fresh.type ||
+        changedDefs.has(fresh.type) ||
+        JSON.stringify(old.params) !== JSON.stringify(fresh.params) ||
+        JSON.stringify(old.widgetInputs ?? null) !== JSON.stringify(fresh.widgetInputs ?? null) ||
+        (old.variadicInputs ?? 0) !== (fresh.variadicInputs ?? 0) ||
+        (old.fileData ?? '') !== (fresh.fileData ?? '') ||
+        oldLinks.get(id) !== newLinks.get(id)
+      if (changed) {
+        if (node.isSubgraphNode()) this.instanceWiringChanged(node)
+        else this.markDirty(node)
+      } else {
+        // Repaint from the kept state: the badge never flashes to '∅'.
+        const s = this.states.get(id)
+        if (s) {
+          this.paint(node, s)
+          this.paintSinkValue(node, s)
+        }
+      }
+    }
+    this.refreshLensView()
+    for (const listener of this.settledListeners) listener()
+    this.schedule()
   }
 
   stateOf(node: LGraphNode): Readonly<NodeState> {
@@ -641,6 +749,7 @@ export class Engine {
    * the seeded nodes and their interior downstream re-execute.
    */
   seedSubgraphInstanceDirty(instance: LGraphNode, interiorNodeId: NodeId): void {
+    if (isLoading()) return // bulk restore: reconcile decides what re-runs
     let seeds = this.pendingSeeds.get(String(instance.id))
     if (!seeds) {
       seeds = new Set()
@@ -652,6 +761,7 @@ export class Engine {
 
   /** An instance's own edges changed: its inputs may differ, so interior seeds are void. */
   instanceWiringChanged(instance: LGraphNode): void {
+    if (isLoading()) return // bulk restore: reconcile decides what re-runs
     this.pendingSeeds.delete(String(instance.id))
     this.invalidatedSeeds.add(String(instance.id))
     this.markDirty(instance)

@@ -104,6 +104,11 @@ export function scopeChainOf(rootGraph: LGraph, defId: string): string[] {
 /** Where a node lives: the root graph, or a definition's interior. */
 export type DefLocation = LGraph | Subgraph | null | undefined
 
+/** The engine attached to this document, if any (reconcileAfterLoad at restore). */
+export function engineFor(rootGraph: LGraph): Engine | undefined {
+  return attachments.get(rootGraph)?.engine
+}
+
 /**
  * Definitions visible from a location: globals are visible everywhere; a
  * scoped definition only inside its parent's subtree (the location's own
