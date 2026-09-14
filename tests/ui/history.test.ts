@@ -37,6 +37,11 @@ function spawn(graph: LGraph, type: string, title?: string): LGraphNode {
   return node
 }
 
+/** Waits out the post-restore adoption window (ADOPT_MS is 120). */
+function settle(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 200))
+}
+
 describe('graph undo/redo', () => {
   it('undoes and redoes a node addition', () => {
     const { graph, driver } = rig()
@@ -89,7 +94,7 @@ describe('graph undo/redo', () => {
     driver.dispose()
   })
 
-  it('a fresh edit after undo kills the redo future', () => {
+  it('a fresh edit after undo kills the redo future', async () => {
     const { graph, driver } = rig()
     spawn(graph, 'io/text-input', 'A')
     driver.flush()
@@ -99,6 +104,7 @@ describe('graph undo/redo', () => {
     driver.undo()
     expect(driver.canRedo()).toBe(true)
 
+    await settle() // past the adoption window: real edits are entries again
     spawn(graph, 'io/text-input', 'C')
     driver.flush()
     expect(driver.canRedo()).toBe(false)
@@ -201,6 +207,33 @@ describe('graph undo/redo', () => {
 
     driver.redo()
     expect(graph._nodes.some((n) => n.id === marker.id)).toBe(true)
+    driver.dispose()
+  })
+
+  it('absorbs post-restore drift instead of clobbering redo, and only inside its window', async () => {
+    const { graph, driver } = rig()
+    const a = spawn(graph, 'io/text-input', 'A')
+    driver.flush()
+    spawn(graph, 'io/text-input', 'B')
+    driver.flush()
+
+    driver.undo()
+    // Simulate post-restore normalization the driver can't foresee (first-
+    // frame layout, panel sync): bare geometry mutation, no history involved.
+    a.pos[1] += 50
+    driver.flush()
+    expect(driver.canRedo(), 'drift after restore must not kill redo').toBe(true)
+
+    driver.redo()
+    expect(graph._nodes.map((n) => n.title)).toEqual(['A', 'B'])
+
+    // Outside the window: a real edit is an ordinary entry again.
+    await settle()
+    spawn(graph, 'io/text-input', 'C')
+    driver.flush()
+    expect(driver.canUndo()).toBe(true)
+    driver.undo()
+    expect(graph._nodes.map((n) => n.title)).toEqual(['A', 'B'])
     driver.dispose()
   })
 })

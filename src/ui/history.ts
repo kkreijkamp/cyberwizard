@@ -23,6 +23,13 @@ import { deserializeGraph, serializeGraph } from '../core/serialize'
 
 const POLL_MS = 500
 const ENTRY_LIMIT = 50
+/**
+ * How long after a restore/checkpoint the graph may "settle" with the changes
+ * absorbed into the restored present: a few frames for first-draw layout and
+ * sync microtasks, far under the poll interval. Edits after this window are
+ * ordinary entries again.
+ */
+const ADOPT_MS = 120
 
 export interface HistoryDriver {
   undo(): void
@@ -47,18 +54,43 @@ export function installHistory(graph: LGraph, canvas: LGraphCanvas): HistoryDriv
   const listeners = new Set<() => void>()
   let lastDoc: GraphDocument = serializeGraph(graph)
   let lastJson = JSON.stringify(lastDoc)
-  let adopting = false
+  let adoptNext = false
 
   function emit(): void {
     for (const listener of listeners) listener()
+  }
+
+  let adoptTimer: ReturnType<typeof setTimeout> | undefined
+
+  /**
+   * Marks the graph's post-replacement form to be adopted (never recorded as
+   * an edit). The adoption happens on the next check OR after ADOPT_MS,
+   * whichever comes first — the timer is the backstop that closes the window
+   * so a much-later real edit can't be misclassified as normalization.
+   */
+  function adoptSoon(): void {
+    adoptNext = true
+    if (adoptTimer !== undefined) clearTimeout(adoptTimer)
+    adoptTimer = setTimeout(() => {
+      adoptTimer = undefined
+      if (!adoptNext) return
+      adoptNext = false
+      lastDoc = serializeGraph(graph)
+      lastJson = JSON.stringify(lastDoc)
+    }, ADOPT_MS)
   }
 
   function check(): void {
     const doc = serializeGraph(graph)
     const json = JSON.stringify(doc)
     if (json === lastJson) return
-    if (adopting) {
-      adopting = false
+    if (adoptNext) {
+      // Adoption, never an entry: the graph's post-replacement form becomes
+      // the new baseline. Any normalization that fired after the restore —
+      // first-frame layout, panel sync, anything — is absorbed instead of
+      // clobbering redo. A real edit inside this window folds into the
+      // restored present (bounded by ADOPT_MS, see adoptSoon).
+      adoptNext = false
       lastDoc = doc
       lastJson = json
       return
@@ -74,6 +106,9 @@ export function installHistory(graph: LGraph, canvas: LGraphCanvas): HistoryDriv
     deserializeGraph(target, graph)
     lastDoc = target
     lastJson = JSON.stringify(target)
+    // The graph's post-restore form (first-frame layout, panel sync, …) is
+    // adopted within a short window, not recorded as an edit.
+    adoptSoon()
     if (openId !== null) {
       const sub = graph.subgraphs.get(openId as never) as Subgraph | undefined
       canvas.setGraph(sub ?? graph)
@@ -126,13 +161,14 @@ export function installHistory(graph: LGraph, canvas: LGraphCanvas): HistoryDriv
     checkpoint(): void {
       check()
       history.push(lastDoc)
-      adopting = true
+      adoptSoon()
       emit()
     },
     canUndo: () => history.canUndo,
     canRedo: () => history.canRedo,
     dispose(): void {
       clearInterval(timer)
+      if (adoptTimer !== undefined) clearTimeout(adoptTimer)
       if (hasDom) document.removeEventListener('keydown', onKey)
       listeners.clear()
     },
