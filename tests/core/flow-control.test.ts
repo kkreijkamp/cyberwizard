@@ -180,19 +180,19 @@ describe('flow/if', () => {
   it('recursion terminates through If: factorial via a self-instancing definition', async () => {
     const { graph, engine, dispose } = rig()
 
-    // "One": 0-in, 1-out — the constant base case.
+    // "One": 0-in, 1-out, the constant base case.
     const one = createSubgraphDef(graph, 'One')
     addDefOutput(graph, one.id, 'result', NUMBER)
     const oneSub = interiorOf(graph, one.id)
     wirePanelOut(oneSub, constNum(oneSub, 1), 0, 0)
 
-    // "Fact": n → If (n ≤ 1) then One else Fact Step — declared now, filled in
+    // "Fact": n → If (n ≤ 1) then One else Fact Step, declared now, filled in
     // after Fact Step exists (it holds the recursive instance).
     const fact = createSubgraphDef(graph, 'Fact')
     addDefInput(graph, fact.id, 'n', NUMBER)
     addDefOutput(graph, fact.id, 'result', NUMBER)
 
-    // "Fact Step": n → n × Fact(n − 1) — the recursive branch.
+    // "Fact Step": n → n × Fact(n − 1), the recursive branch.
     const step = createSubgraphDef(graph, 'Fact Step')
     addDefInput(graph, step.id, 'n', NUMBER)
     addDefOutput(graph, step.id, 'result', NUMBER)
@@ -245,7 +245,7 @@ describe('flow/if', () => {
 
   it('runaway recursion still surfaces the depth limit, through If', async () => {
     const { graph, engine, dispose } = rig()
-    // "Loop": n → If true then Loop(n) else n — recursion purely via apply;
+    // "Loop": n → If true then Loop(n) else n, recursion purely via apply;
     // the cond never saves it.
     const loop = createSubgraphDef(graph, 'Loop')
     addDefInput(graph, loop.id, 'n', NUMBER)
@@ -337,7 +337,7 @@ describe('flow/select (lazy value-level conditional)', () => {
     const { graph, engine, dispose } = rig()
 
     // "FactS": n → Select (n ≤ 1) ? 1 : n × FactS(n − 1). The recursive
-    // instance feeds Select's else slot — never pulled at the base case.
+    // instance feeds Select's else slot: never pulled at the base case.
     const fact = createSubgraphDef(graph, 'FactS')
     addDefInput(graph, fact.id, 'n', NUMBER)
     addDefOutput(graph, fact.id, 'result', NUMBER)
@@ -419,7 +419,7 @@ describe('subgraph-name consumers', () => {
 })
 
 describe('recursion depth', () => {
-  it('countdown(100) — ~200 frames deep, past the old 64 limit — computes exactly', async () => {
+  it('countdown(100) (~200 frames deep, past the old 64 limit) computes exactly', async () => {
     const { graph, engine, dispose } = rig()
 
     // "Zero": 0-in, 1-out constant 0.
@@ -432,7 +432,7 @@ describe('recursion depth', () => {
     addDefInput(graph, countdown.id, 'n', NUMBER)
     addDefOutput(graph, countdown.id, 'result', NUMBER)
 
-    // "Step": n → 1 + Countdown(n − 1) — the recursive branch.
+    // "Step": n → 1 + Countdown(n − 1), the recursive branch.
     const step = createSubgraphDef(graph, 'Step')
     addDefInput(graph, step.id, 'n', NUMBER)
     addDefOutput(graph, step.id, 'result', NUMBER)

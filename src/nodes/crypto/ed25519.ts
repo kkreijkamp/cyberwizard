@@ -3,7 +3,7 @@ import { defineNode } from '../../core/registry'
 import { BOOLEAN, BYTES } from '../../core/types'
 
 /**
- * Ed25519 key pair (Edwards-curve DSA — fast, modern, tiny 64-byte
+ * Ed25519 key pair (Edwards-curve DSA: fast, modern, tiny 64-byte
  * signatures). Public exports as SPKI bytes, private as PKCS#8.
  */
 defineNode({
@@ -34,7 +34,7 @@ async function importEd25519Key(key: Uint8Array | undefined, format: 'spki' | 'p
   }
 }
 
-/** Ed25519 signature — deterministic, always 64 bytes. */
+/** Ed25519 signature: deterministic, always 64 bytes. */
 defineNode({
   type: 'crypto/ed25519-sign',
   title: 'Ed25519 Sign',
@@ -52,7 +52,7 @@ defineNode({
   },
 })
 
-/** Ed25519 verification — boolean output for Select/If wiring. */
+/** Ed25519 verification: boolean output for Select/If wiring. */
 defineNode({
   type: 'crypto/ed25519-verify',
   title: 'Ed25519 Verify',

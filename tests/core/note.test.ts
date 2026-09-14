@@ -43,7 +43,7 @@ describe('notes/note', () => {
     // (NODE_WIDTH × 1.5 when widgets exist), not node.size.
     const content = widget.computeSize(LiteGraph.NODE_WIDTH * 1.5)[1]
     // Content + litegraph's per-widget margins and footer (4 + 8 + 6 on
-    // pinned 0.17.2) — the slotless node's clamped 20px slot row is
+    // pinned 0.17.2): the slotless node's clamped 20px slot row is
     // subtracted by the note.
     expect(node.computeSize()[1]).toBe(content + 18)
   })

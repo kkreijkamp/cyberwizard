@@ -61,7 +61,7 @@ describe('coerce', () => {
     expect(() => coerce('yes', STRING, BOOLEAN)).toThrow(CoercionError)
   })
 
-  it('parses hex strings to numbers — decimal wins, bare hex with letters falls back', () => {
+  it('parses hex strings to numbers: decimal wins, bare hex with letters falls back', () => {
     expect(coerce('0x1f', STRING, NUMBER)).toBe(31) // Number() handles the prefixes
     expect(coerce('0b101', STRING, NUMBER)).toBe(5)
     expect(coerce('1f', STRING, NUMBER)).toBe(31)

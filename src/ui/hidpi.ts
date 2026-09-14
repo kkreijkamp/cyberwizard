@@ -11,7 +11,7 @@
  *
  * The patch: resize() sizes both the front canvas and the background canvas
  * in device pixels, and establishes the matching DPR base transform on the
- * front context. That transform persists — every per-frame transform in the
+ * front context. That transform persists: every per-frame transform in the
  * draw loop is save/restore-balanced, and the ctx.start2D hook that would
  * reset it doesn't exist in this build. With store and transform both in
  * device pixels, the pipeline's DPR assumptions all hold (and rendering is
@@ -36,7 +36,7 @@ export function installHiDPICanvas(canvas: LGraphCanvas): void {
     const w = Math.max(1, Math.round(cssW * dpr))
     const h = Math.max(1, Math.round(cssH * dpr))
     // Browser zoom can leave the device-pixel size unchanged (CSS size and
-    // DPR move inversely) — the transform must still be reapplied.
+    // DPR move inversely): the transform must still be reapplied.
     if (element.width === w && element.height === h && appliedDpr === dpr) return
     element.width = w
     element.height = h

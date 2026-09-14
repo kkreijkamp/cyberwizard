@@ -22,7 +22,7 @@ defineNode({
   run: (inputs, params) => ({ text: (inputs.items ?? []).join(params.separator) }),
 })
 
-/** Length of a string, byte array, or list — polymorphic via the ANY slot. */
+/** Length of a string, byte array, or list: polymorphic via the ANY slot. */
 defineNode({
   type: 'text/length',
   title: 'Length',

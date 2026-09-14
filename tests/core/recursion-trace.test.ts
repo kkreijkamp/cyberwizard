@@ -161,7 +161,7 @@ describe('recursion call trace', () => {
     expect(calls.map((c) => c.depth)).toEqual([1, 2, 3, 4, 5])
 
     // Per-call values: mul computed 120, 24, 6, 2 down the chain; the base
-    // case never demanded mul (Select's else is lazy) — no state for it.
+    // case never demanded mul (Select's else is lazy): no state for it.
     expect(engine.callStore(callPath(instance, self, 2))?.get(mul.id)?.outputs).toEqual([24])
     expect(engine.callStore(callPath(instance, self, 4))?.get(mul.id)?.outputs).toEqual([2])
     const base = engine.callStore(callPath(instance, self, 5))
@@ -285,7 +285,7 @@ describe('recursion call trace', () => {
     const { graph, engine, dispose } = rig()
 
     // "BoomFact": like TraceFact but the panel feeds through an op that throws
-    // when n equals `bad` — the failure happens in a deep transient call.
+    // when n equals `bad`: the failure happens in a deep transient call.
     const meta = createSubgraphDef(graph, 'BoomFact')
     addDefInput(graph, meta.id, 'n', NUMBER)
     addDefOutput(graph, meta.id, 'result', NUMBER)
@@ -320,7 +320,7 @@ describe('recursion call trace', () => {
     expect(engine.stateOf(instance).error).toBeDefined()
     expect(boom.color).toBe('#a83a32')
 
-    // Recovery: 1! never touches the failing value — the success repaint must
+    // Recovery: 1! never touches the failing value, the success repaint must
     // restore the node's own colors even though the failing state was transient.
     setParam(input, 'value', 1)
     await engine.whenIdle()

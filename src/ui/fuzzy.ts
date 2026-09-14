@@ -1,4 +1,4 @@
-/** Case-insensitive subsequence match — empty query matches everything. */
+/** Case-insensitive subsequence match: empty query matches everything. */
 export function fuzzyMatch(query: string, text: string): boolean {
   if (query === '') return true
   const q = query.toLowerCase()

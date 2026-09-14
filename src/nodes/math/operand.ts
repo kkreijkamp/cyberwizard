@@ -1,8 +1,8 @@
 /**
- * Math — operand normalization for ops that accept any-typed values.
+ * Math: operand normalization for ops that accept any-typed values.
  *
  * Bytes are the pivotal case: when ANY input is bytes, arithmetic runs as
- * big-endian unsigned bignum and the output is bytes (see arith.ts) — the
+ * big-endian unsigned bignum and the output is bytes (see arith.ts): the
  * f64 bytes→number coercion would lose everything past 2^53. Numbers and
  * (hex) strings keep the ordinary f64 path. Booleans read as 1/0, unwired
  * inputs take the op's identity default.
@@ -33,7 +33,7 @@ export function toBignum(value: Uint8Array | number): bigint {
 /**
  * BigInt() handles decimal and the 0x/0b/0o prefixes; bare hex with letters
  * ('1f', 'deadbeef') gets the 0x prefix treatment, matching the string→number
- * coercion. Non-integer strings ('3.14') are an error — bignum is integer-only.
+ * coercion. Non-integer strings ('3.14') are an error: bignum is integer-only.
  */
 export function stringToBignum(s: string): bigint {
   const t = s.trim()

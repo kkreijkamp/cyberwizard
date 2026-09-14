@@ -402,7 +402,7 @@ describe('Subgraph evaluation', () => {
     const instance = spawnInstance(graph, meta.id)
     const sink = spawn(graph, 'test-sub/sink')
     src.connect(0, instance, 0)
-    instance.connect(0, sink, 0) // sinks demand evaluation — nothing runs unpulled
+    instance.connect(0, sink, 0) // sinks demand evaluation: nothing runs unpulled
 
     await engine.whenIdle() // 2^depth would explode; the ~1000 budget must hit first
     expect(engine.stateOf(instance).error?.message).toMatch(/budget|depth limit/)
@@ -435,7 +435,7 @@ describe('Subgraph evaluation', () => {
     expect(counters.suffix).toBe(2)
 
     reset()
-    setParam(b, 'suffix', '?') // interior edit — seeds a precise re-run
+    setParam(b, 'suffix', '?') // interior edit: seeds a precise re-run
     await engine.whenIdle()
     expect(counters.suffix).toBe(1) // only b re-ran
     expect(sinkCaptured).toEqual(['x1?'])
@@ -470,7 +470,7 @@ describe('Subgraph evaluation', () => {
     reset()
     setParam(src, 'text', 'y') // instance inputs change
     await engine.whenIdle()
-    expect(counters.src).toBe(1) // only the root src re-ran — interior source kept its cache
+    expect(counters.src).toBe(1) // only the root src re-ran: interior source kept its cache
     expect(counters.join).toBe(1) // join re-ran (downstream of the panel)
     expect(sinkCaptured).toEqual(['q|y'])
     dispose()
@@ -511,7 +511,7 @@ describe('Subgraph evaluation', () => {
     setParam(a, 'suffix', '!')
     setParam(b, 'suffix', '?') // two seed writes before the next pass
     await engine.whenIdle()
-    expect(counters.suffix).toBe(2) // both branches re-ran — neither seed was lost
+    expect(counters.suffix).toBe(2) // both branches re-ran: neither seed was lost
     expect(engine.outputsOf(instance)).toEqual(['x!', 'x?'])
     dispose()
   })
@@ -562,7 +562,7 @@ describe('Subgraph evaluation', () => {
   })
 
   it('tracks native panel IO edits (empty-slot drag / right-click paths)', async () => {
-    // The canvas IO panels mutate the definition through library code paths —
+    // The canvas IO panels mutate the definition through library code paths:
     // no CyberWizard API involved. Metadata (and with it serialization) must
     // still follow.
     reset()
@@ -615,7 +615,7 @@ describe('Subgraph evaluation', () => {
     expect(link).toBeTruthy()
     // The native empty-slot path stringifies the slot type: wildcard 0 → '0'.
     expect(sub.inputs[0]?.type).toBe('0')
-    // These run on every hover during a drag — they must never throw.
+    // These run on every hover during a drag: they must never throw.
     expect(LiteGraph.isValidConnection(0, '0')).toBe(true)
     expect(LiteGraph.isValidConnection('string', '0')).toBe(true)
     expect(LiteGraph.isValidConnection('0', 'number')).toBe(true)

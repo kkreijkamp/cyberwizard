@@ -35,7 +35,7 @@ describe('flow/list ops', () => {
     expect(items).toEqual([1, 2, 3])
   })
 
-  it('dedups stably — primitives, bytes, and objects', async () => {
+  it('dedups stably: primitives, bytes, and objects', async () => {
     const out = await runOp('flow/list-unique', {
       items: ['a', 'b', 'a', 1, 2, 1, '1', { x: 1 }, { x: 1 }, new Uint8Array([1, 2]), new Uint8Array([1, 2])],
     })
@@ -94,7 +94,7 @@ describe('flow/select', () => {
 })
 
 describe('flow/pass', () => {
-  it('passes any value through unchanged — same reference for lists and bytes', async () => {
+  it('passes any value through unchanged: same reference for lists and bytes', async () => {
     expect((await runOp('flow/pass', { value: 42 })).value).toBe(42)
     expect((await runOp('flow/pass', { value: 'text' })).value).toBe('text')
     const list = [1, [2]]

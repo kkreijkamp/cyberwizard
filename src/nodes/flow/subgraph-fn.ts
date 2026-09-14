@@ -1,5 +1,5 @@
 /**
- * Flow — shared machinery for ops that take subgraph definitions as params
+ * Flow: shared machinery for ops that take subgraph definitions as params
  * (map/filter/fold's `fn`, If's `then`/`else`).
  *
  * The function is picked per node instance in a dropdown, which
@@ -73,7 +73,7 @@ export function installFnPickers(node: LGraphNode, names: readonly string[]): vo
 /** Resolves a picked subgraph name to its definition metadata, with actionable errors. */
 export function resolveFnDef(ctx: RunContext, picked: unknown, param: string): SubgraphDefMeta {
   if (typeof picked !== 'string' || picked === '' || picked === NONE) {
-    throw new Error(`no subgraph selected for ${param} — pick one in the node’s ${param} dropdown`)
+    throw new Error(`no subgraph selected for ${param}: pick one in the node’s ${param} dropdown`)
   }
   const root = ctx.node?.graph?.rootGraph
   const meta = root ? resolveVisibleDef(root, ctx.node.graph, picked) : undefined
@@ -81,7 +81,7 @@ export function resolveFnDef(ctx: RunContext, picked: unknown, param: string): S
   const global = root ? allSubgraphDefs(root).find((d) => d.name === picked) : undefined
   if (root && global?.scope) {
     const parentName = getSubgraphDef(root, global.scope)?.name ?? global.scope
-    throw new Error(`subgraph "${picked}" is scoped to "${parentName}" — not visible here`)
+    throw new Error(`subgraph "${picked}" is scoped to "${parentName}": not visible here`)
   }
   throw new Error(`subgraph "${picked}" not found (renamed? re-pick it in ${param})`)
 }

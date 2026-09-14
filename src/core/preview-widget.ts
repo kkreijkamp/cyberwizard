@@ -58,7 +58,7 @@ function wellLines(value: unknown): string[] {
 
 /**
  * Longest prefix of `line` that fits `maxWidth`, with an ellipsis when cut.
- * In-node only — the inspect overlay always shows the full, uncut value.
+ * In-node only: the inspect overlay always shows the full, uncut value.
  */
 export function fitPreviewLine(ctx: CanvasRenderingContext2D, line: string, maxWidth: number): string {
   if (ctx.measureText(line).width <= maxWidth) return line
@@ -103,7 +103,7 @@ export function makePreviewWidget(name: string): CustomWidgetParam {
       ctx.strokeStyle = WELL_BORDER
       ctx.stroke()
 
-      // Value lines, rust on failure (⚠ prefix), ink otherwise — clipped to
+      // Value lines, rust on failure (⚠ prefix), ink otherwise: clipped to
       // the well with an ellipsis (the overlay shows the full text).
       const text = lines.join('\n')
       ctx.fillStyle = text.startsWith('⚠') ? RUST : INK

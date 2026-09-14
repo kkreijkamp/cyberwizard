@@ -2,7 +2,7 @@ import { xorBytes } from '../../core/binary'
 import { defineNode } from '../../core/registry'
 import { BYTES } from '../../core/types'
 
-/** Repeating-key XOR — the key is a wire, not a retyped param. */
+/** Repeating-key XOR: the key is a wire, not a retyped param. */
 defineNode({
   type: 'logic/xor',
   title: 'XOR',

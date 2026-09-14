@@ -3,15 +3,15 @@
  * plus an instance wired exactly where the selection was.
  *
  * (LiteGraph 0.17.2 ships its own convertToSubgraph, but it is broken
- * standalone — it instantiates via LiteGraph.createNode(uuid), which only the
+ * standalone: it instantiates via LiteGraph.createNode(uuid), which only the
  * ComfyUI app layer registers. Ours is built on the definition lifecycle in
  * core/subgraph.ts and runs headless.)
  *
  * Cut-edge analysis:
  *  - edges fully inside the selection are recreated in the interior as-is;
- *  - edges crossing the boundary are grouped per outside endpoint — one
+ *  - edges crossing the boundary are grouped per outside endpoint: one
  *    declared input per (origin node, origin slot) feeding in, one declared
- *    output per (origin node, origin slot) feeding out — with names/types
+ *    output per (origin node, origin slot) feeding out: with names/types
  *    taken from the original slots, so the instance's signature matches what
  *    was cut. Fan-out across the boundary is preserved (panel fan-out inside,
  *    instance fan-out outside).
@@ -98,7 +98,7 @@ export function collapseToSubgraph(
 
   // Declared IO from the cut edges. A cut edge from the enclosing
   // definition's own input panel takes its type from the panel slot (the
-  // panel is not a real node — getNodeById would miss it).
+  // panel is not a real node: getNodeById would miss it).
   const enclosing = graph instanceof Subgraph ? graph : null
   const inputDefs = [...boundaryIn.values()].map((group) => {
     const origin = graph.getNodeById(group.origin.id)
@@ -122,7 +122,7 @@ export function collapseToSubgraph(
     }
   })
 
-  // Create the definition (at the document root — definitions are flat).
+  // Create the definition (at the document root: definitions are flat).
   const meta = createSubgraphDef(rootGraph, name, graph instanceof Subgraph ? graph.id : undefined)
   for (const d of inputDefs) addDefInput(rootGraph, meta.id, d.name, d.type)
   for (const d of outputDefs) addDefOutput(rootGraph, meta.id, d.name, d.type)

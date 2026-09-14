@@ -2,7 +2,7 @@
  * The call lens UI: step inside recorded subgraph calls and see each call's
  * values on the interior badges and in the inspect overlay.
  *  - Double-click an instance (or its enter-subgraph title button) to descend
- *    into the call that instance produced under the current lens — recursion
+ *    into the call that instance produced under the current lens: recursion
  *    becomes navigable one layer at a time.
  *  - Esc pops back out one call while the parent call is the same definition,
  *    then falls through to ordinary breadcrumb navigation.
@@ -35,7 +35,7 @@ interface SubgraphOpeningDetail {
   closingGraph?: LGraph | Subgraph
 }
 
-/** LGraphButton isn't re-exported from the package root — we only need the name. */
+/** LGraphButton isn't re-exported from the package root: we only need the name. */
 interface TitleButtonLike {
   name?: string
 }
@@ -73,7 +73,7 @@ export function installCallLens(
   rootGraph: LGraph,
   breadcrumb: BreadcrumbHandle,
 ): void {
-  /** The lens last active per open definition — restored when navigation returns. */
+  /** The lens last active per open definition: restored when navigation returns. */
   const lensByGraph = new WeakMap<Subgraph, string>()
   /**
    * The lens captured when a subgraph starts opening. set-graph fires before
@@ -118,7 +118,7 @@ export function installCallLens(
     const graph = canvas.graph
     const calls = graph instanceof Subgraph ? engine.callsForDef(graph.id) : []
     const lens = engine.getLensPath()
-    // The engine may have fallen back to another call after a re-run — track it.
+    // The engine may have fallen back to another call after a re-run: track it.
     if (graph instanceof Subgraph && lens !== null) lensByGraph.set(graph, lens)
 
     const signature = `${calls.map((c) => c.path).join('|')}\n${lens ?? ''}`
@@ -159,13 +159,13 @@ export function installCallLens(
     pendingOpen = { subgraph, base: engine.getLensPath() }
     // An open and its double-click/title-button complete synchronously in one
     // task; a programmatic openSubgraph (New Subgraph button) leaves a stale
-    // base behind — expire it rather than descend from it later.
+    // base behind: expire it rather than descend from it later.
     queueMicrotask(() => {
       pendingOpen = null
     })
     // Self-entry (double-clicking the recursive instance): the library's
     // setGraph no-ops on the same graph, but its clear() would still wipe the
-    // selection — veto the open; node-double-click descends the lens instead.
+    // selection: veto the open; node-double-click descends the lens instead.
     if (subgraph === closingGraph) {
       const lens = engine.getLensPath()
       if (lens !== null && engine.hasCallsBelow(lens)) e.preventDefault()
@@ -179,7 +179,7 @@ export function installCallLens(
     descendToInstance(detail.node)
   })
 
-  // The enter-subgraph title button emits no event — wrap it (it calls
+  // The enter-subgraph title button emits no event: wrap it (it calls
   // canvas.openSubgraph itself, so pendingOpen/subgraph-opening flow as above).
   const originalTitleButtonClick = SubgraphNode.prototype.onTitleButtonClick
   SubgraphNode.prototype.onTitleButtonClick = function (this: SubgraphNode, button: TitleButtonLike, c: LGraphCanvasT): void {
@@ -207,7 +207,7 @@ export function installCallLens(
       const graph = canvas.graph
       if (lens === null || !(graph instanceof Subgraph)) return
       const target = escPopTarget(lens, graph.id, (path) => engine.callInfo(path))
-      if (target === null) return // top call, or parent is the enclosing def — breadcrumb navigates
+      if (target === null) return // top call, or parent is the enclosing def: breadcrumb navigates
       e.stopPropagation()
       applyLens(target)
     },

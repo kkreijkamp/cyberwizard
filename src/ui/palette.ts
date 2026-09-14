@@ -1,6 +1,6 @@
 /**
  * The node palette: a sidebar of registered operations behind a vertical
- * category tab rail — one category visible at a time instead of one long
+ * category tab rail: one category visible at a time instead of one long
  * list. Typing in the search box ignores the tabs and shows grouped results
  * across every category; clicking a tab clears the search. Double-click
  * spawns at the mouse position; drag onto the canvas spawns at the drop
@@ -8,11 +8,11 @@
  *
  * (Dragging a link out of a slot and releasing on empty canvas opens
  * LiteGraph's own search box, which our coercion-driven isValidConnection
- * already type-filters — the two complement each other.)
+ * already type-filters: the two complement each other.)
  *
  * Subgraph definitions appear under a "Subgraphs" tab and refresh live as
  * definitions are created/renamed/edited. Spawning adds to the canvas's
- * *current* graph — while editing inside a definition, that is its interior
+ * *current* graph: while editing inside a definition, that is its interior
  * (which is also how recursive self-instances are placed).
  */
 
@@ -129,7 +129,7 @@ export function createPalette(host: HTMLElement, canvas: LGraphCanvas, graph: LG
     let firstItem: HTMLElement | undefined
     let category = ''
     for (const def of shown) {
-      // Group headers only while searching — the tab already names the category.
+      // Group headers only while searching: the tab already names the category.
       if (searching && def.category !== category) {
         category = def.category
         const header = document.createElement('div')
@@ -171,7 +171,7 @@ export function createPalette(host: HTMLElement, canvas: LGraphCanvas, graph: LG
     }
   })
 
-  // Subgraph definitions come and go — refresh the listing on any change,
+  // Subgraph definitions come and go: refresh the listing on any change,
   // and on navigation (visible defs differ between root and interiors).
   onSubgraphDefsChange(graph, () => render(search.value.trim()))
   onSetGraph(canvas, () => render(search.value.trim()))
@@ -207,7 +207,7 @@ export function createPalette(host: HTMLElement, canvas: LGraphCanvas, graph: LG
   }
 
   /**
-   * Right-click on a Subgraphs item: move the definition between scopes —
+   * Right-click on a Subgraphs item: move the definition between scopes:
    * up to Global, or down/sideways into any visible definition that isn't
    * itself or one of its descendants (cycles are hidden, and reScopeDef
    * refuses them too). The current scope is ticked.

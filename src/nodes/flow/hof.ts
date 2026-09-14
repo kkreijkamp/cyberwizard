@@ -1,7 +1,7 @@
 /**
- * Flow — higher-order ops: map, filter, fold. Each applies a subgraph
+ * Flow: higher-order ops, map, filter, fold. Each applies a subgraph
  * definition per element (PLAN.md: "Map (apply subgraph per element)") via
- * the engine's RunContext.apply hook — same call semantics, recursion depth
+ * the engine's RunContext.apply hook: same call semantics, recursion depth
  * limit, and per-call budget as instance evaluation.
  *
  * The subgraph-as-param machinery (picker dropdown, name resolution, arity

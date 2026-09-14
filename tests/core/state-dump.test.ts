@@ -203,7 +203,7 @@ describe('buildStateDump', () => {
     expect(roundTripped.calls[0]?.def).toBe('DumpFact')
 
     // Interior values per call: mul at the n=2 call is 2; the base-case call
-    // never demanded mul (lazy Select else) — it stays dirty with no outputs.
+    // never demanded mul (lazy Select else): it stays dirty with no outputs.
     const n2 = roundTripped.calls[2]
     const mulAtN2 = n2?.nodes.find((n) => n.id === mul.id)
     expect(mulAtN2?.outputs).toEqual([{ kind: 'number', value: 2 }])

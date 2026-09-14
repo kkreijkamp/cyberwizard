@@ -1,7 +1,7 @@
 /**
  * The scene kit: ergonomics for authoring example graphs in code.
  *
- * Scenes are built in a detached LGraph and serialized — they load through
+ * Scenes are built in a detached LGraph and serialized: they load through
  * the ordinary document restore path, so a scene that builds cleanly is a
  * document that loads cleanly. Every helper fails LOUDLY at author time:
  * connect() silently returning null is how subtly unwired scenes happen.
@@ -42,7 +42,7 @@ export class SceneBuilder {
   node(type: string, pos: Pos, title?: string): LGraphNode {
     // Note: LiteGraph.createNode(type, title) does NOT apply the title for
     // registry-generated classes (their constructor passes def.title to
-    // super, so node.title is already truthy) — set it explicitly.
+    // super, so node.title is already truthy): set it explicitly.
     const node = LiteGraph.createNode(type)
     if (!node) throw new Error(`scene: unregistered node type "${type}"`)
     if (title !== undefined) node.title = title
@@ -68,12 +68,12 @@ export class SceneBuilder {
     connectOrThrow(from, fromSlot, to, toSlot)
   }
 
-  /** A Preview sink (demands everything upstream of it — that's what makes a scene compute). */
+  /** A Preview sink (demands everything upstream of it: that's what makes a scene compute). */
   watch(pos: Pos, title: string): LGraphNode {
     return this.node('io/preview', pos, title)
   }
 
-  /** A sticky note (markdown body). Size is a hint — layout snaps it up to fit. */
+  /** A sticky note (markdown body). Size is a hint: layout snaps it up to fit. */
   note(pos: Pos, title: string, markdown: string, tint = 'Notes', size?: [number, number]): LGraphNode {
     const node = this.config('notes/note', pos, { [NOTE_TEXT_PARAM]: markdown, [NOTE_TINT_PARAM]: tint }, title)
     if (size) node.size = size
@@ -127,7 +127,7 @@ export class SubgraphBuilder {
   node(type: string, pos: Pos, title?: string): LGraphNode {
     // Note: LiteGraph.createNode(type, title) does NOT apply the title for
     // registry-generated classes (their constructor passes def.title to
-    // super, so node.title is already truthy) — set it explicitly.
+    // super, so node.title is already truthy): set it explicitly.
     const node = LiteGraph.createNode(type)
     if (!node) throw new Error(`scene: unregistered node type "${type}"`)
     if (title !== undefined) node.title = title
@@ -174,7 +174,7 @@ export class SubgraphBuilder {
     if (!link) throw new Error(`scene: panel-out wiring failed (${from.title}.${fromSlot} → ${outputName})`)
   }
 
-  /** An instance of THIS definition inside its own interior — recursion. */
+  /** An instance of THIS definition inside its own interior: recursion. */
   selfInstance(pos: Pos, title?: string): LGraphNode {
     const node = spawnSubgraphNode(this.id)
     if (!node) throw new Error(`scene: no factory for definition "${this.id}"`)

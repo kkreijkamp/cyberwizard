@@ -40,7 +40,7 @@ function rootNode(dump: Dump, title: string): DumpedNode {
   return node
 }
 
-/** A Preview sink's displayed value (sinks have no outputs — inputs carry it). */
+/** A Preview sink's displayed value (sinks have no outputs: inputs carry it). */
 function sinkValue(dump: Dump, title: string): EncodedValue | undefined {
   const sink = dump.root.nodes.find((n) => n.title === title && n.type === 'io/preview')
   if (!sink) throw new Error(`no Preview titled "${title}"`)
@@ -48,7 +48,7 @@ function sinkValue(dump: Dump, title: string): EncodedValue | undefined {
 }
 
 /**
- * Teaching-critical values: "no errors" isn't enough — a scene must produce
+ * Teaching-critical values: "no errors" isn't enough, a scene must produce
  * the exact values its notes promise.
  */
 const EXPECTED_VALUES: Record<string, (dump: Dump) => void> = {
@@ -131,7 +131,7 @@ describe('example scenes', () => {
       EXPECTED_VALUES[scene.id]?.(dump)
 
       // Every scene teaches: at least two notes and one live preview.
-      // Notes inside subgraph definitions count — they explain the interior.
+      // Notes inside subgraph definitions count: they explain the interior.
       const allNodes = [
         ...graph._nodes,
         ...[...graph.subgraphs.values()].flatMap((sub) => sub._nodes),

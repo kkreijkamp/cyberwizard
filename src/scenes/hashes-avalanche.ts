@@ -1,5 +1,5 @@
 /**
- * Scene: Hash Functions & the Avalanche Effect — one-way digests, tiny input
+ * Scene: Hash Functions & the Avalanche Effect, one-way digests, tiny input
  * changes flipping half the bits, and why MD5/SHA-1 are legacy.
  */
 

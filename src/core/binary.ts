@@ -16,7 +16,7 @@ export function hexToBytes(hex: string): Uint8Array {
   return out
 }
 
-/** ISO-8859-1 style binary string (one char per byte) — what btoa/atob consume. */
+/** ISO-8859-1 style binary string (one char per byte): what btoa/atob consume. */
 export function bytesToBinaryString(bytes: Uint8Array): string {
   const CHUNK = 0x8000
   const parts: string[] = []
@@ -42,7 +42,7 @@ export function xorBytes(data: Uint8Array, key: Uint8Array): Uint8Array {
   return out
 }
 
-/** Concatenates byte arrays in order — b''.join for our byte type. */
+/** Concatenates byte arrays in order: b''.join for our byte type. */
 export function concatBytes(parts: readonly Uint8Array[]): Uint8Array {
   let total = 0
   for (const p of parts) total += p.length

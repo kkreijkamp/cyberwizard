@@ -25,7 +25,7 @@ function decodeJsonSegment(segment: string, which: string): unknown {
 }
 
 /**
- * JWT decoder — splits a token into header/payload JSON and the raw signature,
+ * JWT decoder: splits a token into header/payload JSON and the raw signature,
  * without verifying anything. The signedData output carries the exact bytes
  * that were signed ("header.payload"), ready to wire into HMAC / RSA Verify /
  * ECDSA Verify / Ed25519 Verify for manual verification pipelines.
@@ -35,7 +35,7 @@ defineNode({
   title: 'JWT Decode',
   category: 'Crypto',
   description:
-    'Splits a JSON Web Token into header/payload JSON and the raw signature — unverified. signedData is the exact signed byte string ("header.payload") for feeding signature-verification nodes.',
+    'Splits a JSON Web Token into header/payload JSON and the raw signature: unverified. signedData is the exact signed byte string ("header.payload") for feeding signature-verification nodes.',
   inputs: [{ name: 'token', type: STRING }] as const,
   outputs: [
     { name: 'header', type: JSON_TYPE },

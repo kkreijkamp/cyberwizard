@@ -7,20 +7,20 @@ import { NODE_FRAME_COLOR, NODE_FRAME_PADDING } from '../core/registry'
  * globals live while rendering. Per-category node accent colors are set on
  * the node classes themselves (core/registry).
  *
- * Warm cream paper + book serif, in the spirit of rawbit.io's default skin —
+ * Warm cream paper + book serif, in the spirit of rawbit.io's default skin:
  * kept distinct via the amber/brass accent (theirs is rust, which we reserve
  * for errors) and a dot grid (theirs is ruled lines). The serif stack is
  * system fonts only: Iowan Old Style on macOS, Palatino Linotype on Windows.
  */
 const SERIF = "'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', 'Source Serif 4', Georgia, serif"
 
-/** The cream canvas ground — also the slot-ring punch colour. */
+/** The cream canvas ground: also the slot-ring punch colour. */
 const PAPER = '#f6f1e7'
 
 /**
  * Warm dot grid on the snap cell, vector-drawn per frame: spacing and radius
- * are constant in graph units, so the lattice zooms with the graph — dots
- * grow on zoom in, shrink on zoom out — always crisp, never pixelated.
+ * are constant in graph units, so the lattice zooms with the graph: dots
+ * grow on zoom in, shrink on zoom out: always crisp, never pixelated.
  * Fades out when zoomed far out, like the library's old tile.
  */
 function drawDotGrid(
@@ -49,7 +49,7 @@ function drawDotGrid(
 
 export function applyTheme(canvas: LGraphCanvas): void {
   canvas.clear_background_color = PAPER
-  // The library's default viewport frame (#235) — invisible on the old dark
+  // The library's default viewport frame (#235): invisible on the old dark
   // theme, an unwanted rectangle on paper.
   canvas.render_canvas_border = false
   // No background_image tile: a bitmap tile upscales blurry under canvas
@@ -61,7 +61,7 @@ export function applyTheme(canvas: LGraphCanvas): void {
   LiteGraph.GROUP_FONT = SERIF
   // Baseline 2px up: the stock 20 sits low in the 30px bar for the serif.
   LiteGraph.NODE_TITLE_TEXT_Y = 18
-  // Ships undefined in 0.17.2 — and the group titlebar's hit area is computed
+  // Ships undefined in 0.17.2, and the group titlebar's hit area is computed
   // as font_size × 1.4, i.e. NaN, so groups can never be selected (or
   // deleted). Restoring the classic default repairs both.
   LiteGraph.DEFAULT_GROUP_FONT_SIZE = 24
@@ -70,7 +70,7 @@ export function applyTheme(canvas: LGraphCanvas): void {
   // titles entirely; our graphs are small enough to render fully always.
   canvas.low_quality_zoom_threshold = 0
 
-  // The canvas copies NODE_TITLE_COLOR at construction, before this runs —
+  // The canvas copies NODE_TITLE_COLOR at construction, before this runs:
   // set its instance copy too or unselected titles stay the stock #999.
   canvas.node_title_color = '#ffffff'
 
@@ -94,7 +94,7 @@ export function applyTheme(canvas: LGraphCanvas): void {
   LiteGraph.EVENT_LINK_COLOR = '#a83a32'
   LiteGraph.CONNECTING_LINK_COLOR = '#c2841a'
   // Snapshotted by the canvas at construction (same early-copy trap as the
-  // title colour) — set its instance copy too.
+  // title colour): set its instance copy too.
   canvas.default_link_color = NODE_FRAME_COLOR
   // Thin wires.
   canvas.connections_width = 1.5
@@ -111,18 +111,18 @@ export function applyTheme(canvas: LGraphCanvas): void {
   )
 
   // Book-heading titles: the library's titleFontStyle getter carries no
-  // weight — patch the prototype getter (same slot) to add bold.
+  // weight: patch the prototype getter (same slot) to add bold.
   Object.defineProperty(LGraphNode.prototype, 'titleFontStyle', {
     configurable: true,
     get: () => `bold ${LiteGraph.NODE_TEXT_SIZE}px ${LiteGraph.NODE_FONT}`,
   })
 
-  // The title box — the stock square at the title's left, which is really the
-  // collapse toggle — becomes a quiet chevron in the title text colour: '∨'
+  // The title box: the stock square at the title's left, which is really the
+  // collapse toggle: becomes a quiet chevron in the title text colour, '∨'
   // while open, '>' while collapsed (the disclosure-triangle convention).
   // Setting onDrawTitleBox makes the library skip its own box draw entirely
   // (drawTitleBox early-returns into the hook), so no square is ever
-  // painted — the engine's rust boxcolor on failure simply has nothing left
+  // painted: the engine's rust boxcolor on failure simply has nothing left
   // to show through, which is fine: the whole-node rust repaint carries the
   // error signal.
   LGraphNode.prototype.onDrawTitleBox = function (this: LGraphNode, ctx: CanvasRenderingContext2D) {
@@ -161,11 +161,11 @@ let slotShapesInstalled = false
  * design. Two patches combine:
  *
  * 1. Connection points move from 10px inside the node onto the frame edge
- *    (getInputSlotPos/getOutputPos) — the ring, the link endpoints, and the
+ *    (getInputSlotPos/getOutputPos): the ring, the link endpoints, and the
  *    hover boxes all derive from that one point, so they stay coherent.
  *    Widget-input slots keep their inline dot, collapsed nodes untouched.
- * 2. The library's own HollowCircle is radius 3 with a 3px stroke — a
- *    nearly-filled disk — so after the library draws its dots we punch a
+ * 2. The library's own HollowCircle is radius 3 with a 3px stroke: a
+ *    nearly-filled disk, so after the library draws its dots we punch a
  *    paper-coloured disc over each and stroke a ring in the slot's type
  *    colour (the centre follows #measureSlot → the patched positions).
  */
@@ -194,11 +194,11 @@ function installSlotShapes(): void {
   } as LGraphNode['drawSlots']
 
   // The slot hotspot rect extends past the node edge with the ring, but slot
-  // hit tests only run for points inside the node's bounding rect — the
+  // hit tests only run for points inside the node's bounding rect: the
   // ring's outer half was culled as empty canvas, making the effective
   // hotspot the (offset) inner half. Relax the hit test itself by the ring's
   // grab margin; the bounding rect is left alone because the node body is
-  // rendered from it (inflating it widened the node — see the revert).
+  // rendered from it (inflating it widened the node: see the revert).
   const originalIsPointInside = LGraphNode.prototype.isPointInside
   LGraphNode.prototype.isPointInside = function (this: LGraphNode, x: number, y: number): boolean {
     if (originalIsPointInside.call(this, x, y)) return true

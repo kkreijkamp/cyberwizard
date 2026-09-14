@@ -1,5 +1,5 @@
 /**
- * Flow — Pass: the identity node. The output is the input, unchanged (same
+ * Flow: Pass, the identity node. The output is the input, unchanged (same
  * reference for lists and bytes). Handy for tidying wire routing with a
  * live preview, or as the no-op branch inside an If's branch subgraph.
  */

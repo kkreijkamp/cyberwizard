@@ -1,9 +1,9 @@
 /**
- * Cell layout — keeps every node aligned to the 50px cell grid.
+ * Cell layout: keeps every node aligned to the 50px cell grid.
  *
  * Sizes always snap to whole cells minus the margin between nodes: width
  * and height ≡ 30 (mod 50), snapping UP so content always fits. Note the
- * fork's size model: node.size is the BODY only — the 30px title bar
+ * fork's size model: node.size is the BODY only, the 30px title bar
  * renders ABOVE pos, outside node.size (see LGraphNode.measure). So the
  * body's height snaps to ≡ 0 (mod 50), putting title+body on the cell
  * rhythm, and all stacking/reflow math works in visual bounds:
@@ -32,7 +32,7 @@ import { onSubgraphDefsChange } from '../core/subgraph'
 export const LAYOUT_CELL = 50
 /** The margin between stacked/side-by-side nodes. */
 export const LAYOUT_MARGIN = 20
-/** Title bar height — rendered above pos, outside node.size. */
+/** Title bar height: rendered above pos, outside node.size. */
 export const TITLE_HEIGHT = LiteGraph.NODE_TITLE_HEIGHT
 const MIN_DIM = LAYOUT_CELL - LAYOUT_MARGIN
 
@@ -103,7 +103,7 @@ function installGroupSnap(): void {
 }
 
 /**
- * The library's group menu (Pin / Title / Color / Font size) has no delete —
+ * The library's group menu (Pin / Title / Color / Font size) has no delete:
  * removing a group required selecting it and pressing Delete. Append a
  * direct "Delete Group" entry.
  */
@@ -124,7 +124,7 @@ function installGroupMenu(): void {
 
 // ─── Size snapping (onResize) ────────────────────────────────────────────────
 
-/** Last snapped size per node — setSize overwrites node.size before firing onResize, so the previous height is tracked here. */
+/** Last snapped size per node: setSize overwrites node.size before firing onResize, so the previous height is tracked here. */
 const snappedSizes = new WeakMap<LGraphNode, [number, number]>()
 
 let resizeHookInstalled = false
@@ -188,7 +188,7 @@ function reflowBelow(node: LGraphNode, delta: number): void {
     const moverBottom = bottomOf(mover)
     for (const other of graph._nodes) {
       if (other === mover || other.pinned || seen.has(other)) continue
-      if (other.pos[1] < mover.pos[1]) continue // above or enclosing — not underneath
+      if (other.pos[1] < mover.pos[1]) continue // above or enclosing: not underneath
       if (!xOverlap(mover, other)) continue
       if (bottomDelta > 0) {
         const gap = topOf(other) - moverBottom
@@ -204,7 +204,7 @@ function reflowBelow(node: LGraphNode, delta: number): void {
         if (oldGap > LAYOUT_MARGIN) continue
         // other's pos must restore the margin against the mover's VISUAL bottom.
         let d = moverBottom + LAYOUT_MARGIN + TITLE_HEIGHT - other.pos[1]
-        if (d >= 0) continue // already at/past the new margin — never push on shrink
+        if (d >= 0) continue // already at/past the new margin: never push on shrink
         const floor = topFloor(graph, other)
         if (other.pos[1] + d < floor) d = floor - other.pos[1]
         if (d >= 0) continue

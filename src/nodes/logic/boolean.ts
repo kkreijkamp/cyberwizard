@@ -1,5 +1,5 @@
 /**
- * Logic — the gates. Booleans behave as logical and/or/not (unwired inputs
+ * Logic: the gates. Booleans behave as logical and/or/not (unwired inputs
  * act as the identity: true for And, false for Or). When any input is
  * bytes, the gate is bitwise on the byte strings, left-padding the shorter
  * operand with zeros (big-endian alignment, so it matches the bignum
@@ -60,7 +60,7 @@ defineNode({
   type: 'logic/and',
   title: 'And',
   category: 'Logic',
-  description: 'Booleans: logical and (unwired acts as true). Bytes involved: bitwise AND, left-padded — output is bytes.',
+  description: 'Booleans: logical and (unwired acts as true). Bytes involved, bitwise AND, left-padded: output is bytes.',
   ...gate,
   run: (inputs) => {
     const { a, b } = inputs
@@ -77,7 +77,7 @@ defineNode({
   type: 'logic/or',
   title: 'Or',
   category: 'Logic',
-  description: 'Booleans: logical or (unwired acts as false). Bytes involved: bitwise OR, left-padded — output is bytes.',
+  description: 'Booleans: logical or (unwired acts as false). Bytes involved, bitwise OR, left-padded: output is bytes.',
   ...gate,
   run: (inputs) => {
     const { a, b } = inputs

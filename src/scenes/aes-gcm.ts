@@ -1,5 +1,5 @@
 /**
- * Scene: AES-GCM — authenticated encryption: confidentiality AND tamper
+ * Scene: AES-GCM, authenticated encryption: confidentiality AND tamper
  * detection, the nonce rule, and the auth tag riding in the ciphertext.
  */
 

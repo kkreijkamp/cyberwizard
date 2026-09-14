@@ -1,6 +1,6 @@
 /**
- * Math — arithmetic. When ANY input is bytes, the op runs as big-endian
- * unsigned bignum (BigInt) and the output is bytes — the f64 bytes→number
+ * Math: arithmetic. When ANY input is bytes, the op runs as big-endian
+ * unsigned bignum (BigInt) and the output is bytes: the f64 bytes→number
  * coercion would lose everything past 2^53. Mixed operands (numbers, hex
  * strings, booleans) convert exactly; a negative result is an error, since
  * bytes are unsigned. With no bytes involved, ops keep their plain f64
@@ -14,7 +14,7 @@ import { ANY } from '../../core/types'
 import { stringToBignum, toBignum, toOperand } from './operand'
 
 function bytesResult(n: bigint): Uint8Array {
-  if (n < 0n) throw new Error('negative result — bytes are unsigned')
+  if (n < 0n) throw new Error('negative result: bytes are unsigned')
   return bigIntToBytes(n)
 }
 
@@ -131,7 +131,7 @@ defineNode({
   ...binary,
   run: (inputs) => ({
     result: arith(inputs, 1, 1, (a, b) => a ** b, (a, b) => {
-      if (b < 0n) throw new Error('negative exponent — result would not be an integer')
+      if (b < 0n) throw new Error('negative exponent: result would not be an integer')
       if (b > 1_000_000n) throw new Error('exponent too large for byte power (max 1 000 000)')
       return a ** b
     }),
@@ -169,7 +169,7 @@ defineNode({
   type: 'math/negate',
   title: 'Negate',
   category: 'Math',
-  description: 'Numbers only — bytes are unsigned and cannot be negated.',
+  description: 'Numbers only: bytes are unsigned and cannot be negated.',
   ...unary,
   run: (inputs) => {
     if (inputs.n instanceof Uint8Array) throw new Error('cannot negate bytes (unsigned)')

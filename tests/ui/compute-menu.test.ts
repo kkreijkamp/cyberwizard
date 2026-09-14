@@ -64,7 +64,7 @@ describe('compute menu', () => {
     expect(engine.hasFailure(json)).toBe(true)
     expect(engine.hasFailure(mid)).toBe(true)
 
-    // The node at fault gets no jump entry — it IS the source.
+    // The node at fault gets no jump entry: it IS the source.
     const jsonEntries = json.getExtraMenuOptions?.(undefined as never, [])
     expect(jsonEntries?.map((e) => e?.content)).toEqual(['Compute'])
 
@@ -73,7 +73,7 @@ describe('compute menu', () => {
     expect(midEntries?.map((e) => e?.content)).toEqual(['Go to failure source', 'Compute'])
     const callback = midEntries?.[0]?.callback as unknown as () => void
     callback()
-    expect(canvas.setGraph).not.toHaveBeenCalled() // same graph — no navigation needed
+    expect(canvas.setGraph).not.toHaveBeenCalled() // same graph: no navigation needed
     expect(canvas.centerOnNode).toHaveBeenCalledWith(json)
     expect(canvas.selectNode).toHaveBeenCalledWith(json)
     engine.dispose()

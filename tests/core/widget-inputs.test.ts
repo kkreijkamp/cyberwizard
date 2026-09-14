@@ -99,7 +99,7 @@ describe('widget params as connection points', () => {
     const graph = new LGraph()
     const { take } = buildTakePipeline(graph, 5, 2)
     revertParamToWidget(take, 'n', 1)
-    expect(take.inputs).toHaveLength(2) // still there — the wire protects it
+    expect(take.inputs).toHaveLength(2) // still there: the wire protects it
   })
 
   it('round-trips conversion and links through serialization', async () => {

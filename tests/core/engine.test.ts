@@ -218,7 +218,7 @@ describe('Engine', () => {
     setParam(src, 'text', 'a')
     await vi.waitFor(() => expect(counters.deferred).toBe(2))
     setParam(src, 'text', 'b')
-    settleDeferredRuns() // settles the stale 'a' run — must be discarded
+    settleDeferredRuns() // settles the stale 'a' run: must be discarded
     await vi.waitFor(() => expect(counters.deferred).toBe(3))
     settleDeferredRuns() // settles the fresh 'b' run
 
@@ -303,7 +303,7 @@ describe('Engine', () => {
     const engine = new Engine(graph)
     await engine.whenIdle()
 
-    // mid never ran, yet it shows a failure too — red, blaming Flaky.
+    // mid never ran, yet it shows a failure too: red, blaming Flaky.
     expect(counters.suffix).toBe(0)
     expect(engine.stateOf(mid).blocked).toBe(true)
     expect(mid.color).toBe('#a83a32')
@@ -383,7 +383,7 @@ describe('Engine', () => {
     expect(counters.boom).toBe(0)
     expect(engine.outputsOf(mid)).toBeUndefined()
 
-    // Attaching a sink backpropagates demand along the path — boom errors.
+    // Attaching a sink backpropagates demand along the path: boom errors.
     const sink = spawn(graph, 'test-eng/sink')
     boom.connect(0, sink, 0)
     await engine.whenIdle()
@@ -410,7 +410,7 @@ describe('Engine', () => {
     const boom = spawn(graph, 'test-eng/boom')
     setParam(mid, 'suffix', '!')
     src.connect(0, mid, 0)
-    mid.connect(0, boom, 0) // downstream of the computed node — never demanded
+    mid.connect(0, boom, 0) // downstream of the computed node: never demanded
 
     const engine = new Engine(graph)
     await engine.whenIdle()

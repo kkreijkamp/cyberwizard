@@ -1,23 +1,23 @@
 /**
- * Subgraph definitions — reusable composite nodes ("functions").
+ * Subgraph definitions: reusable composite nodes ("functions").
  *
  * A subgraph definition is a named graph fragment with declared, typed inputs
  * and outputs. Definitions live on the document's root LGraph
  * (`graph.subgraphs`, keyed by UUID) and are instantiated as LiteGraph
  * `SubgraphNode`s whose `type` is the definition UUID. Definitions may nest
- * inside other definitions — including themselves (recursion is a runtime
+ * inside other definitions: including themselves (recursion is a runtime
  * concern for the engine, never a serialization problem, since definitions
  * are stored flat by id).
  *
  * This module owns the definition lifecycle:
  *  - create / rename / delete, and typed IO add / rename / remove
  *  - the per-definition factory-class shim (0.17.2 standalone cannot
- *    instantiate SubgraphNodes — `LiteGraph.createNode(uuid)` returns null
+ *    instantiate SubgraphNodes: `LiteGraph.createNode(uuid)` returns null
  *    unless a SubgraphNode subclass is registered under the UUID)
  *  - metadata the engine/serializer need beyond what the library stores
  *    (declared slot DataTypes, since SubgraphIO slots only carry type strings)
  *  - attachSubgraphSupport(): the coordinator bridging definitions and the
- *    engine — instance indexing across the root graph and every definition
+ *    engine: instance indexing across the root graph and every definition
  *    interior, and dirty-propagation across the subgraph boundary.
  *
  * The engine (core/engine.ts) evaluates instances with call semantics; it
@@ -46,16 +46,16 @@ export const SUBGRAPH_INPUT_NODE_ID = -10
 export const SUBGRAPH_OUTPUT_NODE_ID = -20
 
 export interface SubgraphDefMeta {
-  /** Definition UUID — also the LiteGraph node type string of instances. */
+  /** Definition UUID: also the LiteGraph node type string of instances. */
   readonly id: string
   name: string
-  /** Declared, typed inputs — authoritative for the engine and serializer. */
+  /** Declared, typed inputs: authoritative for the engine and serializer. */
   inputs: SlotDef[]
   outputs: SlotDef[]
   /**
    * Lexical scope: the definition this one belongs to. A scoped definition
    * is visible (palette, fn pickers, name resolution) only inside its
-   * parent's subtree — inner scopes see outer bindings, siblings do not.
+   * parent's subtree: inner scopes see outer bindings, siblings do not.
    * Absent = global. Storage stays flat on the root; scope is a visibility
    * property, never containment (recursion and serialization are unaffected).
    */
@@ -87,7 +87,7 @@ export function allSubgraphDefs(rootGraph: LGraph): readonly SubgraphDefMeta[] {
 
 /**
  * The lexical ancestor chain of a definition: [def, its scope-parent, …].
- * Cycle-safe — a hand-edited scope loop degrades to the ids visited so far.
+ * Cycle-safe: a hand-edited scope loop degrades to the ids visited so far.
  */
 export function scopeChainOf(rootGraph: LGraph, defId: string): string[] {
   const chain: string[] = []
@@ -116,7 +116,7 @@ export function visibleSubgraphDefs(rootGraph: LGraph, location: DefLocation): S
   return defs.filter((d) => d.scope === undefined || chain.has(d.scope))
 }
 
-/** Resolves a name the way a picker at `location` sees it — first visible match. */
+/** Resolves a name the way a picker at `location` sees it: first visible match. */
 export function resolveVisibleDef(rootGraph: LGraph, location: DefLocation, name: string): SubgraphDefMeta | undefined {
   return visibleSubgraphDefs(rootGraph, location).find((d) => d.name === name)
 }
@@ -183,7 +183,7 @@ function emitDefsChange(rootGraph: LGraph): void {
   for (const listener of defListeners.get(rootGraph) ?? []) listener()
 }
 
-/** SubgraphIO slot type strings are strings only (no legacy 0) — 'any' spelled out. */
+/** SubgraphIO slot type strings are strings only (no legacy 0): 'any' spelled out. */
 function toIOSlotType(type: DataType): string {
   const slot = toSlotType(type)
   return slot === 0 ? 'any' : slot
@@ -211,13 +211,13 @@ function registerFactory(subgraph: Subgraph): void {
       this.bgcolor = colors.bgcolor
       applyNodeFrame(this)
       // The library's enter-subgraph title button renders a PrimeIcons glyph
-      // (pi-window-maximize), but PrimeIcons isn't loaded in this app — it
+      // (pi-window-maximize), but PrimeIcons isn't loaded in this app: it
       // paints as a tofu square. Repaint it as a vector "enter" arrow.
       const enterButton = this.title_buttons?.find((b) => b.name === 'enter_subgraph')
       if (enterButton) paintEnterIcon(enterButton)
     }
 
-    // SubgraphNode has no registry-generated onConnectionsChange — without
+    // SubgraphNode has no registry-generated onConnectionsChange: without
     // this bridge, wiring edits on an instance would never re-evaluate it.
     // Root-level instances additionally invalidate their precise interior
     // seeds: fresh input values mean everything downstream of the panel
@@ -271,7 +271,7 @@ const ENTER_ICON_SIZE = 14
 
 /**
  * Repaints the enter-subgraph title button as a vector icon (the stock glyph
- * is a PrimeIcons codepoint and PrimeIcons isn't loaded — it renders as a
+ * is a PrimeIcons codepoint and PrimeIcons isn't loaded: it renders as a
  * tofu box). Draws an "open / step into" arrow: a small corner bracket with
  * a diagonal arrow rising out of it, in the node's title text colour. The
  * button's text stays set (it drives `visible`), but is never painted.
@@ -352,13 +352,13 @@ function registerExisting(rootGraph: LGraph, subgraph: Subgraph, scope?: string)
 
 /**
  * Rebuilds metadata from the library Subgraph object. This is the single
- * sync point for BOTH API edits and native panel edits — inside a subgraph,
+ * sync point for BOTH API edits and native panel edits: inside a subgraph,
  * dragging from the dashed empty slot (or right-click rename/remove on a
  * slot) mutates the definition through library code paths that would
- * otherwise leave our metadata — and with it the serialized form — stale.
+ * otherwise leave our metadata (and with it the serialized form) stale.
  */
 function syncMetaFromSubgraph(meta: SubgraphDefMeta, subgraph: Subgraph): void {
-  // displayName = label ?? name — renames set the label, so this is what the
+  // displayName = label ?? name: renames set the label, so this is what the
   // user sees and what should round-trip through serialization.
   meta.inputs = subgraph.inputs.map((slot) => ({ name: slot.displayName, type: dataTypeFromKind(slot.type) }))
   meta.outputs = subgraph.outputs.map((slot) => ({ name: slot.displayName, type: dataTypeFromKind(slot.type) }))
@@ -367,9 +367,9 @@ function syncMetaFromSubgraph(meta: SubgraphDefMeta, subgraph: Subgraph): void {
 /**
  * Deferred, batched sync for native panel edits. Some library events are
  * pre-mutation ('removing-input'), so the rebuild must run after the edit
- * lands — a microtask per subgraph, coalescing bursts. API edits already
+ * lands: a microtask per subgraph, coalescing bursts. API edits already
  * synced (and dirtied instances) via editIO, but fire the same library
- * events — so only dirty instances when the signature actually changed,
+ * events, so only dirty instances when the signature actually changed,
  * otherwise this deferred dirty lands mid-run and forces a re-evaluation.
  */
 const pendingMetaSyncs = new Set<string>()
@@ -433,7 +433,7 @@ export function renameSubgraphDef(rootGraph: LGraph, defId: string, name: string
       instance.setDirtyCanvas(true, true)
     }
   }
-  // By-name consumers still point at the old name — dirty them so the
+  // By-name consumers still point at the old name: dirty them so the
   // "renamed? re-pick it" error surfaces on their next pull.
   dirtyFnConsumersNamed(rootGraph, oldName, defId)
   emitDefsChange(rootGraph)
@@ -448,7 +448,7 @@ function editIO(
   const subgraph = rawSubgraph(rootGraph, defId)
   if (!meta || !subgraph) return
   edit(subgraph, meta)
-  // Rebuild metadata from the (now mutated) library object — idempotent and
+  // Rebuild metadata from the (now mutated) library object: idempotent and
   // the same sync the native panel events use.
   syncMetaFromSubgraph(meta, subgraph)
   // Instance slots track IO edits natively (SubgraphNode slot listeners);
@@ -512,7 +512,7 @@ export function removeDefOutput(rootGraph: LGraph, defId: string, index: number)
 }
 
 /**
- * Deletes a definition, every instance of it, and its whole scope subtree —
+ * Deletes a definition, every instance of it, and its whole scope subtree:
  * scoped helpers are lexically part of their parent, so deleting a
  * definition deletes the definitions nested under it too.
  */
@@ -535,7 +535,7 @@ function deleteOne(rootGraph: LGraph, defId: string): void {
   if (subgraph) unwatchSubgraph(rootGraph, subgraph)
   rootGraph.subgraphs.delete(defId as never)
   metasOf(rootGraph).delete(defId)
-  // By-name consumers now point at nothing — dirty them so the "not found"
+  // By-name consumers now point at nothing: dirty them so the "not found"
   // error surfaces on their next pull.
   if (name !== undefined) dirtyFnConsumersNamed(rootGraph, name, defId)
   emitDefsChange(rootGraph)
@@ -543,7 +543,7 @@ function deleteOne(rootGraph: LGraph, defId: string): void {
 
 /**
  * Drops every definition and all coordinator state for the document.
- * Idempotent — safe before or after graph.clear() (which wipes
+ * Idempotent: safe before or after graph.clear() (which wipes
  * graph.subgraphs without firing node-removed hooks).
  */
 export function clearSubgraphDefs(rootGraph: LGraph): void {
@@ -557,7 +557,7 @@ export function clearSubgraphDefs(rootGraph: LGraph): void {
   }
   metasOf(rootGraph).clear()
   rootGraph.subgraphs.clear()
-  // graph.clear() never fires node-removed hooks — engine caches (which key on
+  // graph.clear() never fires node-removed hooks: engine caches (which key on
   // reused low node ids) must be dropped explicitly or they alias into the
   // next document.
   attachment?.engine.reset()
@@ -590,11 +590,11 @@ function dirtyAllInstances(rootGraph: LGraph, defId: string): void {
 
 /**
  * Nodes referencing a definition BY NAME in a subgraph-ref param (map/
- * filter/fold's fn, If's then/else) are not instances — dirtyAllInstances
+ * filter/fold's fn, If's then/else) are not instances: dirtyAllInstances
  * never reaches them, so editing a picked definition used to leave their
  * outputs stale. Scan the root graph and every interior for such params
  * and dirty the holders. With scoped names, a consumer is only dirtied when
- * the name resolves to THIS definition from its own location — a same-named
+ * the name resolves to THIS definition from its own location: a same-named
  * definition in another scope must not be shadowed by accident.
  */
 function dirtyFnConsumersNamed(rootGraph: LGraph, name: string, defId?: string): void {
@@ -653,7 +653,7 @@ export function attachSubgraphSupport(rootGraph: LGraph, engine: Engine): () => 
   return () => {
     detachGraphWatch()
     for (const unwatch of attachment.subgraphWatches.values()) unwatch()
-    // The root dirty handler belongs to the engine — leave it alone.
+    // The root dirty handler belongs to the engine: leave it alone.
     attachments.delete(rootGraph)
   }
 }
@@ -674,7 +674,7 @@ function watchSubgraph(rootGraph: LGraph, subgraph: Subgraph): void {
   const detachGraphWatch = watchGraphNodes(subgraph, attachment)
 
   // Native panel edits (empty-slot drags, right-click rename/remove) mutate
-  // the definition without touching our lifecycle API — keep metadata (and
+  // the definition without touching our lifecycle API: keep metadata (and
   // with it the serialized form and the palette) in sync. Deferred: some of
   // these events are pre-mutation.
   const onNativeIO = (): void => scheduleMetaSync(rootGraph, subgraph)
@@ -707,7 +707,7 @@ function unwatchSubgraph(rootGraph: LGraph, subgraph: Subgraph): void {
  * Guard against infinite broadcast loops in (mutually) recursive definitions:
  * a dirty instance inside a definition it is itself an instance of would
  * re-trigger the same broadcast synchronously, forever. Each (def, node)
- * pair is broadcast once per synchronous propagation chain — repeat arrivals
+ * pair is broadcast once per synchronous propagation chain: repeat arrivals
  * carry no new information.
  */
 const activeBroadcasts = new Set<string>()
@@ -715,7 +715,7 @@ const activeBroadcasts = new Set<string>()
 /**
  * An interior node went dirty (param edit, connection change, widget action).
  * Root-level instances get a precise interior seed (only that node and its
- * downstream re-run); deeper instances are dirtied wholesale — the enclosing
+ * downstream re-run); deeper instances are dirtied wholesale: the enclosing
  * subgraph's own dirty bridge carries it root-ward.
  */
 function onInteriorNodeDirty(rootGraph: LGraph, subgraph: Subgraph, node: LGraphNode): void {

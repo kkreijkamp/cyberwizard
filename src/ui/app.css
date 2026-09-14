@@ -35,7 +35,7 @@ body {
   font: 15px/1.45 var(--serif);
 }
 
-/* Floating action chip — out of flow, pinned to the top-right of the canvas. */
+/* Floating action chip: out of flow, pinned to the top-right of the canvas. */
 #app-header {
   position: fixed;
   top: 12px;
@@ -147,7 +147,7 @@ body {
   display: flex;
 }
 
-/* Vertical category rail — sideways text keeps the rail a few pixels wide. */
+/* Vertical category rail: sideways text keeps the rail a few pixels wide. */
 .palette-tabs {
   flex-shrink: 0;
   display: flex;

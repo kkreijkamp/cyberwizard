@@ -4,7 +4,7 @@ import { BYTES, STRING } from '../../core/types'
 
 const HASHES = ['SHA-256', 'SHA-512', 'SHA-1'] as const
 
-/** HMAC via WebCrypto — the key is a wire, not a retyped param. */
+/** HMAC via WebCrypto: the key is a wire, not a retyped param. */
 defineNode({
   type: 'hashing/hmac',
   title: 'HMAC',

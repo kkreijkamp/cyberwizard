@@ -5,11 +5,11 @@
  *    exactly as if it were wired to a Preview sink (Engine.compute). The
  *    badge repaints with the result.
  *  - "Go to failure source": shown only while the node is failing and the
- *    cause lies elsewhere — jumps the canvas to the node actually at fault
+ *    cause lies elsewhere: jumps the canvas to the node actually at fault
  *    (Engine.failureSource), entering a subgraph instance when the cause is
  *    in its interior.
  *
- * Installed as a prototype hook — litegraph prepends each node's
+ * Installed as a prototype hook: litegraph prepends each node's
  * getExtraMenuOptions entries to its context menu (SubgraphNode defines
  * none of its own, so instances are covered too).
  */

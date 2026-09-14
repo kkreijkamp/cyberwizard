@@ -1,5 +1,5 @@
 /**
- * Scene: Recursion & the Call Lens — a subgraph that calls itself, and the
+ * Scene: Recursion & the Call Lens, a subgraph that calls itself, and the
  * navigation tools for watching every layer of the recursion compute.
  */
 
@@ -31,7 +31,7 @@ export function recursionLens(): GraphDocument {
 
   const fact = b.subgraph('Factorial', { inputs: [['n', NUMBER]], outputs: [['result', NUMBER]] })
 
-  // n ≤ 1?  — the base-case test.
+  // n ≤ 1? : the base-case test.
   const lessEq = fact.node('math/less-eq', [300, 200], 'n ≤ 1?')
   const oneA = fact.config('io/number-input', [50, 350], { value: 1 }, 'one')
   fact.panelIn('n', lessEq, 'a')

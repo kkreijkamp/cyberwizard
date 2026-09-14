@@ -1,10 +1,10 @@
 /**
- * Flow — the list op library. Lists are first-class values (`list<T>`); these
+ * Flow: the list op library. Lists are first-class values (`list<T>`); these
  * are the pure building blocks. Higher-order ops (map/filter/fold, which
  * apply a subgraph per element) live in flow/hof.ts.
  *
  * Conventions: undefined inputs are tolerated as empty lists (`?? []`); all
- * list slots are listOf(ANY) — element types are erased at the slot level and
+ * list slots are listOf(ANY): element types are erased at the slot level and
  * handled by the coercion layer on the next edge.
  */
 
@@ -20,7 +20,7 @@ defineNode({
   type: 'flow/list-pack',
   title: 'List Pack',
   category: 'Flow',
-  description: 'Combines the wired inputs into a list, in slot order. Variadic — a new slot appears when all are wired.',
+  description: 'Combines the wired inputs into a list, in slot order. Variadic: a new slot appears when all are wired.',
   inputs: [
     { name: 'a', type: ANY },
     { name: 'b', type: ANY },
@@ -95,7 +95,7 @@ defineNode({
   run: (inputs) => ({ items: [...(inputs.items ?? [])].reverse() }),
 })
 
-/** Stable dedup — first occurrence wins. Structural identity (core/types valueKey). */
+/** Stable dedup: first occurrence wins. Structural identity (core/types valueKey). */
 defineNode({
   type: 'flow/list-unique',
   title: 'Unique',
@@ -144,7 +144,7 @@ defineNode({
   type: 'flow/list-flatten',
   title: 'Flatten',
   category: 'Flow',
-  description: 'One level only — apply twice for deeply nested lists.',
+  description: 'One level only: apply twice for deeply nested lists.',
   inputs: [listIn] as const,
   outputs: [listOut],
   run: (inputs) => {
@@ -180,7 +180,7 @@ defineNode({
   type: 'flow/list-concat',
   title: 'Concat',
   category: 'Flow',
-  description: 'Concatenates the wired lists in slot order. Variadic — a new slot appears when all are wired.',
+  description: 'Concatenates the wired lists in slot order. Variadic: a new slot appears when all are wired.',
   inputs: [
     { name: 'a', type: listOf(ANY) },
     { name: 'b', type: listOf(ANY) },
@@ -209,7 +209,7 @@ defineNode({
   type: 'flow/list-range',
   title: 'Range',
   category: 'Flow',
-  description: 'Numbers [start, start+step, …) — count of them.',
+  description: 'Numbers [start, start+step, …): count of them.',
   inputs: [] as const,
   outputs: [{ name: 'items', type: listOf(NUMBER) }] as const,
   params: [

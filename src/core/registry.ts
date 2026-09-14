@@ -1,5 +1,5 @@
 /**
- * The node registry — the DX core of CyberWizard.
+ * The node registry: the DX core of CyberWizard.
  *
  * An operation is declared once via defineNode() and the registry generates a
  * fully wired LiteGraph node class: typed slots, param widgets bound to
@@ -31,9 +31,9 @@ export type ParamDef =
       readonly label?: string
       readonly default: string
       readonly multiline?: boolean
-      /** Param holds a subgraph definition's name (map/filter/fold's fn, If's then/else) — edits to that definition must dirty this node. */
+      /** Param holds a subgraph definition's name (map/filter/fold's fn, If's then/else): edits to that definition must dirty this node. */
       readonly subgraphRef?: boolean
-      /** No widget row in the node body — the param is edited through the node's own UI (the Note's click-to-write body). Still serializes. */
+      /** No widget row in the node body: the param is edited through the node's own UI (the Note's click-to-write body). Still serializes. */
       readonly hidden?: boolean
     }
   | {
@@ -43,7 +43,7 @@ export type ParamDef =
       readonly default: number
       readonly min?: number
       readonly max?: number
-      /** Literal step for the stepper arrows/drag (translated to litegraph's step2 — its `step` option is in tenths). */
+      /** Literal step for the stepper arrows/drag (translated to litegraph's step2: its `step` option is in tenths). */
       readonly step?: number
       /** Decimal places shown in the widget (litegraph default: 3). */
       readonly precision?: number
@@ -80,7 +80,7 @@ export interface RunContext {
   /**
    * Pulls one input slot's value on demand: the upstream is evaluated and
    * the value coerced to the slot type. Throws when the upstream is blocked
-   * or stale. Only slots declared in the def's `lazyInputs` need this —
+   * or stale. Only slots declared in the def's `lazyInputs` need this:
    * eager inputs arrive in the `inputs` argument. The untaken side of a
    * conditional is never pulled, hence never evaluated.
    */
@@ -103,7 +103,7 @@ export interface NodeDef<
   /**
    * Names of input slots the engine must NOT pre-evaluate: they are absent
    * from `inputs`, and the op demands them via ctx.pull (flow/select's
-   * then/else — the untaken branch never runs). Coercion applies as usual.
+   * then/else: the untaken branch never runs). Coercion applies as usual.
    */
   readonly lazyInputs?: readonly string[]
   /**
@@ -176,7 +176,7 @@ export function setParam(node: LGraphNode, name: string, value: string | number 
 
 /**
  * Params that may be promoted from widget to wired input slot. Subgraph
- * pickers are excluded — they resolve definition names, not values — and so
+ * pickers are excluded (they resolve definition names, not values) and so
  * are hidden params, which have no widget to promote (the Note's text/tint).
  */
 export function isConvertibleParam(param: ParamDef): boolean {
@@ -195,7 +195,7 @@ export function paramDataType(param: ParamDef): DataType {
 
 /**
  * Promotes a param to a connection point: an input slot bound to its widget
- * (litegraph's widget-input slot — the dot renders inline at the widget, and
+ * (litegraph's widget-input slot: the dot renders inline at the widget, and
  * the widget hides while wired). The engine feeds wired values through as
  * the param value (see doEnsure); unwired, the widget value stands.
  */
@@ -211,7 +211,7 @@ export function revertParamToWidget(node: LGraphNode, paramName: string, declare
     (s, i) => i >= declaredInputs && (s as { widget?: { name?: unknown } }).widget?.name === paramName,
   )
   if (index === -1) return
-  if ((node.inputs[index] as { link?: unknown }).link != null) return // wired — disconnect first
+  if ((node.inputs[index] as { link?: unknown }).link != null) return // wired: disconnect first
   node.removeInput(index)
   markNodeDirty(node)
 }
@@ -242,7 +242,7 @@ export function variadicSlotName(index: number): string {
 /**
  * Keeps exactly one empty trailing slot on a variadic node: appends when
  * every input is wired, prunes surplus unwired trailing slots. Widget-input
- * slots (converted params) are ignored — they are not variadic slots.
+ * slots (converted params) are ignored: they are not variadic slots.
  */
 export function maintainVariadicSlots(node: LGraphNode, def: UntypedNodeDef): void {
   const declaredInputs = def.inputs.length
@@ -252,7 +252,7 @@ export function maintainVariadicSlots(node: LGraphNode, def: UntypedNodeDef): vo
     i >= declaredInputs && (node.inputs[i] as { widget?: unknown }).widget === undefined
 
   if (node.inputs.every((_slot, i) => linkOf(i) != null)) {
-    // Every input wired — grow one more (letters continue from the count).
+    // Every input wired: grow one more (letters continue from the count).
     node.addInput(variadicSlotName(node.inputs.length), growthType)
     markNodeDirty(node)
     return
@@ -326,7 +326,7 @@ export function defineNode<
     private addParamWidget(param: ParamDef): void {
       this.properties[param.name] = param.default
       // Hidden params get NO widget: litegraph's #arrangeWidgets assigns every
-      // widgets[] entry a row — even widget.hidden ones — leaving dead space
+      // widgets[] entry a row (even widget.hidden ones) leaving dead space
       // in the body. A hidden param is a pure property: it serializes, flows
       // through setParam, and is edited by the node's own UI (the Note).
       if (param.hidden === true) return
@@ -367,7 +367,7 @@ export function defineNode<
   }
 
   // registerNodeType falls back to the class *name* for the menu label and
-  // indexes LiteGraph.Nodes by it — without a real name every generated node
+  // indexes LiteGraph.Nodes by it: without a real name every generated node
   // shows up as "GeneratedNode" and overwrites the previous one in Nodes.
   Object.defineProperty(GeneratedNode, 'name', { value: classNameFor(def) })
 
@@ -386,7 +386,7 @@ let connectionRulesInstalled = false
 /**
  * Makes LiteGraph's drag-and-drop connection checks follow the coercion
  * matrix. Verified against 0.17.2's connectSlots: the call order is
- * isValidConnection(outputType, inputType) — i.e. (from, to).
+ * isValidConnection(outputType, inputType): i.e. (from, to).
  */
 export function installConnectionRules(): void {
   if (connectionRulesInstalled) return
@@ -425,12 +425,12 @@ const CATEGORY_COLORS: Record<string, { color: string; bgcolor: string }> = {
   Flow: { color: '#555b66', bgcolor: '#eff0f2' },
   Math: { color: '#3d6b5f', bgcolor: '#e8f2ef' },
   Subgraphs: { color: '#6f5630', bgcolor: '#f5efe0' },
-  // Sticky-note amber — the theme's brass accent as a title bar.
+  // Sticky-note amber: the theme's brass accent as a title bar.
   Notes: { color: '#a16207', bgcolor: '#faf3df' },
 }
 
 /**
- * Every named category color, in palette order — the color set offered for
+ * Every named category color, in palette order: the color set offered for
  * notes ("comes in the same colors as nodes"). A note carries its choice in
  * the hidden `tint` param; the note widget applies it (core/note-widget).
  */
@@ -452,14 +452,14 @@ export function categoryColors(category: string): { color: string; bgcolor: stri
  * Frame + slot-ring colour, fully opaque (the solid equivalent of the old
  * 40%-alpha brown over paper). Opaque so a ring crossing the frame can't
  * "double": the library's strokeShape draws the frame at a hardcoded 0.8
- * globalAlpha, and 0.8·C over the ring's solid C lands on exactly C — the
+ * globalAlpha, and 0.8·C over the ring's solid C lands on exactly C: the
  * crossing is invisible. The frame as a whole renders a touch softer than
  * the ring, which reads as intentional.
  */
 export const NODE_FRAME_COLOR = '#b4aba0'
 
 /**
- * How far outside the node bounds the frame stroke's path sits — its centre
+ * How far outside the node bounds the frame stroke's path sits: its centre
  * line is therefore this many px outside the node edge. Slot connection
  * points centre on that line (ui/theme).
  */
@@ -467,7 +467,7 @@ export const NODE_FRAME_PADDING = 0.5
 
 /**
  * The subtle permanent frame every node gets, hugging its edge (the library's
- * own strokeStyles channel — alongside its error/selection entries, not in
+ * own strokeStyles channel: alongside its error/selection entries, not in
  * place of them). Called by the node factories (here and core/subgraph)
  * because strokeStyles is assigned per instance in the library constructor.
  */

@@ -14,7 +14,7 @@ async function importPssKey(key: Uint8Array | undefined, format: 'spki' | 'pkcs8
   }
 }
 
-/** RSA-PSS signature — probabilistic (salt), so signatures differ run to run. */
+/** RSA-PSS signature: probabilistic (salt), so signatures differ run to run. */
 defineNode({
   type: 'crypto/rsa-sign',
   title: 'RSA Sign',
@@ -39,7 +39,7 @@ defineNode({
   },
 })
 
-/** RSA-PSS verification — boolean output, wire it into Select/If. */
+/** RSA-PSS verification: boolean output, wire it into Select/If. */
 defineNode({
   type: 'crypto/rsa-verify',
   title: 'RSA Verify',

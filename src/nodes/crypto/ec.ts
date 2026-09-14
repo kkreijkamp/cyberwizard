@@ -16,7 +16,7 @@ defineNode({
   title: 'EC Generate Key Pair',
   category: 'Crypto',
   description:
-    'Generates an elliptic-curve key pair (public: SPKI bytes, private: PKCS#8 bytes). Usage picks the algorithm — "sign" → ECDSA, "derive" → ECDH.',
+    'Generates an elliptic-curve key pair (public: SPKI bytes, private, PKCS#8 bytes). Usage picks the algorithm: "sign" → ECDSA, "derive" → ECDH.',
   inputs: [] as const,
   outputs: [
     { name: 'publicKey', type: BYTES },
@@ -57,12 +57,12 @@ async function importEcKey(
   }
 }
 
-/** ECDSA signature (IEEE-P1363 r‖s form — the same encoding JWS uses). */
+/** ECDSA signature (IEEE-P1363 r‖s form: the same encoding JWS uses). */
 defineNode({
   type: 'crypto/ecdsa-sign',
   title: 'ECDSA Sign',
   category: 'Crypto',
-  description: 'Elliptic-curve signature in P1363 (r‖s) encoding — what JWS/JWT ES256 uses. Key: a "sign"-usage EC private key.',
+  description: 'Elliptic-curve signature in P1363 (r‖s) encoding: what JWS/JWT ES256 uses. Key: a "sign"-usage EC private key.',
   inputs: [
     { name: 'data', type: BYTES },
     { name: 'privateKey', type: BYTES },
@@ -81,7 +81,7 @@ defineNode({
   },
 })
 
-/** ECDSA verification — boolean output for Select/If wiring. */
+/** ECDSA verification: boolean output for Select/If wiring. */
 defineNode({
   type: 'crypto/ecdsa-verify',
   title: 'ECDSA Verify',

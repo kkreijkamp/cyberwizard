@@ -35,7 +35,7 @@ export function startAutosave(graph: LGraph, canvas: LGraphCanvas): () => void {
       const json = JSON.stringify(serializeGraph(graph, canvas))
       if (json !== lastWritten) {
         if (lastWritten !== '' && location.hash.startsWith('#g=')) {
-          // The user edited past the shared snapshot — the hash no longer
+          // The user edited past the shared snapshot: the hash no longer
           // represents this graph, and boot gives it priority over the
           // autosave. Drop it or every refresh resurrects the old state.
           history.replaceState(null, '', location.pathname + location.search)
@@ -44,7 +44,7 @@ export function startAutosave(graph: LGraph, canvas: LGraphCanvas): () => void {
         lastWritten = json
       }
     } catch (err) {
-      // Quota exceeded or serialisation edge — autosave is best-effort, but
+      // Quota exceeded or serialisation edge: autosave is best-effort, but
       // never *silent*: a save that always fails loses work on refresh.
       console.warn('autosave failed:', err)
     }

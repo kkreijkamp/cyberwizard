@@ -1,5 +1,5 @@
 /**
- * Scene: Welcome Tour — the platform's core ideas in one small graph.
+ * Scene: Welcome Tour, the platform's core ideas in one small graph.
  */
 
 import type { GraphDocument } from '../core/serialize'

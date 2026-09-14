@@ -48,7 +48,7 @@ describe('serializeGraph with a canvas argument (the app save path)', () => {
     src.connect(0, instance, 0)
     await engine.whenIdle()
 
-    // Minimal canvas stub — serializeGraph only touches .graph and .ds
+    // Minimal canvas stub: serializeGraph only touches .graph and .ds
     const canvasStub = {
       graph,
       ds: { offset: [120, 60], scale: 0.8 },

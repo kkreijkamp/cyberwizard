@@ -60,7 +60,7 @@ describe('theme slot rings', () => {
     applyTheme({} as LGraphCanvas)
     node.updateArea({ measureText: () => ({ width: 40 }) } as never)
 
-    // The input ring's outer half sits past the frame — a click just outside
+    // The input ring's outer half sits past the frame: a click just outside
     // the node edge must still register as inside (was culled: dead half).
     expect(node.isPointInside(93, 214)).toBe(true)
     expect(node.isPointInside(89, 214)).toBe(false) // margin is exactly 10px

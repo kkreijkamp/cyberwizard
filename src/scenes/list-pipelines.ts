@@ -1,5 +1,5 @@
 /**
- * Scene: List Pipelines — Map/Filter with named subgraph definitions, Split
+ * Scene: List Pipelines, Map/Filter with named subgraph definitions, Split
  * and Join, showing lists as first-class values.
  */
 

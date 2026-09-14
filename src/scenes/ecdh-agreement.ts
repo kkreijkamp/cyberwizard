@@ -1,5 +1,5 @@
 /**
- * Scene: ECDH Key Agreement — two parties derive the same secret without ever
+ * Scene: ECDH Key Agreement, two parties derive the same secret without ever
  * transmitting it, then HKDF turns it into an AES key.
  */
 

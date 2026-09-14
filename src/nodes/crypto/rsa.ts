@@ -13,7 +13,7 @@ function algorithmFor(usage: string, hash: string): RsaHashedKeyAlgorithm {
 /**
  * RSA key pair generation. Keys export in wire-friendly standard formats:
  * public as SPKI DER, private as PKCS#8 DER. The hash chosen here is baked
- * into the keys — encrypt/sign with the same hash. The usage chooses the
+ * into the keys: encrypt/sign with the same hash. The usage chooses the
  * algorithm family: RSA-OAEP (encrypt/decrypt) or RSA-PSS (sign/verify).
  */
 defineNode({
@@ -21,7 +21,7 @@ defineNode({
   title: 'RSA Generate Key Pair',
   category: 'Crypto',
   description:
-    'Generates an RSA key pair (public: SPKI bytes, private: PKCS#8 bytes). Usage picks the algorithm family — "encrypt" → RSA-OAEP, "sign" → RSA-PSS. The hash is baked into the keys; use the same hash downstream.',
+    'Generates an RSA key pair (public: SPKI bytes, private, PKCS#8 bytes). Usage picks the algorithm family: "encrypt" → RSA-OAEP, "sign" → RSA-PSS. The hash is baked into the keys; use the same hash downstream.',
   inputs: [] as const,
   outputs: [
     { name: 'publicKey', type: BYTES },
@@ -59,7 +59,7 @@ defineNode({
   title: 'RSA Encrypt',
   category: 'Crypto',
   description:
-    'RSA-OAEP public-key encryption. Payload is limited by key size (modulus/8 − 2×hash − 2 bytes; 190 bytes for 2048-bit/SHA-256) — typically wraps a symmetric key. Hash must match the key\'s.',
+    'RSA-OAEP public-key encryption. Payload is limited by key size (modulus/8 − 2×hash − 2 bytes; 190 bytes for 2048-bit/SHA-256): typically wraps a symmetric key. Hash must match the key\'s.',
   inputs: [
     { name: 'data', type: BYTES },
     { name: 'publicKey', type: BYTES },

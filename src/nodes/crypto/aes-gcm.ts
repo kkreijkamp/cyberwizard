@@ -47,7 +47,7 @@ defineNode({
   },
 })
 
-/** AES-GCM decryption — fails loudly when the key/nonce/tag is wrong (tamper-evident). */
+/** AES-GCM decryption: fails loudly when the key/nonce/tag is wrong (tamper-evident). */
 defineNode({
   type: 'crypto/aes-gcm-decrypt',
   title: 'AES-GCM Decrypt',

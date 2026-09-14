@@ -1,5 +1,5 @@
 /**
- * The coercion layer — CyberChef's "Dish" idea: edges between compatible-but-
+ * The coercion layer: CyberChef's "Dish" idea, edges between compatible-but-
  * unequal slot types convert values automatically. Coercion is total and
  * explicit: anything not listed here throws CoercionError rather than
  * silently mangling data.
@@ -109,7 +109,7 @@ export function coerce(value: unknown, from: DataType, to: DataType): unknown {
     case 'list→string':
       return stringifyJson(value, from, to)
     case 'list→bytes': {
-      // A list of byte arrays means "join these bytes" — chunker output into
+      // A list of byte arrays means "join these bytes": chunker output into
       // a bytes input should never become JSON text. Anything else: JSON.
       const items = expect(value, 'list', from, to)
       if (items.every((i) => i instanceof Uint8Array)) return concatBytes(items)
@@ -142,7 +142,7 @@ function parseJson(s: string, from: DataType, to: DataType): unknown {
  * Unsigned big-endian interpretation: [0x1f, 0x4a] → 8010, empty → 0.
  * Multiplication (not <<) avoids 32-bit truncation. Exact up to 6 bytes
  * (2^48 < 2^53); longer inputs (e.g. a 32-byte digest) lose low-order bits
- * to f64 precision — magnitudes stay right, residues don't.
+ * to f64 precision: magnitudes stay right, residues don't.
  */
 function bytesToNumber(b: Uint8Array): number {
   let n = 0
@@ -151,8 +151,8 @@ function bytesToNumber(b: Uint8Array): number {
 }
 
 /**
- * Decimal/scientific via Number() — which already covers the 0x/0b/0o
- * prefixes — falling back to bare hex when the string contains hex letters:
+ * Decimal/scientific via Number(): which already covers the 0x/0b/0o
+ * prefixes: falling back to bare hex when the string contains hex letters:
  * '1f', 'deadbeef', '-ff' all parse base 16. Digit-only strings never reach
  * the fallback ('1e5' is decimal, not hex), and non-hex garbage stays an error.
  */

@@ -1,16 +1,16 @@
 /**
- * Math — bitwise shifts. The shift semantics depend on the value's type:
+ * Math: bitwise shifts. The shift semantics depend on the value's type:
  *
- *  - **bytes**: a big-endian bignum shift — << appends zero bits (growing
+ *  - **bytes**: a big-endian bignum shift, << appends zero bits (growing
  *    as needed), >> drops low bits; the result is minimal-length. This is
  *    the only way to shift long values: through a number slot the
  *    bytes→number coercion produces an f64, and values past 2^32 have zero
- *    low bits — a 32-bit shift would see 0. Fractional counts truncate;
+ *    low bits: a 32-bit shift would see 0. Fractional counts truncate;
  *    negative counts shift the other way.
- *  - **numbers and (hex) strings**: JavaScript 32-bit semantics — the
+ *  - **numbers and (hex) strings**: JavaScript 32-bit semantics, the
  *    operand truncates to int32 and the count masks to 0–31, so
  *    `1 << 32 === 1`. (Signed >> keeps the sign bit; unsigned >>> does not.
- *    On bytes the two coincide — bignums are unsigned.)
+ *    On bytes the two coincide: bignums are unsigned.)
  *
  * The `bits` input is the count in BITS: 8 bits = one byte (shift left 8
  * appends a zero byte, shift left 1 appends a zero bit). Unwired value

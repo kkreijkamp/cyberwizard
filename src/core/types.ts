@@ -3,7 +3,7 @@
  *
  * `bytes` (Uint8Array) is the canonical currency type: every value can be
  * coerced to/from it (see core/coerce.ts). Types are plain data so they can
- * be serialised, compared, and carried on graph edges at runtime — while the
+ * be serialised, compared, and carried on graph edges at runtime: while the
  * ValueOf mapped type gives node definitions fully static `run()` signatures.
  */
 
@@ -44,7 +44,7 @@ export function typesEqual(a: DataType, b: DataType): boolean {
 }
 
 /**
- * Slot type tag used on LiteGraph slots. List element types are erased —
+ * Slot type tag used on LiteGraph slots. List element types are erased:
  * connection validity is decided by the coercion layer anyway
  * (registry installs the LiteGraph.isValidConnection override).
  * `any` maps to LiteGraph's wildcard 0.
@@ -59,7 +59,7 @@ export function toSlotType(t: DataType): string | 0 {
  * Maps a raw slot type to a tag. Total by design: the wildcard 0, the empty
  * string (native panel empty slots), the stringified '0' (native empty-slot
  * connects store String(slot.type), turning our `any` wildcard into "0"),
- * and any unknown tag all behave as `any` — connection validity checks run
+ * and any unknown tag all behave as `any`: connection validity checks run
  * on every hover during a drag and must never throw.
  */
 export function fromSlotType(t: string | number): SlotTypeTag {
@@ -91,7 +91,7 @@ export function dataTypeFromKind(kind: string): DataType {
 }
 
 /**
- * Best-effort DataType for a runtime value — the "declared type" of a plain
+ * Best-effort DataType for a runtime value: the "declared type" of a plain
  * JS value crossing into the typed world (e.g. RunContext.apply inputs, where
  * there is no upstream slot to read a type from).
  */
@@ -113,7 +113,7 @@ function truncate(s: string): string {
 /**
  * Structural identity key for a value: primitives by type+value (NaN equals
  * NaN), bytes by hex, objects/lists by JSON. Shared by Unique and the
- * equality comparisons — one definition of "same value".
+ * equality comparisons: one definition of "same value".
  */
 export function valueKey(value: unknown): string {
   if (value instanceof Uint8Array) {
@@ -129,7 +129,7 @@ export function valueKey(value: unknown): string {
   return `prim:${typeof value}:${String(value)}`
 }
 
-/** Structural value equality — see valueKey. */
+/** Structural value equality: see valueKey. */
 export function valuesEqual(a: unknown, b: unknown): boolean {
   return valueKey(a) === valueKey(b)
 }
@@ -137,7 +137,7 @@ export function valuesEqual(a: unknown, b: unknown): boolean {
 /**
  * Human-readable rendering of a value, for previews and debugging.
  * Default mode is compact: 120 chars, 24 bytes, 5 list items, `…` markers.
- * `full: true` renders everything — the inspect overlay's contract is that
+ * `full: true` renders everything, the inspect overlay's contract is that
  * nothing is ever cut off.
  */
 export function repr(value: unknown, opts?: { full?: boolean }): string {

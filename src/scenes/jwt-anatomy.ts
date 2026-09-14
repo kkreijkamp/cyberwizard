@@ -1,5 +1,5 @@
 /**
- * Scene: Anatomy of a JWT — decode the parts, pick claims, and verify the
+ * Scene: Anatomy of a JWT, decode the parts, pick claims, and verify the
  * HS256 signature by composition (JWT Decode → HMAC → Equals).
  */
 

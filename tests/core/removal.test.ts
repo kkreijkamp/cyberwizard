@@ -43,7 +43,7 @@ describe('node removal', () => {
     src.connect(0, sha, 0)
 
     const engine = new Engine(graph)
-    // Remove immediately — the sha run may or may not have started yet;
+    // Remove immediately: the sha run may or may not have started yet;
     // either way the engine must settle and drop the ghost state.
     graph.remove(sha)
     await engine.whenIdle()

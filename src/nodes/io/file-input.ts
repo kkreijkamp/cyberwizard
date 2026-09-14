@@ -3,7 +3,7 @@ import { BYTES, STRING } from '../../core/types'
 
 /**
  * Source node: reads a file from disk into bytes. The file lives in
- * node.properties — a graph serialisation story for M3.
+ * node.properties: a graph serialisation story for M3.
  */
 defineNode({
   type: 'io/file-input',

@@ -5,7 +5,7 @@ import { CBC_IV_BYTES, importAesKey, randomBytes } from './aes-common'
 
 /**
  * AES-CBC: classic block-cipher encryption (PKCS#7 padding, handled by
- * WebCrypto). NOT authenticated — pair with HMAC if tamper-evidence matters,
+ * WebCrypto). NOT authenticated: pair with HMAC if tamper-evidence matters,
  * or use AES-GCM. An empty iv input generates a fresh 16-byte one.
  */
 defineNode({
@@ -13,7 +13,7 @@ defineNode({
   title: 'AES-CBC Encrypt',
   category: 'Crypto',
   description:
-    'Block-cipher encryption with PKCS#7 padding (not authenticated — use AES-GCM for tamper-evidence). Key: 16/24/32 bytes. Leave iv empty to generate a random 16-byte one (reported on the iv output).',
+    'Block-cipher encryption with PKCS#7 padding (not authenticated: use AES-GCM for tamper-evidence). Key: 16/24/32 bytes. Leave iv empty to generate a random 16-byte one (reported on the iv output).',
   inputs: [
     { name: 'data', type: BYTES },
     { name: 'key', type: BYTES },
@@ -34,7 +34,7 @@ defineNode({
   },
 })
 
-/** AES-CBC decryption — strips PKCS#7 padding, errors on bad key/iv/corrupt data. */
+/** AES-CBC decryption: strips PKCS#7 padding, errors on bad key/iv/corrupt data. */
 defineNode({
   type: 'crypto/aes-cbc-decrypt',
   title: 'AES-CBC Decrypt',

@@ -7,7 +7,7 @@ const measure: Measure = (text) => text.length * 10
 
 const texts = (spans: readonly PositionedSpan[]): string[] => spans.map((s) => s.text)
 
-describe('layoutMarkdown — blocks', () => {
+describe('layoutMarkdown: blocks', () => {
   it('renders a paragraph line as plain spans', () => {
     const { spans, height } = layoutMarkdown('hello', 500, measure)
     expect(texts(spans)).toEqual(['hello'])
@@ -81,7 +81,7 @@ describe('layoutMarkdown — blocks', () => {
   })
 })
 
-describe('layoutMarkdown — inline', () => {
+describe('layoutMarkdown: inline', () => {
   it('parses bold, italic, code and strike', () => {
     const { spans } = layoutMarkdown('a **b** *c* `d` ~~e~~', 500, measure)
     const byText = Object.fromEntries(spans.map((s) => [s.text, s.style]))

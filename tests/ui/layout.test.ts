@@ -48,7 +48,7 @@ describe('cell layout', () => {
     installNodeLayout(graph)
     const node = spawn(graph, 0, 0)
     expect((node.size[0] - 30) % LAYOUT_CELL).toBe(0)
-    // Body ≡ 0 (mod 50), so title + body ≡ 30 (mod 50) — the cell rule.
+    // Body ≡ 0 (mod 50), so title + body ≡ 30 (mod 50): the cell rule.
     expect((node.size[1] + TITLE_HEIGHT - 30) % LAYOUT_CELL).toBe(0)
   })
 

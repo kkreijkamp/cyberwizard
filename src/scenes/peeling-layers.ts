@@ -1,12 +1,12 @@
 /**
- * Scene: Peeling Layers — CyberChef-style deobfuscation: recognize an encoding
+ * Scene: Peeling Layers, CyberChef-style deobfuscation: recognize an encoding
  * by its shape, then unwind Base64 → hex → XOR one layer at a time.
  */
 
 import type { GraphDocument } from '../core/serialize'
 import { SceneBuilder } from './kit'
 
-// Base64(hex(XOR('meet me at midnight', 'k3y'))) — precomputed.
+// Base64(hex(XOR('meet me at midnight', 'k3y'))): precomputed.
 const OBFUSCATED = 'MDY1NjFjMWYxMzE0MGUxMzE4MWYxMzE0MDI1NzE3MDI1NDExMWY='
 
 export function peelingLayers(): GraphDocument {

@@ -114,7 +114,7 @@ const names = (defs: readonly { name: string }[]): string[] => defs.map((d) => d
 
 // ─── Visibility ──────────────────────────────────────────────────────────────
 
-describe('scoped definitions — visibility', () => {
+describe('scoped definitions: visibility', () => {
   it('globals everywhere, scoped defs only inside their parent subtree', () => {
     const { graph, dispose } = rig()
     const g1 = createSubgraphDef(graph, 'G1')
@@ -148,7 +148,7 @@ describe('scoped definitions — visibility', () => {
 
 // ─── Resolution through the engine ───────────────────────────────────────────
 
-describe('scoped definitions — resolution', () => {
+describe('scoped definitions: resolution', () => {
   it('a fn picker inside the parent resolves the scoped def; at root it errors as out of scope', async () => {
     const { graph, engine, dispose } = rig()
     const parent = createSubgraphDef(graph, 'Parent')
@@ -168,7 +168,7 @@ describe('scoped definitions — resolution', () => {
     const sink = spawn(graph, 'io/preview')
     instance.connect(0, sink, 0)
 
-    // At root: another map with fn='Local' — same name, wrong scope.
+    // At root: another map with fn='Local', same name, wrong scope.
     const range = spawn(graph, 'flow/list-range')
     setParam(range, 'count', 1)
     const rootMap = spawn(graph, 'flow/map')
@@ -179,7 +179,7 @@ describe('scoped definitions — resolution', () => {
 
     await engine.whenIdle()
     expect(engine.outputsOf(instance)).toEqual([[11]])
-    expect(engine.stateOf(rootMap).error?.message).toMatch(/scoped to "Parent" — not visible here/)
+    expect(engine.stateOf(rootMap).error?.message).toMatch(/scoped to "Parent": not visible here/)
     dispose()
   })
 
@@ -190,7 +190,7 @@ describe('scoped definitions — resolution', () => {
     buildAddK(graph, 'Step', 10, a.id)
     buildAddK(graph, 'Step', 100, b.id)
 
-    // Both parents: n → map(fn='Step') — each resolves its own Step.
+    // Both parents: n → map(fn='Step'), each resolves its own Step.
     for (const parentId of [a.id, b.id]) {
       const sub = interiorOf(graph, parentId)
       addDefInput(graph, parentId, 'n', NUMBER)
@@ -219,7 +219,7 @@ describe('scoped definitions — resolution', () => {
 
 // ─── Re-scoping ──────────────────────────────────────────────────────────────
 
-describe('scoped definitions — reScopeDef', () => {
+describe('scoped definitions: reScopeDef', () => {
   it('moves defs up to global and down into a parent, flipping visibility', () => {
     const { graph, dispose } = rig()
     const a = createSubgraphDef(graph, 'A')
@@ -239,7 +239,7 @@ describe('scoped definitions — reScopeDef', () => {
     const a = createSubgraphDef(graph, 'A')
     const b = createSubgraphDef(graph, 'B', a.id)
 
-    reScopeDef(graph, a.id, b.id) // B is scoped to A — would cycle
+    reScopeDef(graph, a.id, b.id) // B is scoped to A: would cycle
     expect(a.scope).toBeUndefined()
     reScopeDef(graph, a.id, a.id) // self-scope is a no-op
     expect(a.scope).toBeUndefined()
@@ -261,7 +261,7 @@ describe('scoped definitions — reScopeDef', () => {
 
 // ─── Cascade delete ──────────────────────────────────────────────────────────
 
-describe('scoped definitions — cascade delete', () => {
+describe('scoped definitions: cascade delete', () => {
   it('deleting a definition deletes its scope subtree and their instances', () => {
     const { graph, dispose } = rig()
     const a = createSubgraphDef(graph, 'A')
@@ -281,7 +281,7 @@ describe('scoped definitions — cascade delete', () => {
 
 // ─── Consumer dirty accuracy ─────────────────────────────────────────────────
 
-describe('scoped definitions — consumer dirtying', () => {
+describe('scoped definitions: consumer dirtying', () => {
   it('editing a scoped def dirties only consumers that resolve to it, not same-named shadows', async () => {
     const { graph, engine, dispose } = rig()
     const a = createSubgraphDef(graph, 'A')
@@ -324,7 +324,7 @@ describe('scoped definitions — consumer dirtying', () => {
 
 // ─── Serialization ───────────────────────────────────────────────────────────
 
-describe('scoped definitions — serialization', () => {
+describe('scoped definitions: serialization', () => {
   it('round-trips the scope field', () => {
     const { graph, dispose } = rig()
     const a = createSubgraphDef(graph, 'A')

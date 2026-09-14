@@ -1,12 +1,12 @@
 /**
  * The state-trace export: a self-contained JSON snapshot of everything the
- * engine currently knows — every root node's state, and every recorded
+ * engine currently knows: every root node's state, and every recorded
  * subgraph call (the full recursion tree) with its per-call values.
  *
  * Values are encoded losslessly by KIND, not by slot type: strings/numbers/
  * booleans inline, bytes as base64 (with length), lists and plain objects
  * recursively. The graph document itself is embedded, so a trace file is
- * readable on its own — structure, wiring, params, and live values in one.
+ * readable on its own: structure, wiring, params, and live values in one.
  */
 
 import type { LGraphNode, NodeId, Subgraph } from '@comfyorg/litegraph'
@@ -49,7 +49,7 @@ export function encodeValue(value: unknown): EncodedValue {
     for (const [key, item] of Object.entries(value)) entries[key] = encodeValue(item)
     return { kind: 'object', entries }
   }
-  // bigint, function, symbol — nothing the graph produces, but never throw.
+  // bigint, function, symbol: nothing the graph produces, but never throw.
   return { kind: 'other', text: String(value) }
 }
 
@@ -71,7 +71,7 @@ interface DumpedNode {
 
 /**
  * A full state trace of the engine: the serialized document, every root
- * node's live state, and every recorded subgraph call (pre-order — a call
+ * node's live state, and every recorded subgraph call (pre-order: a call
  * precedes its children) with boundary inputs and interior node states.
  */
 export function buildStateDump(engine: Engine): Record<string, unknown> {

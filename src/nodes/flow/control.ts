@@ -1,8 +1,8 @@
 /**
- * Flow — conditionals. Both are lazy: the untaken branch never runs.
+ * Flow: conditionals. Both are lazy, the untaken branch never runs.
  *
  * Select is the value-level ternary: cond ? then : else, with the branches
- * as ordinary wired inputs. Its then/else slots are lazy (def.lazyInputs) —
+ * as ordinary wired inputs. Its then/else slots are lazy (def.lazyInputs):
  * the engine evaluates only the one Select pulls. That is what recursion
  * terminates through: the branch feeding the recursive call is never pulled
  * once the base case holds, so a self-instancing definition bottoms out
@@ -26,7 +26,7 @@ defineNode({
   type: 'flow/select',
   title: 'Select',
   category: 'Flow',
-  description: 'cond ? then : else — lazy: only the taken branch is evaluated, so recursion terminates through it.',
+  description: 'cond ? then : else, lazy: only the taken branch is evaluated, so recursion terminates through it.',
   inputs: [
     { name: 'cond', type: BOOLEAN },
     { name: 'then', type: ANY },
@@ -52,7 +52,7 @@ defineNode({
   title: 'If',
   category: 'Flow',
   description:
-    'Lazy cond: applies only the taken branch subgraph to the value (a 0-in branch is a constant). Recursion terminates through If — put the recursive call in a branch.',
+    'Lazy cond: applies only the taken branch subgraph to the value (a 0-in branch is a constant). Recursion terminates through If, put the recursive call in a branch.',
   inputs: [
     { name: 'cond', type: BOOLEAN },
     { name: 'value', type: ANY },

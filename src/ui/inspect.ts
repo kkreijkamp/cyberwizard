@@ -1,6 +1,6 @@
 /**
  * The inspect overlay: clicking a node's preview well opens a themed card
- * with the FULL value — the contract is that nothing is ever cut off; the
+ * with the FULL value: the contract is that nothing is ever cut off; the
  * card scrolls instead. Content is repr(value, { full: true }) of every
  * output (or the Preview sink's last input), or the failure message.
  * One card at a time; Esc / outside click / the × closes it.
@@ -16,7 +16,7 @@ import { LAST_INPUT_PROPERTY } from '../nodes/io/preview'
 
 let inspectOpen = false
 
-/** True while an inspect card is open — other Esc handlers defer to the card's own. */
+/** True while an inspect card is open: other Esc handlers defer to the card's own. */
 export function isInspectOpen(): boolean {
   return inspectOpen
 }
@@ -93,7 +93,7 @@ function contentFor(engine: Engine, node: LGraphNode): string {
 
   // Sinks have no outputs; their value is the input. Prefer the state's
   // recorded per-call inputs (lens-aware) over the node property, which every
-  // call overwrites — it only ever holds the last call's value.
+  // call overwrites: it only ever holds the last call's value.
   const def = getNodeDef(node)
   if (def && def.outputs.length === 0) {
     const firstInput = def.inputs[0]

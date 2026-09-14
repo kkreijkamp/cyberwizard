@@ -1,20 +1,20 @@
 /**
- * The execution engine — demand-driven reactive dataflow.
+ * The execution engine: demand-driven reactive dataflow.
  *
  * Semantics:
  *  - Sinks drive evaluation. Registry nodes with no declared outputs
  *    (Preview, Download) are pull roots: a microtask-batched flush ensures
  *    each dirty sink, which recursively ensures the upstream nodes it
- *    actually reads from. Nodes nothing demands never run — a disconnected
+ *    actually reads from. Nodes nothing demands never run: a disconnected
  *    branch, an unwired cycle, or the untaken side of a conditional.
  *  - Editing a param or changing a connection marks the node dirty;
  *    dirtiness propagates downstream (cycle-safe). Pulling re-runs only
- *    dirty nodes — clean cached outputs are memo hits, so evaluation work
+ *    dirty nodes: clean cached outputs are memo hits, so evaluation work
  *    is confined to what changed AND what is demanded.
  *  - Lazy inputs (a def's `lazyInputs`, e.g. Select's then/else) are not
  *    pre-evaluated: the op pulls them on demand via RunContext.pull. The
  *    untaken branch never runs, so recursion terminates through an ordinary
- *    conditional — no subgraph-thunk ceremony required.
+ *    conditional: no subgraph-thunk ceremony required.
  *  - Stale-run cancellation: every run records the node's generation; if the
  *    node was marked dirty again while the run was in flight, the result is
  *    discarded and the node stays dirty for the next flush.
@@ -22,7 +22,7 @@
  *    cascading garbage values.
  *  - A pull that (transitively) demands the node itself is a cycle: the
  *    nodes on the cycle get a cycle error and never execute. Pulls within a
- *    scope are sequential — the pull stack is the single active chain, which
+ *    scope are sequential: the pull stack is the single active chain, which
  *    is what makes re-entrancy detection exact (never Promise.all ensures).
  *
  * Subgraph instances (core/subgraph.ts) evaluate with call semantics: the
@@ -55,7 +55,7 @@ export interface NodeState {
   outputs: readonly unknown[] | undefined
   /**
    * Coerced eager inputs of the last successful run (variadic slots included;
-   * lazy slots never appear — RunContext.pull bypasses the record). Lets a
+   * lazy slots never appear: RunContext.pull bypasses the record). Lets a
    * lens show per-call values for sinks, whose own display state is shared
    * and overwritten by every call.
    */
@@ -65,7 +65,7 @@ export interface NodeState {
   blocked: boolean
   /** While blocked: the node whose error propagated here (the root cause). */
   cause: FailureCause | undefined
-  /** In-flight ensure() promise — dedups concurrent pulls of the same node. */
+  /** In-flight ensure() promise: dedups concurrent pulls of the same node. */
   inFlight: Promise<void> | undefined
   /** True when this node sits on a detected cycle; its error sticks until an edit re-dirties it. */
   cycle: boolean
@@ -82,9 +82,9 @@ export const COLOR_ERROR = '#a83a32'
 const COLOR_ERROR_BG = '#f7e3e0'
 const CYCLE_MESSAGE = 'graph contains a cycle through this node'
 
-/** Max call depth for nested instances — the guard on true recursive self-reference. */
+/** Max call depth for nested instances: the guard on true recursive self-reference. */
 export const MAX_SUBGRAPH_DEPTH = 512
-/** Max interior evaluations per instance call tree — guards exponential recursion fan-out. */
+/** Max interior evaluations per instance call tree: guards exponential recursion fan-out. */
 export const SUBGRAPH_EVAL_BUDGET = 1000
 /**
  * Max transient call stores kept by the recursion trace. A run that hit the
@@ -127,7 +127,7 @@ class UpstreamBlocked extends Error {
 class UpstreamStale extends Error {}
 
 /**
- * Synthetic state for nodes that never ran in the lensed call — paints '∅'
+ * Synthetic state for nodes that never ran in the lensed call: paints '∅'
  * and restores colors. Shared and frozen: paint() never mutates state.
  */
 const EMPTY_STATE: NodeState = Object.freeze({
@@ -156,7 +156,7 @@ interface EvalScope {
   store: Map<NodeId, NodeState>
   /** Instance path from the root ('' at root; "12/7" inside nested instances). */
   path: string
-  /** Ids of the definitions enclosing this scope — recursion detection. */
+  /** Ids of the definitions enclosing this scope: recursion detection. */
   defStack: readonly string[]
   /** Shared call-tree evaluation budget (created by the root-level instance). */
   budget: { remaining: number } | null
@@ -171,10 +171,10 @@ interface EvalScope {
   /**
    * When true, interior stores under this scope are never retained (apply()
    * calls and recursive re-entries: values differ per call, caching is
-   * meaningless — and for large maps, unbounded).
+   * meaningless, and for large maps, unbounded).
    */
   transient: boolean
-  /** The active pull chain, innermost last — the cycle detector. */
+  /** The active pull chain, innermost last: the cycle detector. */
   pullStack: LGraphNode[]
   /**
    * First error captured during this scope's pull, if any. A blocked output
@@ -184,14 +184,14 @@ interface EvalScope {
   firstError: { title: string; message: string } | null
   /**
    * True inside an apply() call tree. Apply paths use a never-reused counter,
-   * so recording their interiors would leak — the call trace (below) skips
+   * so recording their interiors would leak: the call trace (below) skips
    * these scopes entirely.
    */
   underApply: boolean
   /**
    * True when this scope's call belongs in the recursion trace: starts at a
    * root-level instance run and propagates down its call tree (never into
-   * apply subtrees). Observational only — recorded stores are never used for
+   * apply subtrees). Observational only: recorded stores are never used for
    * memoization.
    */
   recording: boolean
@@ -202,7 +202,7 @@ export interface CallInfo {
   defId: string
   /** Coerced inputs bound at the input panel for this call. */
   inputs: readonly unknown[]
-  /** Path segments — 1 for a root-level call, +1 per nesting level. */
+  /** Path segments: 1 for a root-level call, +1 per nesting level. */
   depth: number
 }
 
@@ -230,7 +230,7 @@ export class Engine {
   private readonly invalidatedSeeds = new Set<string>()
   /**
    * The recursion trace: interior stores of TRANSIENT (recursive re-entry)
-   * calls, keyed by the same instance paths as interiorStores — retained
+   * calls, keyed by the same instance paths as interiorStores: retained
    * calls' stores live there, so a path appears in exactly one of the two.
    * Purely observational: these stores are never read for memoization.
    */
@@ -309,7 +309,7 @@ export class Engine {
   /**
    * Document replaced (deserialize / clear): drop every cached state.
    * LGraph.clear() never fires graph.onNodeRemoved, and the new document
-   * reuses low node ids — stale stores would alias into it. Called by
+   * reuses low node ids: stale stores would alias into it. Called by
    * clearSubgraphDefs (core/subgraph), which covers both load paths.
    */
   reset(): void {
@@ -331,20 +331,20 @@ export class Engine {
       return this.lensStore()?.get(node.id) ?? EMPTY_STATE
     }
     if (node.graph !== this.graph) {
-      // Interior node outside the lens: read-only lookup — never create a
+      // Interior node outside the lens: read-only lookup, never create a
       // root-store entry (interior and root id spaces overlap).
       return this.defaultInteriorState(node) ?? EMPTY_STATE
     }
     return this.state(node)
   }
 
-  /** True when the node currently shows a failure — its own error, or blocked by one upstream. */
+  /** True when the node currently shows a failure: its own error, or blocked by one upstream. */
   hasFailure(node: LGraphNode): boolean {
     return this.failureState(node) !== undefined
   }
 
   /**
-   * True when the node has cached outputs (ran cleanly) in any store — root,
+   * True when the node has cached outputs (ran cleanly) in any store: root,
    * or a retained instance interior. Drives the dashed-link rendering for
    * connections that carry no value (ui/links).
    */
@@ -356,7 +356,7 @@ export class Engine {
    * The node to blame for this one's failure: the recorded upstream cause
    * when blocked, or the interior node whose error a subgraph instance
    * wrapped (descend one level per call). Undefined when the node itself is
-   * the root cause — or when it isn't failing. Backs the node menu's
+   * the root cause, or when it isn't failing. Backs the node menu's
    * "Go to failure source" action (ui/compute-menu.ts).
    */
   failureSource(node: LGraphNode): { node: LGraphNode; message: string } | undefined {
@@ -409,7 +409,7 @@ export class Engine {
   /**
    * Current cached outputs of a node, undefined if it never ran cleanly.
    * Falls back to retained instance interiors (any instance that produced
-   * outputs for the node) — the inspect overlay depends on this for nodes
+   * outputs for the node): the inspect overlay depends on this for nodes
    * viewed inside a definition. The root store is only consulted for nodes
    * that live there: interior and root id spaces overlap.
    */
@@ -473,7 +473,7 @@ export class Engine {
       .sort((a, b) => comparePaths(a.path, b.path))
   }
 
-  /** Which map a call's store lives in — retained (memoized) or traced (observational). */
+  /** Which map a call's store lives in: retained (memoized) or traced (observational). */
   callStoreOrigin(path: string): 'retained' | 'traced' | undefined {
     if (this.traceStores.has(path)) return 'traced'
     if (this.interiorStores.has(path)) return 'retained'
@@ -485,7 +485,7 @@ export class Engine {
     return this.states
   }
 
-  /** True when the trace cap refused records — the exported call tree is incomplete. */
+  /** True when the trace cap refused records: the exported call tree is incomplete. */
   traceOverflow(): boolean {
     return this.traceOverflowed
   }
@@ -501,7 +501,7 @@ export class Engine {
     return false
   }
 
-  /** Fired after each evaluation flush / compute — for UI that reads settled engine state. */
+  /** Fired after each evaluation flush / compute: for UI that reads settled engine state. */
   onSettled(listener: () => void): () => void {
     this.settledListeners.add(listener)
     return () => this.settledListeners.delete(listener)
@@ -569,7 +569,7 @@ export class Engine {
   }
 
   /**
-   * Preview sinks write their own widget per run (per call — the shared well
+   * Preview sinks write their own widget per run (per call: the shared well
    * ends on an arbitrary depth); the lens rewrites it from the call state's
    * recorded inputs.
    */
@@ -603,7 +603,7 @@ export class Engine {
   /**
    * Marks a node and everything downstream of it dirty. Fresh values may flow
    * into any instance reached this way, so its precise interior seeds are
-   * void — except when the mark itself comes from seedSubgraphInstanceDirty
+   * void, except when the mark itself comes from seedSubgraphInstanceDirty
    * (preserveSeeds), which just wrote those seeds.
    */
   markDirty(node: LGraphNode, opts?: { preserveSeeds?: boolean }): void {
@@ -637,7 +637,7 @@ export class Engine {
 
   /**
    * An interior node of a definition went dirty while `instance` (root-level)
-   * is alive: seed a precise re-evaluation — on the instance's next pull only
+   * is alive: seed a precise re-evaluation, on the instance's next pull only
    * the seeded nodes and their interior downstream re-execute.
    */
   seedSubgraphInstanceDirty(instance: LGraphNode, interiorNodeId: NodeId): void {
@@ -650,7 +650,7 @@ export class Engine {
     this.markDirty(instance, { preserveSeeds: true })
   }
 
-  /** An instance's own edges changed — its inputs may differ, so interior seeds are void. */
+  /** An instance's own edges changed: its inputs may differ, so interior seeds are void. */
   instanceWiringChanged(instance: LGraphNode): void {
     this.pendingSeeds.delete(String(instance.id))
     this.invalidatedSeeds.add(String(instance.id))
@@ -738,7 +738,7 @@ export class Engine {
   /**
    * Ensures the node's cached state is fresh: runs it if dirty, returns
    * immediately on a memo hit, dedups concurrent pulls, and marks cycles on
-   * re-entrant demand. Never rejects — every outcome lands in the node state.
+   * re-entrant demand. Never rejects: every outcome lands in the node state.
    */
   private async ensure(node: LGraphNode, scope: EvalScope): Promise<void> {
     const s = this.stateIn(scope.store, node)
@@ -779,7 +779,7 @@ export class Engine {
 
       const def = getNodeDef(node)
       if (!def) {
-        // Foreign node (not created via defineNode) — outside engine semantics.
+        // Foreign node (not created via defineNode): outside engine semantics.
         s.dirty = false
         return
       }
@@ -856,7 +856,7 @@ export class Engine {
       }
 
       // Interior nodes share the enclosing instance run's signal; only root
-      // nodes get their own controller (keyed by id — interior ids from
+      // nodes get their own controller (keyed by id: interior ids from
       // different scopes would collide).
       const controller = scope.signal ? null : new AbortController()
       if (controller) this.abortControllers.set(node.id, controller)
@@ -869,7 +869,7 @@ export class Engine {
           apply: (defId, applyInputs) => this.applySubgraph(defId, applyInputs, scope, signal),
           pull: (slotName) => this.pullSlot(node, def, slotName, scope),
         })
-        if (generation !== s.generation) return // superseded while running — discard
+        if (generation !== s.generation) return // superseded while running: discard
         s.outputs = def.outputs.map((o) => result[o.name])
         s.inputs = inputs
         s.error = undefined
@@ -917,7 +917,7 @@ export class Engine {
     const originState = this.stateIn(scope.store, origin)
     if (originState.error || originState.blocked) {
       // Propagate the root cause down the chain, so every blocked dependent
-      // can name — and navigate to — the node actually at fault.
+      // can name (and navigate to) the node actually at fault.
       const cause: FailureCause | undefined = originState.error
         ? { nodeId: origin.id, title: origin.title, message: originState.error.message }
         : originState.cause
@@ -995,7 +995,7 @@ export class Engine {
         signal,
         String(node.id),
       )
-      if (generation !== s.generation) return // superseded while running — discard
+      if (generation !== s.generation) return // superseded while running: discard
       s.outputs = outputs
       s.error = undefined
       s.blocked = false
@@ -1017,7 +1017,7 @@ export class Engine {
   /**
    * Higher-order hook behind RunContext.apply: evaluate a definition once
    * with positional inputs. Each call gets a fresh evaluation budget (per-
-   * element caps — recursion within one call is still depth-limited) and a
+   * element caps: recursion within one call is still depth-limited) and a
    * transient scope (stores are never retained: per-call values differ).
    */
   private async applySubgraph(
@@ -1079,7 +1079,7 @@ export class Engine {
 
     if (recording) {
       if (seeds === undefined) {
-        // Full re-seed — this call's whole subtree re-evaluates, so stale
+        // Full re-seed: this call's whole subtree re-evaluates, so stale
         // deeper records go first (a shorter recursion prunes its old depths).
         // Seeded partial re-runs keep untouched deeper calls; a deep call
         // that does re-run clears its own subtree on its way through.
@@ -1107,7 +1107,7 @@ export class Engine {
       recording,
     }
 
-    // Interior sinks (a Preview inside the definition) are pull roots too —
+    // Interior sinks (a Preview inside the definition) are pull roots too:
     // they are why interior nodes off the output path ever run. Their errors
     // stay local (ensure captures per node; the instance result is unaffected).
     for (const node of subgraph._nodes) {
@@ -1182,13 +1182,13 @@ export class Engine {
       throw new Error(first ? `[${first.title}] ${first.message}` : `[${origin.title}] blocked upstream`)
     }
     if (st.dirty || st.running) {
-      throw new Error(`subgraph evaluation incomplete — "${origin.title}" never ran`)
+      throw new Error(`subgraph evaluation incomplete: "${origin.title}" never ran`)
     }
     return coerce(st.outputs?.[link.origin_slot], this.outputTypeOf(origin, link.origin_slot), slot.type)
   }
 
   private markBlocked(node: LGraphNode, s: NodeState, cause?: FailureCause): void {
-    if (s.cycle) return // the cycle error is the more precise diagnosis — keep it
+    if (s.cycle) return // the cycle error is the more precise diagnosis: keep it
     s.blocked = true
     s.error = undefined
     s.cause = cause
@@ -1218,12 +1218,12 @@ export class Engine {
   }
 
   private paint(node: LGraphNode, s: NodeState): void {
-    // State changed — repaint the canvas (colors, widgets, and link styles all
+    // State changed: repaint the canvas (colors, widgets, and link styles all
     // read engine state at draw time).
     for (const c of this.graph.list_of_graphcanvas ?? []) c.setDirty(true, false)
 
-    // Any failure — the node's own error, or an upstream one propagated to it
-    // (blocked) — repaints the whole node red; the box strip alone is too easy
+    // Any failure: the node's own error, or an upstream one propagated to it
+    // (blocked): repaints the whole node red; the box strip alone is too easy
     // to miss. The node's own colors are stashed once per node so a later
     // success restores them, no matter which call's state paints first.
     const failing = s.error !== undefined || s.blocked

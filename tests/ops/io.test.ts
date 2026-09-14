@@ -20,7 +20,7 @@ describe('io ops', () => {
     const node = LiteGraph.createNode('io/integer-input')
     if (!node) throw new Error('unregistered')
     const widget = paramWidgets(node).get('value')
-    expect(widget?.options.step2).toBe(1) // literal step — litegraph's `step` option is in tenths
+    expect(widget?.options.step2).toBe(1) // literal step: litegraph's `step` option is in tenths
     expect(widget?.options.precision).toBe(0)
   })
 

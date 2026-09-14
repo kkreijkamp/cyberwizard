@@ -1,7 +1,7 @@
 /**
  * Note UI: the in-place editor and the Color context menu.
  *
- * Editor — clicking a note's body overlays a textarea exactly on the body
+ * Editor: clicking a note's body overlays a textarea exactly on the body
  * (graph coords → fixed CSS px via the canvas's DragAndScale), re-anchored
  * every animation frame so pan/zoom/drag keep it glued. The overlay opens on
  * pointerUP: litegraph focuses the canvas element inside its pointerdown
@@ -10,7 +10,7 @@
  * markdown re-renders underneath and the node re-fits its height); closing
  * (outside click / Esc / Cmd+Enter) therefore never loses anything.
  *
- * Color — a chained getExtraMenuOptions hook (same pattern as
+ * Color: a chained getExtraMenuOptions hook (same pattern as
  * ui/compute-menu and ui/widget-inputs), shown on note nodes only. The
  * choices are the node category colors; the pick lands in the hidden `tint`
  * param and the widget applies it (core/note-widget).
@@ -43,7 +43,7 @@ export function installNotes(canvas: LGraphCanvas): void {
     document.body.append(textarea)
 
     let open = true
-    // Outside click closes — the inspect overlay's pattern: capture phase,
+    // Outside click closes: the inspect overlay's pattern, capture phase,
     // deferred past the opening click (and no blur listener: litegraph
     // focuses the canvas inside its own pointerdown handling, so blur is
     // not a reliable "the user left" signal here).

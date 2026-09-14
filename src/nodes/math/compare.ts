@@ -1,6 +1,6 @@
 /**
- * Math — comparisons. Equality is structural (see core/types valueKey):
- * primitives by value (1 ≠ "1" — types differ), bytes by hex, objects and
+ * Math: comparisons. Equality is structural (see core/types valueKey):
+ * primitives by value (1 ≠ "1": types differ), bytes by hex, objects and
  * lists by JSON. Ordering compares numbers numerically, strings
  * lexicographically, bytes (and mixed bytes/number/hex-string) as unsigned
  * big-endian bignums, and anything else by its repr.

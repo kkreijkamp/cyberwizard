@@ -1,5 +1,5 @@
 /**
- * Graph persistence — CyberWizard's own versioned document format.
+ * Graph persistence: CyberWizard's own versioned document format.
  *
  * We deliberately do NOT use LiteGraph's built-in serialize(): our document
  * is stable across litegraph versions, contains exactly what a graph needs
@@ -7,7 +7,7 @@
  * URL sharing.
  *
  * Version 2 adds subgraph definitions (`subgraphs`): stored once, flat, by
- * UUID — recursion (a definition containing an instance of itself) therefore
+ * UUID: recursion (a definition containing an instance of itself) therefore
  * never nests infinitely. Instances are ordinary SerializedNodes whose `type`
  * is the definition UUID. Boundary links use the well-known panel node ids
  * (SUBGRAPH_INPUT_NODE_ID / SUBGRAPH_OUTPUT_NODE_ID from core/subgraph.ts).
@@ -62,7 +62,7 @@ export interface SerializedLink {
 
 export interface SerializedGroup {
   title: string
-  /** [x, y, w, h] — the group's bounds. */
+  /** [x, y, w, h]: the group's bounds. */
   bounding: [number, number, number, number]
   color?: string
   font_size?: number
@@ -76,14 +76,14 @@ export interface SerializedSubgraphIO {
 }
 
 export interface SerializedSubgraph {
-  /** Definition UUID — instance nodes reference it as their `type`. */
+  /** Definition UUID: instance nodes reference it as their `type`. */
   id: string
   name: string
   /** Lexical scope: the parent definition's UUID. Absent = global. */
   scope?: string
   inputs: SerializedSubgraphIO[]
   outputs: SerializedSubgraphIO[]
-  /** IO panel node bounds ([x, y, w, h]) — the panels' positions inside the definition. */
+  /** IO panel node bounds ([x, y, w, h]): the panels' positions inside the definition. */
   inputNode?: { bounding: [number, number, number, number]; pinned?: boolean }
   outputNode?: { bounding: [number, number, number, number]; pinned?: boolean }
   nodes: SerializedNode[]
@@ -127,7 +127,7 @@ function serializeFragment(graph: LGraph): {
     }
 
     const def = getNodeDef(node)
-    if (!def) continue // foreign node — can't be recreated, skip
+    if (!def) continue // foreign node: can't be recreated, skip
 
     const params: SerializedNode['params'] = {}
     for (const p of def.params ?? []) {
@@ -200,7 +200,7 @@ export function serializeGraph(graph: LGraph, canvas?: LGraphCanvas): GraphDocum
         inputs: meta.inputs.map((slot) => ({ name: slot.name, type: slot.type.kind })),
         outputs: meta.outputs.map((slot) => ({ name: slot.name, type: slot.type.kind })),
         // Panel positions, in the same shape the library writes (dropped on
-        // restore if malformed — they are cosmetic).
+        // restore if malformed: they are cosmetic).
         inputNode: subgraph
           ? (subgraph.inputNode.asSerialisable() as { bounding: [number, number, number, number]; pinned?: boolean })
           : undefined,
@@ -243,7 +243,7 @@ export function deserializeGraph(doc: GraphDocument, graph: LGraph, canvas?: LGr
   clearSubgraphDefs(graph)
 
   // Phase 1: register all definition shells (and their factories) before any
-  // instance is created — recursive and mutually-recursive definitions load
+  // instance is created: recursive and mutually-recursive definitions load
   // in any order.
   for (const saved of doc.subgraphs ?? []) {
     const subgraph = graph.createSubgraph({
@@ -279,7 +279,7 @@ export function deserializeGraph(doc: GraphDocument, graph: LGraph, canvas?: LGr
   for (const saved of doc.subgraphs ?? []) {
     if (typeof saved.scope !== 'string') continue
     if (!getSubgraphDef(graph, saved.scope)) {
-      warnings.push(`subgraph "${saved.name}" scopes to a missing definition — treating it as global`)
+      warnings.push(`subgraph "${saved.name}" scopes to a missing definition: treating it as global`)
       const meta = getSubgraphDef(graph, saved.id)
       if (meta) meta.scope = undefined
     }
@@ -289,7 +289,7 @@ export function deserializeGraph(doc: GraphDocument, graph: LGraph, canvas?: LGr
   for (const saved of doc.subgraphs ?? []) {
     const subgraph = graph.subgraphs.get(saved.id as never)
     if (!subgraph) {
-      warnings.push(`subgraph "${saved.name}" failed to restore — interior skipped`)
+      warnings.push(`subgraph "${saved.name}" failed to restore: interior skipped`)
       continue
     }
     populateFragment(subgraph, saved, warnings)
@@ -330,7 +330,7 @@ function populateFragment(
   for (const saved of frag.nodes) {
     const node = LiteGraph.createNode(saved.type)
     if (!node) {
-      warnings.push(`unknown node type "${saved.type}" — skipped`)
+      warnings.push(`unknown node type "${saved.type}": skipped`)
       continue
     }
     node.pos = [saved.pos[0], saved.pos[1]]
@@ -345,7 +345,7 @@ function populateFragment(
       for (const name of saved.widgetInputs) {
         const param = def?.params?.find((p) => p.name === name)
         if (!param || !isConvertibleParam(param)) {
-          warnings.push(`${saved.type}: cannot convert param "${name}" to an input — skipped`)
+          warnings.push(`${saved.type}: cannot convert param "${name}" to an input, skipped`)
           continue
         }
         convertParamToInput(node, param)
@@ -354,7 +354,7 @@ function populateFragment(
     if (saved.variadicInputs !== undefined && saved.variadicInputs > 0) {
       const def = getNodeDef(node)
       if (!def?.variadicInputs) {
-        warnings.push(`${saved.type}: document has variadic inputs but the op is not variadic — skipped`)
+        warnings.push(`${saved.type}: document has variadic inputs but the op is not variadic, skipped`)
       } else {
         const growthType = toSlotType(def.inputs[0]?.type ?? ANY) as string
         for (let i = 0; i < saved.variadicInputs; i++) {
@@ -367,7 +367,7 @@ function populateFragment(
       if (saved.fileName !== undefined) node.properties.fileName = saved.fileName
     }
     // Content-sized nodes (the Note) computed their add-time size before any
-    // params were restored — re-fit now everything is in place. A no-op for
+    // params were restored: re-fit now everything is in place. A no-op for
     // nodes whose size doesn't depend on param values.
     node.setSize(node.computeSize())
     byId.set(saved.id, node)
@@ -381,17 +381,17 @@ function populateFragment(
       const targetNode = byId.get(link.to.node)
       const inputSlot = targetNode?.inputs[link.to.slot]
       if (!ioSlot || !targetNode || !inputSlot) {
-        warnings.push(`input panel link [${link.from.slot}] → ${link.to.node} is dangling — skipped`)
+        warnings.push(`input panel link [${link.from.slot}] → ${link.to.node} is dangling: skipped`)
         continue
       }
-      // SubgraphInput.connect bypasses LiteGraph.isValidConnection — validate
+      // SubgraphInput.connect bypasses LiteGraph.isValidConnection: validate
       // the coercion ourselves so malformed documents can't create bad edges.
       if (!canCoerce(dataTypeFromKind(ioSlot.type), inputTypeOf(targetNode, link.to.slot))) {
-        warnings.push(`input panel link [${link.from.slot}] → ${targetNode.title} cannot coerce — skipped`)
+        warnings.push(`input panel link [${link.from.slot}] → ${targetNode.title} cannot coerce: skipped`)
         continue
       }
       if (!ioSlot.connect(inputSlot, targetNode)) {
-        warnings.push(`could not connect input panel [${link.from.slot}] → ${targetNode.title} — skipped`)
+        warnings.push(`could not connect input panel [${link.from.slot}] → ${targetNode.title}: skipped`)
       }
       continue
     }
@@ -400,31 +400,31 @@ function populateFragment(
       const originNode = byId.get(link.from.node)
       const outputSlot = originNode?.outputs[link.from.slot]
       if (!ioSlot || !originNode || !outputSlot) {
-        warnings.push(`output panel link ${link.from.node} → [${link.to.slot}] is dangling — skipped`)
+        warnings.push(`output panel link ${link.from.node} → [${link.to.slot}] is dangling: skipped`)
         continue
       }
       if (!canCoerce(outputTypeOf(originNode, link.from.slot), dataTypeFromKind(ioSlot.type))) {
-        warnings.push(`output panel link ${originNode.title} → [${link.to.slot}] cannot coerce — skipped`)
+        warnings.push(`output panel link ${originNode.title} → [${link.to.slot}] cannot coerce: skipped`)
         continue
       }
       if (!ioSlot.connect(outputSlot, originNode)) {
-        warnings.push(`could not connect ${originNode.title} → output panel [${link.to.slot}] — skipped`)
+        warnings.push(`could not connect ${originNode.title} → output panel [${link.to.slot}]: skipped`)
       }
       continue
     }
     if (link.from.node < 0 || link.to.node < 0) {
-      warnings.push(`link ${link.from.node}→${link.to.node} references a boundary panel outside a subgraph — skipped`)
+      warnings.push(`link ${link.from.node}→${link.to.node} references a boundary panel outside a subgraph: skipped`)
       continue
     }
 
     const origin = byId.get(link.from.node)
     const targetNode = byId.get(link.to.node)
     if (!origin || !targetNode) {
-      warnings.push(`link ${link.from.node}→${link.to.node} references a missing node — skipped`)
+      warnings.push(`link ${link.from.node}→${link.to.node} references a missing node: skipped`)
       continue
     }
     const created = origin.connect(link.from.slot, targetNode, link.to.slot)
-    if (!created) warnings.push(`could not connect ${origin.title} → ${targetNode.title} — skipped`)
+    if (!created) warnings.push(`could not connect ${origin.title} → ${targetNode.title}: skipped`)
   }
 }
 
@@ -475,7 +475,7 @@ export function parseGraphDocument(data: unknown): GraphDocument {
   validateGroups(doc.groups, 'document')
 
   // v1 → v2 migration: v1 predates subgraphs, so it already *is* a valid v2
-  // document without a `subgraphs` key — accepting it is the whole migration.
+  // document without a `subgraphs` key: accepting it is the whole migration.
   // (The version field is left untouched so codec round-trips stay identical;
   // the next serializeGraph() writes the document back out as v2.)
   return doc as unknown as GraphDocument

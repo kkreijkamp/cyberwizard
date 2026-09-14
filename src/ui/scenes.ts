@@ -1,7 +1,7 @@
 /**
  * The Examples picker: a header dropdown offering the annotated example
- * scenes (src/scenes). Loading one replaces the current graph — with a
- * confirm, like New — through the ordinary document restore path.
+ * scenes (src/scenes). Loading one replaces the current graph: with a
+ * confirm, like New: through the ordinary document restore path.
  */
 
 import type { LGraph, LGraphCanvas } from '@comfyorg/litegraph'

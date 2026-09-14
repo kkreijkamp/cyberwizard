@@ -26,14 +26,14 @@ defineNode({
 })
 
 /**
- * Mini path picker: dot and bracket segments — `a.b[0].c`.
+ * Mini path picker: dot and bracket segments, `a.b[0].c`.
  * (Full JSONPath is a phase-2+ consideration.)
  */
 defineNode({
   type: 'data/json-pick',
   title: 'JSON Pick',
   category: 'Data',
-  description: 'Path like a.b[0].c — empty path returns the whole value.',
+  description: 'Path like a.b[0].c: empty path returns the whole value.',
   inputs: [{ name: 'value', type: JSON_TYPE }] as const,
   outputs: [{ name: 'picked', type: JSON_TYPE }] as const,
   params: [{ kind: 'string', name: 'path', label: 'Path', default: '' }] as const,

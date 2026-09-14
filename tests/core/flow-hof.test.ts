@@ -332,7 +332,7 @@ describe('subgraph-name consumers (hof)', () => {
     await engine.whenIdle()
     expect(engine.outputsOf(map)).toEqual([['[a', '[b']])
 
-    setParam(affix, 'pre', '<') // interior edit — the map must re-run
+    setParam(affix, 'pre', '<') // interior edit: the map must re-run
     await engine.whenIdle()
     expect(engine.outputsOf(map)).toEqual([['<a', '<b']])
     dispose()

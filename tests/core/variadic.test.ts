@@ -29,7 +29,7 @@ describe('variadic inputs', () => {
 
     text(graph, 'x').connect(0, concat, 0) // a
     expect(concat.inputs.map((s) => s.name)).toEqual(['a', 'b'])
-    text(graph, 'y').connect(0, concat, 1) // b — all wired → grow c
+    text(graph, 'y').connect(0, concat, 1) // b: all wired → grow c
     expect(concat.inputs.map((s) => s.name)).toEqual(['a', 'b', 'c'])
     text(graph, 'z').connect(0, concat, 2) // c wired → grow d
     expect(concat.inputs.map((s) => s.name)).toEqual(['a', 'b', 'c', 'd'])
@@ -49,7 +49,7 @@ describe('variadic inputs', () => {
     z.disconnectOutput(0, concat)
     expect(concat.inputs.map((s) => s.name)).toEqual(['a', 'b', 'c']) // d pruned, c kept as the empty one
     y.disconnectOutput(0, concat)
-    expect(concat.inputs.map((s) => s.name)).toEqual(['a', 'b']) // c pruned too — b is now the single empty trailing slot
+    expect(concat.inputs.map((s) => s.name)).toEqual(['a', 'b']) // c pruned too: b is now the single empty trailing slot
   })
 
   it('concatenates every wired list in slot order (3+ inputs)', async () => {

@@ -5,7 +5,7 @@
  * Follows the preview well's pattern (core/preview-widget): a legacy custom
  * widget with computeSize/draw/mouse hooks. The markdown source lives in the
  * hidden `text` param (so it serializes as an ordinary param), the chosen
- * color in the hidden `tint` param — applied here, lazily at draw time, so
+ * color in the hidden `tint` param: applied here, lazily at draw time, so
  * restored documents recolor themselves with no serializer involvement.
  */
 
@@ -32,7 +32,7 @@ export const NOTE_TEXT_PARAM = 'text'
 export const NOTE_TINT_PARAM = 'tint'
 export const NOTE_TYPE = 'notes/note'
 
-/** Rendered in place of an empty note — doubles as the markdown cheat sheet. */
+/** Rendered in place of an empty note: doubles as the markdown cheat sheet. */
 const PLACEHOLDER = '_Click to write… markdown: **bold**, *italic*, `code`, lists, quotes, links._'
 
 /** Click bridge (core → ui): ui/notes registers the editor at startup. */
@@ -89,7 +89,7 @@ export function drawNoteFold(ctx: CanvasRenderingContext2D, node: LGraphNode): v
   ctx.stroke()
 }
 
-/** Character-width approximation for headless runs (tests) — never used in the browser. */
+/** Character-width approximation for headless runs (tests): never used in the browser. */
 function approximateMeasure(text: string, style: TextStyle): number {
   return text.length * style.size * (style.code ? 0.62 : 0.5)
 }
@@ -138,7 +138,7 @@ export function makeNoteWidget(node: LGraphNode): CustomWidgetParam {
 
     computeSize(width) {
       // litegraph calls this both with the width (node.computeSize) and
-      // without any argument (#arrangeWidgets) — fall back to the live width.
+      // without any argument (#arrangeWidgets): fall back to the live width.
       const w = typeof width === 'number' && Number.isFinite(width) ? width : (node.size[0] ?? 210)
       return [w, PAD_Y * 2 + widget.layoutFor(w).height]
     },
@@ -202,13 +202,13 @@ export function makeNoteWidget(node: LGraphNode): CustomWidgetParam {
       const type = event.type ?? ''
       // Act on RELEASE, not press: litegraph focuses the canvas element at
       // the top of its pointerdown handler, and the browser's default
-      // mousedown focus shift lands after it — a textarea focused here on
+      // mousedown focus shift lands after it: a textarea focused here on
       // pointerdown loses focus in the same click (the editor flashed and
       // died). On pointerup nothing is queued to steal focus back.
       if (type === 'pointerdown' || type === 'mousedown') return true
       if (type !== 'pointerup' && type !== 'mouseup' && type !== 'click') return false
 
-      // Released outside the body (press started here, ended elsewhere) — ignore.
+      // Released outside the body (press started here, ended elsewhere): ignore.
       const [nx, ny] = offset
       const top = widget.y ?? 0
       const height = widget.computeSize(hitNode.size[0])[1]

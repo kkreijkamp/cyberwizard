@@ -2,7 +2,7 @@ import { asBufferSource, bytesToHex } from '../../core/binary'
 import { defineNode } from '../../core/registry'
 import { BYTES, STRING } from '../../core/types'
 
-/** SHA family via WebCrypto — one def factory, three algorithms. */
+/** SHA family via WebCrypto: one def factory, three algorithms. */
 const ALGORITHMS = [
   { subtle: 'SHA-1', slug: 'sha-1' },
   { subtle: 'SHA-256', slug: 'sha-256' },

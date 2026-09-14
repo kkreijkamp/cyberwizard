@@ -31,6 +31,6 @@ function previewWidget(node: LGraphNode): ValueWidget {
   const widgets = (node.widgets ?? []) as unknown as Array<{ name?: unknown; value: unknown }>
   const existing = widgets.find((w) => w.name === WIDGET_NAME)
   if (existing) return existing
-  // Created lazily on first run — the registry only builds param widgets.
+  // Created lazily on first run: the registry only builds param widgets.
   return node.addCustomWidget(makePreviewWidget(WIDGET_NAME)) as unknown as ValueWidget
 }

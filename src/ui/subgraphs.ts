@@ -254,7 +254,7 @@ export function installCollapse(canvas: LGraphCanvasT, rootGraph: LGraph): void 
         content: 'Add Group',
         callback: (value: unknown, opts: unknown, event: unknown) => {
           LGraphCanvas.onGroupAdd(value as never, opts as never, event as never)
-          // Groups are created at the raw mouse position — snap onto the
+          // Groups are created at the raw mouse position: snap onto the
           // (offset) lattice right away, like nodes at add time.
           const groups = canvas.graph?._groups
           groups?.[groups.length - 1]?.snapToGrid(LiteGraph.CANVAS_GRID_SIZE)
@@ -292,7 +292,7 @@ export function installCollapse(canvas: LGraphCanvasT, rootGraph: LGraph): void 
   canvas.getNodeMenuOptions = (node) =>
     originalNodeMenu(node).filter((entry) => entry?.content !== BROKEN_MENU_ITEM)
 
-  // Ctrl/Cmd+G — "group" (Figma-style), only with a non-empty selection.
+  // Ctrl/Cmd+G: "group" (Figma-style), only with a non-empty selection.
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'g') {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return

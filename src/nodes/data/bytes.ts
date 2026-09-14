@@ -5,7 +5,7 @@ import { ANY, BYTES, STRING } from '../../core/types'
 
 /**
  * Explicit any → bytes: strings utf-8 encode, bytes pass through, numbers
- * encode as minimal big-endian (255 → ff, 8010 → 1f4a, 0 → 00 — the exact
+ * encode as minimal big-endian (255 → ff, 8010 → 1f4a, 0 → 00: the exact
  * inverse of the bytes→number coercion; negatives error, fractions
  * truncate), everything else JSON-serialises.
  */

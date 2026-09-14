@@ -1,5 +1,5 @@
 /**
- * Scene: Hybrid Encryption — RSA wraps a symmetric key, AES-GCM carries the
+ * Scene: Hybrid Encryption, RSA wraps a symmetric key, AES-GCM carries the
  * actual message. The pattern behind TLS, PGP, and every real RSA deployment.
  */
 

@@ -17,14 +17,14 @@ export interface Showcase {
 
 /**
  * The M1 showcase: one input fans out into an async SHA-256 branch and an
- * XOR-with-key-wire → Base64 branch — fan-out, multi-input, async, and
+ * XOR-with-key-wire → Base64 branch: fan-out, multi-input, async, and
  * string↔bytes coercion edges in a single graph.
  */
 export function buildShowcaseGraph(graph: LGraph = new LGraph()): Showcase {
 
   const spawn = (type: string, pos: [number, number], title?: string): LGraphNode => {
     // createNode's title argument is dropped by registry-generated classes
-    // (their constructor passes def.title to super) — set it explicitly.
+    // (their constructor passes def.title to super): set it explicitly.
     const node = LiteGraph.createNode(type)
     if (!node) throw new Error(`node type not registered: ${type}`)
     if (title !== undefined) node.title = title
@@ -52,7 +52,7 @@ export function buildShowcaseGraph(graph: LGraph = new LGraph()): Showcase {
   xor.connect(0, b64, 0)
   b64.connect(0, cipherPreview, 0)
 
-  // connect() silently returns null when isValidConnection rejects a pair —
+  // connect() silently returns null when isValidConnection rejects a pair:
   // fail loudly instead of building a subtly unwired graph.
   for (const node of graph._nodes) {
     for (const inputSlot of node.inputs) {

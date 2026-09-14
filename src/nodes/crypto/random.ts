@@ -2,7 +2,7 @@ import { bytesToHex } from '../../core/binary'
 import { defineNode } from '../../core/registry'
 import { BYTES, STRING } from '../../core/types'
 
-/** Cryptographically secure random bytes — keys, IVs, nonces, salts. */
+/** Cryptographically secure random bytes: keys, IVs, nonces, salts. */
 defineNode({
   type: 'crypto/random-bytes',
   title: 'Random Bytes',

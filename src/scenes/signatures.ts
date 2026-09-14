@@ -1,5 +1,5 @@
 /**
- * Scene: Digital Signatures (Ed25519) — authenticity without secrecy, and a
+ * Scene: Digital Signatures (Ed25519), authenticity without secrecy, and a
  * lazy Select rendering the verdict.
  */
 

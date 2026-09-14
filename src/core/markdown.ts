@@ -2,7 +2,7 @@
  * Markdown layout for the note widget: a small, deliberate subset of
  * markdown compiled to positioned, styled text spans for canvas drawing.
  *
- * Pure and DOM-free — the width measurer is injected, so tests drive it
+ * Pure and DOM-free: the width measurer is injected, so tests drive it
  * with a fixed-width fake (tests/core/markdown.test.ts) and the widget
  * with an offscreen canvas context (core/note-widget.ts). Line breaks are
  * GitHub-style: every source line is its own block, a blank line is a gap.
@@ -23,7 +23,7 @@ export interface TextStyle {
   readonly fence: boolean
   readonly strike: boolean
   readonly link: string | undefined
-  /** Font size in px — drives both the font string and the line height. */
+  /** Font size in px: drives both the font string and the line height. */
   readonly size: number
 }
 
@@ -32,7 +32,7 @@ export interface PositionedSpan {
   /** Baseline y, relative to the content box's top. */
   readonly y: number
   readonly text: string
-  /** Measured width — the widget needs it for underlines/strikes. */
+  /** Measured width: the widget needs it for underlines/strikes. */
   readonly w: number
   readonly style: TextStyle
 }
@@ -208,7 +208,7 @@ interface Word {
   readonly text: string
   readonly style: TextStyle
   readonly width: number
-  /** Whitespace token — kept for spacing, dropped at line edges. */
+  /** Whitespace token: kept for spacing, dropped at line edges. */
   readonly space: boolean
 }
 
@@ -357,13 +357,13 @@ export function layoutMarkdown(source: string, maxWidth: number, measure: Measur
     const lines = wrapWords(wordsOf(segments, measure), maxWidth - textX, measure)
 
     // Decorations span the whole block, so they're emitted once its height is
-    // known — quote bar behind the text, code background behind the run.
+    // known: quote bar behind the text, code background behind the run.
     const blockHeight = (lines.length === 0 ? 1 : lines.length) * lh + (block.kind === 'code' ? CODE_PAD_Y * 2 : 0)
     if (block.kind === 'quote') {
       decorations.push({ kind: 'quote-bar', rect: { x: 0, y, w: QUOTE_BAR_W, h: blockHeight } })
     }
     if (block.kind === 'code') {
-      // Adjacent code lines share one background — extend the previous rect.
+      // Adjacent code lines share one background: extend the previous rect.
       const prev = decorations[decorations.length - 1]
       if (inCodeRun && prev?.kind === 'code-bg' && prev.rect.y + prev.rect.h === y) {
         decorations[decorations.length - 1] = { ...prev, rect: { ...prev.rect, h: prev.rect.h + blockHeight } }

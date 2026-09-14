@@ -3,12 +3,12 @@ import { hexToBytes } from '../../core/binary'
 import { defineNode } from '../../core/registry'
 import { BYTES, STRING } from '../../core/types'
 
-/** MD5 via hash-wasm (WebCrypto doesn't offer it — legacy use only). */
+/** MD5 via hash-wasm (WebCrypto doesn't offer it: legacy use only). */
 defineNode({
   type: 'hashing/md5',
   title: 'MD5',
   category: 'Hashing',
-  description: 'Legacy hash — cryptographically broken, use for checksums only.',
+  description: 'Legacy hash: cryptographically broken, use for checksums only.',
   inputs: [{ name: 'data', type: BYTES }] as const,
   outputs: [
     { name: 'digest', type: BYTES },

@@ -3,7 +3,7 @@
  * string/number/boolean/enum param, e.g. Take's n) get context-menu entries
  * to promote a param to a wired input slot, and to revert it while unwired.
  *
- * Chains onto LGraphNode.prototype.getExtraMenuOptions — the same hook
+ * Chains onto LGraphNode.prototype.getExtraMenuOptions: the same hook
  * ui/compute-menu.ts uses; they compose (both prepended before litegraph's
  * standard entries).
  */

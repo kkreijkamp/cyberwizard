@@ -1,5 +1,5 @@
 /**
- * Scene: Encrypting with a Password — PBKDF2 stretches a human password into
+ * Scene: Encrypting with a Password, PBKDF2 stretches a human password into
  * a real key, with salt and iteration count doing the heavy lifting.
  */
 

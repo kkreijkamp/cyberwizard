@@ -1,10 +1,10 @@
 /**
  * Link styles, by what flows on the wire:
- *  - origin failing (its own error or blocked by one): rust red, dashed —
+ *  - origin failing (its own error or blocked by one): rust red, dashed:
  *    the failure shows up along the whole downstream path, not just on nodes.
  *  - origin never executed (undemanded, dirty): dashed and dimmed warm grey.
  *  - origin produced a value: solid.
- * Links of the selected node render amber — the library highlights them in
+ * Links of the selected node render amber: the library highlights them in
  * hardcoded bright white (#FFF), illegible on the paper background.
  *
  * Implemented as a canvas.renderLink wrapper (the one per-link choke point);
@@ -15,7 +15,7 @@ import type { LGraphCanvas, LLink } from '@comfyorg/litegraph'
 import { COLOR_ERROR } from '../core/engine'
 import type { Engine } from '../core/engine'
 
-/** Selection indigo — distinct from the amber UI accents and the rust errors. */
+/** Selection indigo: distinct from the amber UI accents and the rust errors. */
 const COLOR_SELECTED = '#3a5580'
 
 export function installLinkStyles(canvas: LGraphCanvas, engine: Engine): void {
@@ -29,7 +29,7 @@ export function installLinkStyles(canvas: LGraphCanvas, engine: Engine): void {
     if (!origin) return original(...args)
 
     // renderLink checks highlighted_links BEFORE the colour argument and
-    // forces #FFF — hide the entry for the duration of the (synchronous)
+    // forces #FFF: hide the entry for the duration of the (synchronous)
     // call so our colour actually lands. State (dash/dim) composes on top:
     // selection tints, it never erases the dotted "no value" signal.
     const highlights = highlightedLinks()
@@ -85,7 +85,7 @@ export function installLinkStyles(canvas: LGraphCanvas, engine: Engine): void {
  * uncapped: long links sweep far out, and links whose target is BEHIND the
  * source hook back on themselves in a big loop. We pass our own control
  * points (renderLink's startControl/endControl option): a smaller factor, a
- * hard cap, and a tighter cap when the target is behind — the curve stays a
+ * hard cap, and a tighter cap when the target is behind: the curve stays a
  * gentle S that never swings back past itself.
  */
 const SPLINE_FACTOR = 0.18

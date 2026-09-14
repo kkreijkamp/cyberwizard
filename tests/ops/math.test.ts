@@ -175,7 +175,7 @@ describe('math/bignum arithmetic on bytes', () => {
       .rejects.toThrow(/negative/)
   })
 
-  it('multiplies, divides (floor), modulo — all staying bytes', async () => {
+  it('multiplies, divides (floor), modulo: all staying bytes', async () => {
     expect((await runOp('math/multiply', { a: new Uint8Array([0x10]), b: new Uint8Array([0x10]) })).result)
       .toEqual(new Uint8Array([1, 0]))
     expect((await runOp('math/divide', { a: new Uint8Array([1, 0]), b: 2 })).result)
@@ -211,7 +211,7 @@ describe('math/comparisons on bytes (bignum ordering)', () => {
 })
 
 describe('operand error messages', () => {
-  it('render the full offending value — the inspect overlay shows it whole', async () => {
+  it('render the full offending value: the inspect overlay shows it whole', async () => {
     const items = Array.from({ length: 8 }, (_, i) => new Uint8Array([i, i, i, i]))
     const err = await runOp('math/shift-left', { value: items }).then(
       () => {
@@ -221,7 +221,7 @@ describe('operand error messages', () => {
     )
     expect(err.message).toContain('not a numeric operand')
     expect(err.message).toContain('[8 items]')
-    // Every item renders — the compact repr would have stopped at five.
+    // Every item renders: the compact repr would have stopped at five.
     for (let i = 0; i < 8; i++) {
       expect(err.message).toContain(`⟨4B⟩ 0${i} 0${i} 0${i} 0${i}`)
     }

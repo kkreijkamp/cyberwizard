@@ -80,7 +80,7 @@ function restoredRig(doc: ReturnType<typeof serializeGraph>): {
   }
 }
 
-describe('serialize v2 — subgraph round-trip', () => {
+describe('serialize v2: subgraph round-trip', () => {
   it('preserves definitions, instances, and computed values', async () => {
     const { graph, defId } = buildDoc()
     const engine = new Engine(graph)

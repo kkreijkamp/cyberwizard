@@ -1,6 +1,6 @@
 /**
  * State-trace download: snapshots the full engine state (every node's values,
- * the whole recorded call tree) to a JSON file — the debugging counterpart of
+ * the whole recorded call tree) to a JSON file: the debugging counterpart of
  * Save (which serializes structure, this serializes live state).
  */
 

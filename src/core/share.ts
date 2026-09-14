@@ -1,6 +1,6 @@
 /**
  * Share-via-URL: the graph document, deflated and base64url-encoded into the
- * location hash (`#g=…`) — the same trick CyberChef uses for recipes.
+ * location hash (`#g=…`): the same trick CyberChef uses for recipes.
  */
 
 import { deflate, inflate } from 'pako'

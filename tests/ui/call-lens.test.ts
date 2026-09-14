@@ -33,12 +33,12 @@ describe('call lens UI helpers', () => {
       if (path === '12/3') return info('other', [9], 2)
       return undefined
     }
-    // Recursion: 12/7's parent 12 is the same def — pop.
+    // Recursion: 12/7's parent 12 is the same def, pop.
     expect(escPopTarget('12/7', 'fact', lookup)).toBe('12')
-    // Top call: nothing to pop — ordinary navigation takes over.
+    // Top call: nothing to pop, ordinary navigation takes over.
     expect(escPopTarget('12', 'fact', lookup)).toBeNull()
     // Crossed into another definition: parent call belongs to the enclosing
-    // def — ordinary navigation (which switches graphs) takes over.
+    // def: ordinary navigation (which switches graphs) takes over.
     expect(escPopTarget('12/3', 'other', lookup)).toBeNull()
   })
 })
