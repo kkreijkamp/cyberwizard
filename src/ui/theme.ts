@@ -1,4 +1,4 @@
-import { LGraphCanvas, LinkMarkerShape, LiteGraph, LGraphNode, RenderShape } from '@comfyorg/litegraph'
+import { LGraphCanvas, LGraphGroup, LinkMarkerShape, LiteGraph, LGraphNode, RenderShape } from '@comfyorg/litegraph'
 import type { INodeInputSlot } from '@comfyorg/litegraph'
 import { NODE_FRAME_COLOR, NODE_FRAME_PADDING } from '../core/registry'
 
@@ -65,6 +65,64 @@ export function applyTheme(canvas: LGraphCanvas): void {
   // as font_size × 1.4, i.e. NaN, so groups can never be selected (or
   // deleted). Restoring the classic default repairs both.
   LiteGraph.DEFAULT_GROUP_FONT_SIZE = 24
+
+  // Group washes: the library fills the title bar and body at 25% of the
+  // group's colour each (the bar ends up ~44% effective), which sits heavy
+  // on paper. Same draws, gentler alphas: outlines, the title text, and the
+  // selection highlight keep the full group colour, so identity is intact.
+  LGraphGroup.prototype.draw = function (this: LGraphGroup, graphCanvas: LGraphCanvas, ctx: CanvasRenderingContext2D): void {
+    const { padding, resizeLength, defaultColour } = LGraphGroup
+    const font_size = this.font_size || LiteGraph.DEFAULT_GROUP_FONT_SIZE
+    const x = this._pos[0] ?? 0
+    const y = this._pos[1] ?? 0
+    const width = this._size[0] ?? 0
+    const height = this._size[1] ?? 0
+    const color = this.color || defaultColour
+
+    ctx.fillStyle = color
+    // Title bar wash (stock: 0.25).
+    ctx.globalAlpha = 0.18 * graphCanvas.editor_alpha
+    ctx.beginPath()
+    ctx.rect(x + 0.5, y + 0.5, width, font_size * 1.4)
+    ctx.fill()
+    // Body wash (stock: 0.25).
+    ctx.globalAlpha = 0.12 * graphCanvas.editor_alpha
+    ctx.beginPath()
+    ctx.rect(x + 0.5, y + 0.5, width, height)
+    ctx.fill()
+
+    // Outline and the resize triangle in the full group colour.
+    ctx.globalAlpha = graphCanvas.editor_alpha
+    ctx.strokeStyle = color
+    ctx.beginPath()
+    ctx.rect(x + 0.5, y + 0.5, width, height)
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(x + width, y + height)
+    ctx.lineTo(x + width - resizeLength, y + height)
+    ctx.lineTo(x + width, y + height - resizeLength)
+    ctx.fill()
+
+    ctx.font = `${font_size}px ${LiteGraph.GROUP_FONT}`
+    ctx.textAlign = 'left'
+    ctx.fillText(this.title + (this.pinned ? '📌' : ''), x + padding, y + font_size)
+
+    if (LiteGraph.highlight_selected_group && this.selected) {
+      // The library's strokeShape, inlined (it isn't exported): amber
+      // selection halo around the whole group.
+      ctx.globalAlpha = 0.8
+      ctx.strokeStyle = LiteGraph.NODE_BOX_OUTLINE_COLOR
+      const [bx, by, bw, bh] = [
+        this._bounding[0] ?? 0,
+        this._bounding[1] ?? 0,
+        this._bounding[2] ?? 0,
+        this._bounding[3] ?? 0,
+      ]
+      ctx.beginPath()
+      ctx.rect(bx, by, bw, bh)
+      ctx.stroke()
+    }
+  }
 
   // No low-quality cutout: below 0.6 zoom the library stops drawing node
   // titles entirely; our graphs are small enough to render fully always.
