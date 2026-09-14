@@ -18,6 +18,7 @@ import type { GraphDocument } from '../core/serialize'
 import { serializeGraph } from '../core/serialize'
 import { addDefInput, addDefOutput, createSubgraphDef, rawSubgraph, spawnSubgraphNode } from '../core/subgraph'
 import type { DataType } from '../core/types'
+import { settleGraph } from '../ui/layout'
 
 type Pos = [number, number]
 
@@ -108,6 +109,10 @@ export class SceneBuilder {
   }
 
   build(): GraphDocument {
+    // Settle geometry through the layout first: the saved positions/sizes are
+    // then exactly what restore produces, so loads are byte-stable (and undo
+    // history sees no phantom edits after a restore).
+    settleGraph(this.graph)
     return serializeGraph(this.graph)
   }
 }

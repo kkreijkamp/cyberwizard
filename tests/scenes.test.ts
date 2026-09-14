@@ -3,10 +3,11 @@ import { describe, expect, it } from 'vitest'
 import { Engine } from '../src/core/engine'
 import { installConnectionRules } from '../src/core/registry'
 import type { GraphDocument } from '../src/core/serialize'
-import { deserializeGraph } from '../src/core/serialize'
+import { deserializeGraph, serializeGraph } from '../src/core/serialize'
 import { buildStateDump } from '../src/core/state-dump'
 import { attachSubgraphSupport } from '../src/core/subgraph'
 import { SCENES } from '../src/scenes'
+import { installNodeLayout } from '../src/ui/layout'
 import '../src/nodes'
 
 installConnectionRules()
@@ -104,18 +105,23 @@ function loadScene(build: () => GraphDocument) {
   // Documents must be JSON-clean (they're saved/shared as JSON).
   const json = JSON.parse(JSON.stringify(doc)) as GraphDocument
   const graph = new LGraph()
+  installNodeLayout(graph) // the app's real restore environment
   const engine = new Engine(graph)
   const detach = attachSubgraphSupport(graph, engine)
   const { warnings } = deserializeGraph(json, graph)
-  return { graph, engine, warnings, dispose: () => (detach(), engine.dispose()) }
+  return { graph, engine, warnings, json, dispose: () => (detach(), engine.dispose()) }
 }
 
 describe('example scenes', () => {
   for (const scene of SCENES) {
     it(`"${scene.title}" loads and computes with zero failures`, async () => {
-      const { graph, engine, warnings, dispose } = loadScene(scene.build)
+      const { graph, engine, warnings, json, dispose } = loadScene(scene.build)
       expect(warnings).toEqual([])
       await engine.whenIdle()
+
+      // Layout-stable across restore: settled at build + load-gated restore
+      // means serialize(restore(doc)) === doc exactly (undo sees no phantom).
+      expect(JSON.stringify(serializeGraph(graph))).toBe(JSON.stringify(json))
 
       const dump = buildStateDump(engine) as unknown as Dump
       const failing = [
