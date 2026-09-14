@@ -22,6 +22,7 @@ import type { LGraph, LGraphCanvas, LGraphNode } from '@comfyorg/litegraph'
 import type { ExportedSubgraph } from '@comfyorg/litegraph'
 import { binaryStringToBytes, bytesToBinaryString } from './binary'
 import { canCoerce } from './coerce'
+import { withLoadGate } from './load-gate'
 import { convertParamToInput, getNodeDef, isConvertibleParam, setParam, variadicSlotName, widgetInputParams } from './registry'
 import {
   SUBGRAPH_INPUT_NODE_ID,
@@ -238,6 +239,12 @@ export interface LoadResult {
  * graph: node removal/addition flows through the engine's normal hooks.
  */
 export function deserializeGraph(doc: GraphDocument, graph: LGraph, canvas?: LGraphCanvas): LoadResult {
+  // The load gate (core/load-gate): per-node add hooks stay quiet for the
+  // whole pass, so the restored graph is byte-identical to the document.
+  return withLoadGate(() => deserializeGated(doc, graph, canvas))
+}
+
+function deserializeGated(doc: GraphDocument, graph: LGraph, canvas?: LGraphCanvas): LoadResult {
   const warnings: string[] = []
   graph.clear()
   clearSubgraphDefs(graph)

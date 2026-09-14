@@ -2,9 +2,11 @@ import { LGraph, LiteGraph } from '@comfyorg/litegraph'
 import type { LGraphCanvas, LGraphNode, Subgraph } from '@comfyorg/litegraph'
 import { describe, expect, it } from 'vitest'
 import { installConnectionRules, setParam } from '../../src/core/registry'
+import { serializeGraph, deserializeGraph } from '../../src/core/serialize'
 import { clearSubgraphDefs, createSubgraphDef, rawSubgraph } from '../../src/core/subgraph'
 import type { HistoryDriver } from '../../src/ui/history'
 import { installHistory } from '../../src/ui/history'
+import { installNodeLayout } from '../../src/ui/layout'
 import '../../src/nodes'
 
 installConnectionRules()
@@ -16,6 +18,7 @@ interface FakeCanvas {
 
 function rig(): { graph: LGraph; canvas: FakeCanvas; driver: HistoryDriver } {
   const graph = new LGraph()
+  installNodeLayout(graph) // the app's real restore environment
   const canvas: FakeCanvas = {
     graph,
     setGraph(g) {
@@ -164,6 +167,40 @@ describe('graph undo/redo', () => {
     driver.flush()
     driver.flush()
     expect(driver.canUndo()).toBe(false)
+    driver.dispose()
+  })
+
+  it('redo survives a restore whose geometry would previously have reflowed', () => {
+    // An UNSETTLED document (built without layout): a tall note one margin
+    // above a preview. Restoring it used to trigger the add-time reflow,
+    // moving the preview off its snapshot position; the history poll saw
+    // that as a fresh edit and clobbered the redo stack.
+    const source = new LGraph()
+    const note = LiteGraph.createNode('notes/note')
+    if (!note) throw new Error('unregistered')
+    note.pos = [50, 50]
+    setParam(note, 'text', 'line\n'.repeat(80))
+    source.add(note)
+    const preview = LiteGraph.createNode('io/preview')
+    if (!preview) throw new Error('unregistered')
+    preview.pos = [50, 550]
+    source.add(preview)
+    const doc = serializeGraph(source)
+
+    const { graph, driver } = rig()
+    driver.checkpoint()
+    deserializeGraph(doc, graph)
+    driver.flush() // adopt the document
+
+    const marker = spawn(graph, 'io/text-input', 'edit')
+    driver.flush()
+
+    driver.undo()
+    driver.flush() // simulates the poll after the restore
+    expect(driver.canRedo()).toBe(true)
+
+    driver.redo()
+    expect(graph._nodes.some((n) => n.id === marker.id)).toBe(true)
     driver.dispose()
   })
 })

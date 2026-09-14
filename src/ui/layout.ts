@@ -26,6 +26,7 @@
 
 import { LGraphGroup, LGraphNode, LiteGraph } from '@comfyorg/litegraph'
 import type { LGraph, Size } from '@comfyorg/litegraph'
+import { isLoading } from '../core/load-gate'
 import { onSubgraphDefsChange } from '../core/subgraph'
 
 /** Five grid squares (LiteGraph.CANVAS_GRID_SIZE is 10). */
@@ -141,6 +142,7 @@ function installResizeHook(): void {
 }
 
 function onNodeResize(node: LGraphNode, requested: Size): void {
+  if (isLoading()) return // bulk restore: keep the document's geometry byte-exact
   const min = node.computeSize()
   const w = snapDim(Math.max(min[0], requested[0]))
   const h = snapHeight(Math.max(min[1], requested[1]))
@@ -226,9 +228,32 @@ function hookAdds(graph: LGraph): void {
   const previous = graph.onNodeAdded
   graph.onNodeAdded = function (node: LGraphNode) {
     previous?.call(graph, node)
-    node.pos[0] = Math.round(node.pos[0] / LAYOUT_CELL) * LAYOUT_CELL
-    node.pos[1] = Math.round(node.pos[1] / LAYOUT_CELL) * LAYOUT_CELL
-    // Routes the constructor's natural size through the onResize snap.
-    node.setSize(node.computeSize())
+    if (isLoading()) return // bulk restore: positions and sizes stand as saved
+    settleOne(node)
+  }
+}
+
+/** Position-snap + size-snap for one node (the add-time behavior, shared with settleGraph). */
+function settleOne(node: LGraphNode): void {
+  node.pos[0] = Math.round(node.pos[0] / LAYOUT_CELL) * LAYOUT_CELL
+  node.pos[1] = Math.round(node.pos[1] / LAYOUT_CELL) * LAYOUT_CELL
+  // Routes the constructor's natural size through the onResize snap.
+  node.setSize(node.computeSize())
+}
+
+/**
+ * Runs the add-time snap over every node in the graph, top-to-bottom so
+ * reflows cascade deterministically. Scene builders call this before
+ * serializing: the saved geometry is then exactly what the layout would
+ * produce on load, so restores are byte-stable (and the undo poll sees no
+ * phantom edit).
+ */
+export function settleGraph(graph: LGraph): void {
+  const ordered = [...graph._nodes].sort((a, b) => a.pos[1] - b.pos[1] || a.pos[0] - b.pos[0])
+  for (const node of ordered) settleOne(node)
+  // A Subgraph's `subgraphs` getter aliases the ROOT's map — only descend
+  // from the root, or the walk never terminates.
+  if (graph.rootGraph === graph) {
+    for (const subgraph of graph.subgraphs.values()) settleGraph(subgraph)
   }
 }
