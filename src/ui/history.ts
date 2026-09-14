@@ -142,3 +142,25 @@ export function installHistory(graph: LGraph, canvas: LGraphCanvas): HistoryDriv
     },
   }
 }
+
+/** The ↶/↷ header buttons, prepended to the header actions; disabled state tracks the stacks. */
+export function wireHistoryButtons(host: HTMLElement, driver: HistoryDriver): void {
+  const undoButton = document.createElement('button')
+  undoButton.id = 'btn-undo'
+  undoButton.textContent = '↶'
+  undoButton.title = 'Undo (Ctrl+Z)'
+  undoButton.addEventListener('click', () => driver.undo())
+  const redoButton = document.createElement('button')
+  redoButton.id = 'btn-redo'
+  redoButton.textContent = '↷'
+  redoButton.title = 'Redo (Ctrl+Shift+Z)'
+  redoButton.addEventListener('click', () => driver.redo())
+
+  function refresh(): void {
+    undoButton.disabled = !driver.canUndo()
+    redoButton.disabled = !driver.canRedo()
+  }
+  driver.onChange(refresh)
+  refresh()
+  host.prepend(redoButton, undoButton)
+}

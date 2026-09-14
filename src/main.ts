@@ -17,6 +17,7 @@ import { installWidgetInputMenu } from './ui/widget-inputs'
 import { createPalette } from './ui/palette'
 import { initialDocument, startAutosave, wirePersistence } from './ui/persistence'
 import { installExamplesPicker } from './ui/scenes'
+import { installHistory, wireHistoryButtons } from './ui/history'
 import { wireStateTraceButton } from './ui/state-trace'
 import {
   installBreadcrumb,
@@ -68,14 +69,18 @@ if (doc?.view) {
 const paletteHost = document.querySelector<HTMLElement>('#palette')
 if (paletteHost) createPalette(paletteHost, canvas, graph)
 
-wirePersistence(graph, canvas)
+const history = installHistory(graph, canvas)
+wirePersistence(graph, canvas, history)
 startAutosave(graph, canvas)
 
 const traceButton = document.querySelector<HTMLButtonElement>('#btn-trace')
 if (traceButton) wireStateTraceButton(traceButton, engine)
 
 const headerActions = document.querySelector<HTMLElement>('.header-actions')
-if (headerActions) installExamplesPicker(headerActions, graph, canvas)
+if (headerActions) {
+  installExamplesPicker(headerActions, graph, canvas, history)
+  wireHistoryButtons(headerActions, history)
+}
 
 const newSubgraphButton = document.querySelector<HTMLButtonElement>('#btn-new-subgraph')
 if (newSubgraphButton) wireNewSubgraphButton(newSubgraphButton, canvas, graph)

@@ -8,6 +8,7 @@ import type { GraphDocument } from '../core/serialize'
 import { deserializeGraph, parseGraphDocument, serializeGraph } from '../core/serialize'
 import { decodeShareHash, encodeShareHash, shareHashFromLocation } from '../core/share'
 import { clearSubgraphDefs } from '../core/subgraph'
+import type { HistoryDriver } from './history'
 
 const AUTOSAVE_KEY = 'cyberwizard.autosave.v1'
 
@@ -57,7 +58,7 @@ export function startAutosave(graph: LGraph, canvas: LGraphCanvas): () => void {
   }
 }
 
-export function wirePersistence(graph: LGraph, canvas: LGraphCanvas): void {
+export function wirePersistence(graph: LGraph, canvas: LGraphCanvas, undoHistory?: HistoryDriver): void {
   bind('btn-save', () => {
     const json = JSON.stringify(serializeGraph(graph, canvas), null, 2)
     const blob = new Blob([json], { type: 'application/json' })
@@ -78,6 +79,7 @@ export function wirePersistence(graph: LGraph, canvas: LGraphCanvas): void {
       if (!file) return
       try {
         const doc = parseGraphDocument(JSON.parse(await file.text()))
+        undoHistory?.checkpoint() // Load becomes undoable; a failed load too
         const { warnings } = deserializeGraph(doc, graph, canvas)
         if (warnings.length > 0) alert(`Loaded with warnings:\n${warnings.join('\n')}`)
       } catch (err) {
@@ -99,6 +101,7 @@ export function wirePersistence(graph: LGraph, canvas: LGraphCanvas): void {
 
   bind('btn-new', () => {
     if (!confirm('Clear the whole graph?')) return
+    undoHistory?.checkpoint() // New becomes undoable
     graph.clear()
     clearSubgraphDefs(graph) // clear() wipes graph.subgraphs but not our factories/metadata
     if (canvas.graph !== graph) canvas.setGraph(graph) // don't show a ghost subgraph
