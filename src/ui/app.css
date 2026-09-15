@@ -405,10 +405,12 @@ body {
 }
 
 .litegraph.litecontextmenu .litemenu-title {
+  background: var(--paper-deep);
   color: var(--ink-soft);
   font-size: 12px;
   letter-spacing: 0.05em;
   border-bottom: 1px solid var(--border);
+  border-radius: 5px 5px 0 0;
   padding: 6px 10px 4px;
 }
 
@@ -417,11 +419,22 @@ body {
   border-radius: 4px;
 }
 
-.litegraph.litecontextmenu .litemenu-entry:hover,
-.litegraph.litecontextmenu .litemenu-entry.submenu,
-.litegraph.litecontextmenu.dark .litemenu-entry.submenu {
+/* This fork tags every entry with the library's "submenu" class, so it is
+   useless as a highlight hook. The library's own hover rule (.litegraph
+   .litemenu-entry:hover:not(.disabled):not(.separator) - five class-level
+   selectors, !important background) must be out-specified instead. */
+.litegraph.litecontextmenu .litemenu-entry:hover:not(.disabled):not(.separator) {
   background: var(--amber-tint) !important;
   color: var(--amber);
+}
+
+.litegraph.litecontextmenu .litemenu-entry.has_submenu {
+  border-right: 2px solid var(--amber-bright);
+}
+
+.litegraph.litecontextmenu .litemenu-entry.separator {
+  border-top: 1px solid var(--border);
+  border-bottom: none;
 }
 
 .litegraph.litecontextmenu .litemenu-entry.disabled {
