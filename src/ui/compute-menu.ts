@@ -9,11 +9,19 @@
  *    (Engine.failureSource), entering a subgraph instance when the cause is
  *    in its interior.
  *
- * Also prunes LiteGraph's legacy "Properties" and "Properties Panel" entries.
- * The first edits raw node.properties - a debug view, since every param here
- * already has an on-node widget - and in this fork its click just closes the
- * menu. The second opens a panel positioned below the viewport with no
- * styling. Both are dead clicks wearing palette colours.
+ * Also prunes LiteGraph's menu entries that are dead weight here:
+ *  - "Properties" edits raw node.properties - a debug view, since every
+ *    param already has an on-node widget - and in this fork its click
+ *    just closes the menu.
+ *  - "Properties Panel" opens a panel positioned below the viewport with
+ *    no styling.
+ *  - "Mode" switches the library's on-event/on-trigger execution modes,
+ *    which a demand-driven engine never consults.
+ *  - "Resize" is the library's raw auto-fit, fighting the app's own
+ *    layout and snapping.
+ *  - "Colors" applies the library's dark-theme body colours, bypassing
+ *    the registry's category palette. (The note node's own "Color" tint
+ *    submenu is a different entry and stays.)
  *
  * Installed as prototype hooks: litegraph prepends each node's
  * getExtraMenuOptions entries to its context menu (SubgraphNode defines
@@ -25,7 +33,7 @@ import { LGraphCanvas, LGraphNode } from '@comfyorg/litegraph'
 import type { IContextMenuValue } from '@comfyorg/litegraph'
 import type { Engine } from '../core/engine'
 
-const PRUNED_ENTRIES = new Set(['Properties', 'Properties Panel'])
+const PRUNED_ENTRIES = new Set(['Properties', 'Properties Panel', 'Mode', 'Resize', 'Colors'])
 
 /** `getCanvas` because the menu is installed before the canvas exists (main.ts). */
 export function installComputeMenu(engine: Engine, getCanvas: () => LGraphCanvas): void {
