@@ -419,10 +419,17 @@ body {
   border-radius: 4px;
 }
 
-/* This fork tags every entry with the library's "submenu" class, so it is
-   useless as a highlight hook. The library's own hover rule (.litegraph
-   .litemenu-entry:hover:not(.disabled):not(.separator) - five class-level
-   selectors, !important background) must be out-specified instead. */
+/* This fork tags every entry with the library's "submenu" class, and the
+   library paints that class dark grey with !important - let the menu's own
+   surface show through instead. */
+.litegraph.litecontextmenu .litemenu-entry.submenu,
+.litegraph.litecontextmenu.dark .litemenu-entry.submenu {
+  background: transparent !important;
+}
+
+/* The library's hover rule (.litegraph .litemenu-entry:hover:not(.disabled)
+   :not(.separator) - five class-level selectors, !important) must be
+   out-specified, not just matched. */
 .litegraph.litecontextmenu .litemenu-entry:hover:not(.disabled):not(.separator) {
   background: var(--amber-tint) !important;
   color: var(--amber);
