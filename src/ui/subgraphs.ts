@@ -289,8 +289,11 @@ export function installCollapse(canvas: LGraphCanvasT, rootGraph: LGraph): void 
 
   // Filter the broken item out of per-node menus.
   const originalNodeMenu = canvas.getNodeMenuOptions.bind(canvas)
-  canvas.getNodeMenuOptions = (node) =>
-    originalNodeMenu(node).filter((entry) => entry?.content !== BROKEN_MENU_ITEM)
+  canvas.getNodeMenuOptions = (node) => {
+    const options = originalNodeMenu(node).filter((entry) => entry?.content !== BROKEN_MENU_ITEM)
+    // Removing an entry can leave two null separators back to back.
+    return options.filter((entry, i) => entry !== null || options[i - 1] !== null)
+  }
 
   // Ctrl/Cmd+G: "group" (Figma-style), only with a non-empty selection.
   document.addEventListener('keydown', (e) => {
