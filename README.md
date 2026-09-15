@@ -1,4 +1,8 @@
+
+<img src="public/favicon.svg" alt="The CyberWizard mark — a node tile with an in-wire and an out-wire, carrying an amber spark" width="32" align="right">
+
 # CyberWizard
+
 
 A node-based data manipulation workbench for the browser. It covers the same ground as [CyberChef](https://gchq.github.io/CyberChef/), but operations are wired into a graph (LiteGraph) instead of a linear recipe: one input can fan out into parallel transforms, keys and parameters are connections rather than retyped text fields, every intermediate value is inspectable, and any group of nodes can be collapsed into a reusable subgraph.
 
