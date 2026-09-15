@@ -470,7 +470,10 @@ body {
   font-family: var(--serif);
 }
 
+/* The library paints every result row translucent black, which tiles into
+   one dark block over the box's parchment surface. */
 .litegraph.lite-search-item {
+  background: transparent;
   color: var(--ink);
 }
 
@@ -480,8 +483,26 @@ body {
   color: var(--amber);
 }
 
-.litegraph.lite-search-item-type {
+/* Slot-filtered-out and generic-type entries: dimmed, not the library's
+   off-palette pink/grey. */
+.litegraph.lite-search-item.not_in_filter,
+.litegraph.lite-search-item.generic_type {
   color: var(--ink-soft);
+}
+
+.litegraph.lite-search-item.selected.not_in_filter,
+.litegraph.lite-search-item:hover.not_in_filter {
+  color: var(--amber);
+}
+
+.litegraph.lite-search-item-type {
+  background: var(--paper-deep);
+  color: var(--ink-soft);
+  font: 11px var(--mono);
+  padding: 2px 6px;
+  border-radius: 4px;
+  opacity: 1;
+  top: -1px;
 }
 
 /* ─── Inspect overlay (click a node's preview well) ───────────────────────── */
