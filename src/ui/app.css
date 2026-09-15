@@ -471,10 +471,12 @@ body {
 }
 
 /* The library paints every result row translucent black, which tiles into
-   one dark block over the box's parchment surface. */
+   one dark block over the box's parchment surface, and sets Tahoma on the
+   rows, which beats inheriting the box's serif. */
 .litegraph.lite-search-item {
   background: transparent;
   color: var(--ink);
+  font-family: var(--serif);
 }
 
 .litegraph.lite-search-item.selected,
