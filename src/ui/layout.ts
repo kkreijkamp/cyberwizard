@@ -14,7 +14,8 @@
  * adds, subgraph IO sync, manual corner-drags), so one hook covers all of
  * them. Positions snap to the 50px cell grid at add time (drags are
  * handled by LiteGraph.alwaysSnapToGrid with CANVAS_GRID_SIZE=50, see
- * main.ts).
+ * main.ts; installDragSnapRepair below patches the interrupt paths where
+ * the library abandons a drag without ever running its drag-end snap).
  *
  * Resizing reflows the column below: growing pushes overlapped neighbours
  * down so the one-row margin is restored (transitively); shrinking pulls
@@ -24,7 +25,7 @@
  * an unrelated node above it.
  */
 
-import { LGraphGroup, LGraphNode, LiteGraph } from '@comfyorg/litegraph'
+import { LGraphCanvas, LGraphGroup, LGraphNode, LiteGraph } from '@comfyorg/litegraph'
 import type { LGraph, Size } from '@comfyorg/litegraph'
 import { isLoading } from '../core/load-gate'
 import { onSubgraphDefsChange } from '../core/subgraph'
@@ -71,6 +72,7 @@ export function installNodeLayout(rootGraph: LGraph): void {
   installResizeHook()
   installGroupSnap()
   installGroupMenu()
+  installDragSnapRepair()
   hookAdds(rootGraph)
   for (const subgraph of rootGraph.subgraphs.values()) hookAdds(subgraph)
   onSubgraphDefsChange(rootGraph, () => {
@@ -120,6 +122,71 @@ function installGroupMenu(): void {
       },
     })
     return options as never
+  }
+}
+
+// ─── Drag-end snap delivery ──────────────────────────────────────────────────
+
+let dragSnapRepairInstalled = false
+
+/**
+ * The library snaps dragged items in exactly one place: #processDraggedItems,
+ * fired from CanvasPointer.onDragEnd on a clean pointerup. Three interrupt
+ * paths abandon the drag via pointer.reset() WITHOUT firing onDragEnd, so the
+ * node keeps its raw, unsnapped position (and the history poll records it):
+ *
+ * 1. pointercancel          → processMouseCancel → pointer.reset()
+ * 2. a second pointerdown   → processMouseDown → pointer.down() → reset()
+ *    mid-drag (a bumped right-click, a resting trackpad finger)
+ * 3. a lost pointerup (released while the window was unfocused):
+ *    the next pointermove has buttons === 0 → pointer.move() → reset()
+ *
+ * Wrap all three entries: when an item drag is in flight (canvas.isDragging;
+ * link drags and marquee selects never set it), run the drag-end effects
+ * #processDraggedItems would have run. Snapping is idempotent and the clean
+ * pointerup path never passes through these wrappers, so nothing double-fires.
+ */
+function installDragSnapRepair(): void {
+  if (dragSnapRepairInstalled) return
+  dragSnapRepairInstalled = true
+
+  /** Mirrors the library's private #processDraggedItems: snap + dirty + notify. */
+  function snapDraggedItems(canvas: LGraphCanvas, e?: PointerEvent): void {
+    if (LiteGraph.alwaysSnapToGrid || e?.shiftKey) canvas.graph?.snapToGrid(canvas.selectedItems)
+    canvas.setDirty(true, true)
+    let firstNode: LGraphNode | undefined
+    for (const item of canvas.selectedItems) {
+      if (item instanceof LGraphNode) {
+        firstNode = item
+        break
+      }
+    }
+    canvas.onNodeMoved?.(firstNode)
+  }
+
+  /** An item drag is in flight and about to be abandoned without its drag-end. */
+  const dragAtRisk = (canvas: LGraphCanvas): boolean => canvas.isDragging && canvas.pointer.dragStarted
+
+  const originalDown = LGraphCanvas.prototype.processMouseDown
+  LGraphCanvas.prototype.processMouseDown = function (this: LGraphCanvas, e: PointerEvent): void {
+    // The drag-zoom branch returns before pointer.down() (no reset): mirror it.
+    const dragZoom = this.dragZoomEnabled && e.ctrlKey && e.shiftKey && !e.altKey && e.buttons
+    if (!dragZoom && e.isPrimary && dragAtRisk(this)) snapDraggedItems(this, e)
+    originalDown.call(this, e)
+  }
+
+  const originalMove = LGraphCanvas.prototype.processMouseMove
+  LGraphCanvas.prototype.processMouseMove = function (this: LGraphCanvas, e: PointerEvent): void {
+    // buttons === 0 mid-drag means the pointerup never arrived: the library's
+    // pointer.move() is about to reset silently.
+    if (e.isPrimary && !e.buttons && dragAtRisk(this)) snapDraggedItems(this, e)
+    originalMove.call(this, e)
+  }
+
+  const originalCancel = LGraphCanvas.prototype.processMouseCancel
+  LGraphCanvas.prototype.processMouseCancel = function (this: LGraphCanvas): void {
+    if (dragAtRisk(this)) snapDraggedItems(this)
+    originalCancel.call(this)
   }
 }
 
