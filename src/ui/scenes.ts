@@ -22,7 +22,7 @@ export function installExamplesPicker(
   function rebuild(): void {
     select.innerHTML = ''
     const placeholder = document.createElement('option')
-    placeholder.textContent = '📚 Examples…'
+    placeholder.textContent = 'Examples…'
     placeholder.disabled = true
     placeholder.selected = true
     select.append(placeholder)
