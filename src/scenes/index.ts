@@ -14,6 +14,7 @@ import { pbkdf2Passwords } from './pbkdf2-passwords'
 import { peelingLayers } from './peeling-layers'
 import { recursionLens } from './recursion-lens'
 import { rsaHybrid } from './rsa-hybrid'
+import { sha1FromScratch } from './sha1-from-scratch'
 import { signatures } from './signatures'
 import { welcomeTour } from './welcome-tour'
 
@@ -91,5 +92,11 @@ export const SCENES: readonly Scene[] = [
     title: 'Peeling Layers of Encoding',
     description: 'Read an obfuscation by its shape and unwind Base64 → hex → XOR, watching every stage.',
     build: peelingLayers,
+  },
+  {
+    id: 'sha1-from-scratch',
+    title: 'SHA-1 From Scratch',
+    description: 'All of SHA-1 rebuilt from arithmetic, bit logic and scoped, recursive subgraphs, checked against the built-in node.',
+    build: sha1FromScratch,
   },
 ]
