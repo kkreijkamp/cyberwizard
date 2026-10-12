@@ -7,6 +7,8 @@ A node-based data manipulation workbench for the browser. It covers the same gro
 
 It is the successor to [CryptoFlow](https://github.com/kkreijkamp/CryptoFlow), my earlier vanilla-JS take on the same idea. Everything runs client-side; no data leaves the browser.
 
+![The AES-GCM example scene: a random key and a message feed an encrypt node, whose ciphertext and nonce fan out to a Base64 preview and a decrypt node that recovers the plaintext](docs/screenshots/aes-gcm.png)
+
 ## Develop
 
 ```sh
@@ -22,6 +24,8 @@ npm run dev
 Add nodes from the palette: double-click or drag one onto the canvas, or press `/` to search and Enter to spawn the first match. Dragging out from a slot filters the palette to type-compatible nodes.
 
 Values are typed (`bytes`, `string`, `number`, `boolean`, `json`, `list<T>`).
+
+![The Welcome Tour scene: one text input fans out into SHA-256 and Base64 branches, each node showing a live preview of its output](docs/screenshots/welcome-tour.png)
 
 Evaluation is demand-driven. Nothing runs unless a sink (Preview, Download) pulls it, and nothing re-runs until its inputs change. Node parameters can be promoted to input slots from the same context menu, which is how you wire a regex or a key in from another node.
 
@@ -39,4 +43,12 @@ Subgraphs are reusable nodes defined as graphs, with typed inputs and outputs.
 
 Lists are first-class values. Alongside the structural ops (Pack, Get, Take/Drop, Append, Reverse, Unique, Sort, Flatten, Zip, Concat, Range) there are three higher-order nodes that apply a subgraph to each element: **Map**, **Filter**, and **Fold** (a 2-in-1-out reduce, `[acc, element] -> acc`).
 
+![The list pipelines scene: CSV text is split into a list, mapped through a "Shout" subgraph, filtered by a "Long Enough" subgraph, and joined back to text](docs/screenshots/list-pipelines.png)
+
 Two lazy conditionals: **Select** (a ternary on wired values) and **If** (branches are subgraph definitions). Only the taken branch evaluates, which is what recursion bottoms out through: `Fact(n) = Select(n <= 1, 1, n * Fact(n−1))` terminates instead of demanding itself forever.
+
+## Examples
+
+The *Examples* menu in the header loads annotated scenes that walk through the platform and common cryptographic constructions: hashing and the avalanche effect, AES-GCM, password-based encryption, hybrid RSA + AES, Ed25519 signatures, ECDH, JWTs, recursion, and list pipelines.
+
+![The JWT scene: a token is decoded into header, payload, and signature; claims are picked out of the JSON, and the signature is verified by recomputing the HMAC and comparing](docs/screenshots/jwt-anatomy.png)
