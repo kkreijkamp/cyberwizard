@@ -16,7 +16,14 @@ import { NOTE_TEXT_PARAM, NOTE_TINT_PARAM } from '../core/note-widget'
 import { setParam } from '../core/registry'
 import type { GraphDocument } from '../core/serialize'
 import { serializeGraph } from '../core/serialize'
-import { addDefInput, addDefOutput, createSubgraphDef, rawSubgraph, spawnSubgraphNode } from '../core/subgraph'
+import {
+  addDefInput,
+  addDefOutput,
+  createSubgraphDef,
+  rawSubgraph,
+  spawnSubgraphNode,
+  visibleSubgraphDefs,
+} from '../core/subgraph'
 import type { DataType } from '../core/types'
 import { settleGraph } from '../ui/layout'
 
@@ -35,6 +42,25 @@ function slotIndex(node: LGraphNode, name: string, side: 'inputs' | 'outputs'): 
 function connectOrThrow(from: LGraphNode, fromSlot: string, to: LGraphNode, toSlot: string): void {
   const link = from.connect(slotIndex(from, fromSlot, 'outputs'), to, slotIndex(to, toSlot, 'inputs'))
   if (!link) throw new Error(`scene: cannot wire ${from.title}.${fromSlot} → ${to.title}.${toSlot}`)
+}
+
+type DefIO = { inputs: Array<[string, DataType]>; outputs: Array<[string, DataType]> }
+
+/**
+ * Spawns an instance of `def` into `location`, refusing definitions that
+ * aren't lexically visible there (a scoped helper used outside its parent's
+ * subtree would load fine but be unreachable from the palette).
+ */
+function spawnInstanceIn(root: LGraph, location: LGraph | Subgraph, def: SubgraphBuilder, pos: Pos, title?: string): LGraphNode {
+  if (!visibleSubgraphDefs(root, location).some((d) => d.id === def.id)) {
+    throw new Error(`scene: definition ${def.id} is not visible from here (scoped elsewhere?)`)
+  }
+  const node = spawnSubgraphNode(def.id)
+  if (!node) throw new Error(`scene: no factory for definition "${def.id}"`)
+  node.pos = pos
+  if (title !== undefined) node.title = title
+  location.add(node)
+  return node
 }
 
 export class SceneBuilder {
@@ -90,22 +116,24 @@ export class SceneBuilder {
     return group
   }
 
-  /** Starts a subgraph definition; the returned builder authors its interior. */
-  subgraph(name: string, io: { inputs: Array<[string, DataType]>; outputs: Array<[string, DataType]> }): SubgraphBuilder {
-    const meta = createSubgraphDef(this.graph, name)
+  /**
+   * Starts a subgraph definition; the returned builder authors its interior.
+   * With `scope`, the definition is local to that parent (see
+   * SubgraphBuilder.subgraph).
+   */
+  subgraph(name: string, io: DefIO, scope?: SubgraphBuilder): SubgraphBuilder {
+    const meta = createSubgraphDef(this.graph, name, scope?.id)
+    // Map/Fold/If pick definitions by name: a silently uniquified name
+    // ("Xor 2") would leave every picker pointing at the wrong one.
+    if (meta.name !== name) throw new Error(`scene: definition name "${name}" is already taken in this scope`)
     for (const [slotName, type] of io.inputs) addDefInput(this.graph, meta.id, slotName, type)
     for (const [slotName, type] of io.outputs) addDefOutput(this.graph, meta.id, slotName, type)
     return new SubgraphBuilder(this, meta.id)
   }
 
-  /** An instance of a definition built with subgraph(). */
+  /** An instance of a (global) definition built with subgraph(). */
   instance(def: SubgraphBuilder, pos: Pos, title?: string): LGraphNode {
-    const node = spawnSubgraphNode(def.id)
-    if (!node) throw new Error(`scene: no factory for definition "${def.id}"`)
-    node.pos = pos
-    if (title !== undefined) node.title = title
-    this.graph.add(node)
-    return node
+    return spawnInstanceIn(this.graph, this.graph, def, pos, title)
   }
 
   build(): GraphDocument {
@@ -161,6 +189,16 @@ export class SubgraphBuilder {
     connectOrThrow(from, fromSlot, to, toSlot)
   }
 
+  /**
+   * Places the input/output panels (canvas coordinates; saved with the
+   * document). New definitions put both at the top-left, on top of
+   * whatever the interior has there.
+   */
+  panels(input: Pos, output: Pos): void {
+    this.graph.inputNode.pos = input
+    this.graph.outputNode.pos = output
+  }
+
   /** Wire a definition input slot to an interior node's input. */
   panelIn(inputName: string, to: LGraphNode, toSlot: string): void {
     const sub = this.graph
@@ -181,11 +219,16 @@ export class SubgraphBuilder {
 
   /** An instance of THIS definition inside its own interior: recursion. */
   selfInstance(pos: Pos, title?: string): LGraphNode {
-    const node = spawnSubgraphNode(this.id)
-    if (!node) throw new Error(`scene: no factory for definition "${this.id}"`)
-    node.pos = pos
-    if (title !== undefined) node.title = title
-    this.graph.add(node)
-    return node
+    return this.instance(this, pos, title)
+  }
+
+  /** An instance of a definition visible from this interior (global, or scoped to this def or an ancestor). */
+  instance(def: SubgraphBuilder, pos: Pos, title?: string): LGraphNode {
+    return spawnInstanceIn(this.scene.graph, this.graph, def, pos, title)
+  }
+
+  /** Starts a definition scoped to this one: visible only inside this definition's subtree. */
+  subgraph(name: string, io: DefIO): SubgraphBuilder {
+    return this.scene.subgraph(name, io, this)
   }
 }
