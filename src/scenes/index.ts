@@ -96,7 +96,7 @@ export const SCENES: readonly Scene[] = [
   {
     id: 'sha1-from-scratch',
     title: 'SHA-1 From Scratch',
-    description: 'All of SHA-1 rebuilt from arithmetic, bit logic and scoped, recursive subgraphs, checked against the built-in node.',
+    description: 'All of SHA-1 rebuilt from arithmetic, bit logic and scoped subgraphs, twice (Fold/Map, then pure recursion), checked against the built-in node.',
     build: sha1FromScratch,
   },
 ]

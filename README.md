@@ -51,6 +51,4 @@ Two lazy conditionals: **Select** (a ternary on wired values) and **If** (branch
 
 The *Examples* menu in the header loads annotated scenes that walk through the platform and common cryptographic constructions: hashing and the avalanche effect, AES-GCM, password-based encryption, hybrid RSA + AES, Ed25519 signatures, ECDH, JWTs, recursion, and list pipelines.
 
-The largest, *SHA-1 From Scratch*, rebuilds all of SHA-1 out of arithmetic, bit logic, and a tree of scoped helper subgraphs (recursion, Fold, Map, lazy Select), then checks its digest against the built-in SHA-1 node.
-
 ![The JWT scene: a token is decoded into header, payload, and signature; claims are picked out of the JSON, and the signature is verified by recomputing the HMAC and comparing](docs/screenshots/jwt-anatomy.png)
