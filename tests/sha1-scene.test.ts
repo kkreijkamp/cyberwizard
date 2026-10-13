@@ -12,12 +12,13 @@ import '../src/nodes'
 installConnectionRules()
 
 /**
- * The SHA-1 From Scratch scene must be a real SHA-1: every digest it
- * produces is checked against published FIPS 180 vectors or WebCrypto,
- * and against the built-in node sitting next to it in the same graph.
- * Inputs are chosen to hit every padding boundary (55/56/63/64 bytes…),
- * multi-block messages, non-ASCII, and words with leading zero bytes (the
- * case minimal-length bignums make easy to get wrong).
+ * The SHA-1 From Scratch scene must be a real SHA-1, twice: every digest
+ * either implementation produces is checked against published FIPS 180
+ * vectors or WebCrypto, and against the built-in node sitting next to it in
+ * the same graph. Inputs are chosen to hit every padding boundary
+ * (55/56/63/64 bytes…), multi-block messages, non-ASCII, and words with
+ * leading zero bytes (the case minimal-length bignums make easy to get
+ * wrong).
  */
 
 const encoder = new TextEncoder()
@@ -38,7 +39,9 @@ let dispose: () => void
 let message: LGraphNode
 let builtin: LGraphNode
 let byHand: LGraphNode
-let same: LGraphNode
+let recursive: LGraphNode
+let sameByHand: LGraphNode
+let sameRecursive: LGraphNode
 
 function rootNode(title: string): LGraphNode {
   const node = graph._nodes.find((n) => n.title === title)
@@ -59,22 +62,47 @@ beforeAll(() => {
   message = rootNode('Message')
   builtin = rootNode('SHA-1 (built-in)')
   byHand = rootNode('SHA-1 (by hand)')
-  same = rootNode('digests equal?')
+  recursive = rootNode('SHA-1 (recursive)')
+  sameByHand = rootNode('by hand = built-in?')
+  sameRecursive = rootNode('recursive = built-in?')
 })
 
 afterAll(() => dispose())
 
-async function hash(text: string): Promise<{ hex: string; digestHex: string; builtinHex: string; identical: unknown }> {
+interface Result {
+  hex: string
+  digestHex: string
+  identical: unknown
+}
+
+interface Results {
+  byHand: Result
+  recursive: Result
+  builtinHex: string
+}
+
+function resultOf(impl: LGraphNode, same: LGraphNode): Result {
+  expect(engine.stateOf(impl).error, `${impl.title} errored`).toBeUndefined()
+  const [digest, hex] = engine.outputsOf(impl) ?? []
+  return { hex: hex as string, digestHex: hexOf(digest), identical: engine.outputsOf(same)?.[0] }
+}
+
+async function hash(text: string): Promise<Results> {
   setParam(message, 'text', text)
   await engine.whenIdle()
-  expect(engine.stateOf(byHand).error, 'by-hand SHA-1 errored').toBeUndefined()
-  const [digest, hex] = engine.outputsOf(byHand) ?? []
   const [builtinDigest] = engine.outputsOf(builtin) ?? []
   return {
-    hex: hex as string,
-    digestHex: hexOf(digest),
+    byHand: resultOf(byHand, sameByHand),
+    recursive: resultOf(recursive, sameRecursive),
     builtinHex: hexOf(builtinDigest),
-    identical: engine.outputsOf(same)?.[0],
+  }
+}
+
+function expectBoth(results: Results, expected: string): void {
+  for (const impl of [results.byHand, results.recursive]) {
+    expect(impl.hex).toBe(expected)
+    expect(impl.digestHex).toBe(expected)
+    expect(impl.identical).toBe(true)
   }
 }
 
@@ -93,11 +121,9 @@ describe('SHA-1 From Scratch: correctness', () => {
 
   for (const [label, text, expected] of FIPS_VECTORS) {
     it(`known vector: ${label}`, async () => {
-      const { hex, digestHex, builtinHex, identical } = await hash(text)
-      expect(hex).toBe(expected)
-      expect(digestHex).toBe(expected)
-      expect(builtinHex).toBe(expected)
-      expect(identical).toBe(true)
+      const results = await hash(text)
+      expect(results.builtinHex).toBe(expected)
+      expectBoth(results, expected)
     }, 60_000)
   }
 
@@ -106,11 +132,7 @@ describe('SHA-1 From Scratch: correctness', () => {
   for (const length of [1, 54, 55, 56, 57, 63, 64, 65, 119, 120, 128]) {
     it(`matches WebCrypto at ${length} bytes`, async () => {
       const text = 'a'.repeat(length)
-      const { hex, digestHex, identical } = await hash(text)
-      const expected = await webCryptoHex(text)
-      expect(hex).toBe(expected)
-      expect(digestHex).toBe(expected)
-      expect(identical).toBe(true)
+      expectBoth(await hash(text), await webCryptoHex(text))
     }, 60_000)
   }
 
@@ -120,41 +142,70 @@ describe('SHA-1 From Scratch: correctness', () => {
     ['a whole block of NULs (all-zero words)', '\u0000'.repeat(64)],
     ['high bytes everywhere', 'ÿ'.repeat(40)],
     ['four blocks', 'The quick brown fox jumps over the lazy dog. '.repeat(5)],
+    // The recursive version's ceiling: one evaluation budget for the whole
+    // call tree is enough for five blocks (see the note inside it).
+    ['five blocks (311 bytes, the recursive ceiling)', 'x'.repeat(311)],
   ]
 
   for (const [label, text] of AWKWARD) {
     it(`matches WebCrypto: ${label}`, async () => {
-      const { hex, digestHex, builtinHex, identical } = await hash(text)
+      const results = await hash(text)
       const expected = await webCryptoHex(text)
-      expect(hex).toBe(expected)
-      expect(digestHex).toBe(expected)
-      expect(builtinHex).toBe(expected)
-      expect(identical).toBe(true)
+      expect(results.builtinHex).toBe(expected)
+      expectBoth(results, expected)
     }, 60_000)
   }
 })
 
 describe('SHA-1 From Scratch: structure', () => {
+  const defs = () => allSubgraphDefs(graph)
+  const nameOf = (id: string) => defs().find((d) => d.id === id)?.name
+  /** The definition called `name` whose scope chain ends at `root`. */
+  const byName = (name: string, root: string) => {
+    const def = defs().find((d) => d.name === name && nameOf(scopeChainOf(graph, d.id).at(-1)!) === root)
+    if (!def) throw new Error(`no definition "${name}" under ${root}`)
+    return def
+  }
+  const chain = (name: string, root: string) => scopeChainOf(graph, byName(name, root).id).map(nameOf)
+  /** Every interior node under `root`'s subtree. */
+  const interiorsOf = (root: string) =>
+    defs()
+      .filter((d) => nameOf(scopeChainOf(graph, d.id).at(-1)!) === root)
+      .flatMap((d) => graph.subgraphs.get(d.id as never)?._nodes ?? [])
+
   it('is genuinely from scratch: no hashing node inside any definition', () => {
     const interiors = [...graph.subgraphs.values()].flatMap((sub) => sub._nodes)
-    expect(interiors.length).toBeGreaterThan(100)
+    expect(interiors.length).toBeGreaterThan(200)
     expect(interiors.filter((n) => n.type?.startsWith('hashing/')).map((n) => n.title)).toEqual([])
   })
 
-  it('only the top-level definition is visible from the root; every helper is scoped', () => {
-    expect(visibleSubgraphDefs(graph, graph).map((d) => d.name)).toEqual(['SHA-1 (by hand)'])
-    const defs = allSubgraphDefs(graph)
-    const byName = (name: string) => {
-      const def = defs.find((d) => d.name === name)
-      if (!def) throw new Error(`no definition "${name}"`)
-      return def
-    }
-    const chain = (name: string) => scopeChainOf(graph, byName(name).id).map((id) => defs.find((d) => d.id === id)?.name)
-    expect(chain('Ch')).toEqual(['Ch', 'Round', 'Compress', 'SHA-1 (by hand)'])
-    expect(chain('Extend')).toEqual(['Extend', 'Compress', 'SHA-1 (by hand)'])
-    expect(chain('Xor')).toEqual(['Xor', 'SHA-1 (by hand)'])
-    expect(defs.map((d) => d.name).sort()).toEqual(
-      ['Add32', 'Ch', 'Chunk', 'Compress', 'Extend', 'Maj', 'Pad', 'Parity', 'Round', 'RotL', 'SHA-1 (by hand)', 'Word Hex', 'Xor'].sort(),
-    )
+  it('the recursive version uses no higher-order node at all', () => {
+    const hof = ['flow/fold', 'flow/map', 'flow/filter', 'flow/if']
+    const used = interiorsOf('SHA-1 (recursive)').filter((n) => hof.includes(n.type ?? ''))
+    expect(used.map((n) => n.title)).toEqual([])
+    // …while the by-hand twin leans on them.
+    const byHandHof = interiorsOf('SHA-1 (by hand)').filter((n) => hof.includes(n.type ?? ''))
+    expect(byHandHof.length).toBeGreaterThanOrEqual(5)
+  })
+
+  it('only the two top-level definitions are visible from the root; every helper is scoped', () => {
+    expect(visibleSubgraphDefs(graph, graph).map((d) => d.name)).toEqual(['SHA-1 (by hand)', 'SHA-1 (recursive)'])
+    expect(chain('Ch', 'SHA-1 (by hand)')).toEqual(['Ch', 'Round', 'Compress', 'SHA-1 (by hand)'])
+    expect(chain('Extend', 'SHA-1 (by hand)')).toEqual(['Extend', 'Compress', 'SHA-1 (by hand)'])
+    expect(chain('Xor', 'SHA-1 (by hand)')).toEqual(['Xor', 'SHA-1 (by hand)'])
+    expect(chain('Schedule', 'SHA-1 (recursive)')).toEqual(['Schedule', 'Compress', 'SHA-1 (recursive)'])
+    expect(chain('Blocks', 'SHA-1 (recursive)')).toEqual(['Blocks', 'SHA-1 (recursive)'])
+    expect(
+      defs()
+        .filter((d) => nameOf(scopeChainOf(graph, d.id).at(-1)!) === 'SHA-1 (by hand)')
+        .map((d) => d.name)
+        .sort(),
+    ).toEqual(['Add32', 'Ch', 'Chunk', 'Compress', 'Extend', 'Maj', 'Pad', 'Parity', 'Round', 'RotL', 'SHA-1 (by hand)', 'Word Hex', 'Xor'].sort())
+    expect(
+      defs()
+        .filter((d) => nameOf(scopeChainOf(graph, d.id).at(-1)!) === 'SHA-1 (recursive)')
+        .map((d) => d.name)
+        .sort(),
+    ).toEqual(['Add32', 'Blocks', 'Ch Rounds', 'Chunk', 'Compress', 'Maj Rounds', 'Pad', 'Parity Rounds', 'SHA-1 (recursive)', 'Schedule', 'Word Hex'].sort())
   })
 })

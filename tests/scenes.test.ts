@@ -102,7 +102,9 @@ const EXPECTED_VALUES: Record<string, (dump: Dump) => void> = {
     const fox = '2fd4e1c67a2d28fced849ee1bb76e7391b93eb12'
     expect(sinkValue(dump, 'built-in')).toEqual({ kind: 'string', value: fox })
     expect(sinkValue(dump, 'by hand')).toEqual({ kind: 'string', value: fox })
-    expect(sinkValue(dump, 'Identical?')).toEqual({ kind: 'boolean', value: true })
+    expect(sinkValue(dump, 'recursive')).toEqual({ kind: 'string', value: fox })
+    expect(sinkValue(dump, 'Identical? (by hand)')).toEqual({ kind: 'boolean', value: true })
+    expect(sinkValue(dump, 'Identical? (recursive)')).toEqual({ kind: 'boolean', value: true })
   },
 }
 
